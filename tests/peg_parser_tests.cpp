@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#include <peg_parser/PegParsingExpressionParser.hpp>
 #include "peg_parser/PegTokenizer.hpp"
 #include "peg_parser/PegParser.hpp"
 
@@ -40,4 +41,11 @@ TEST_CASE("ParsingExpression stringify", "[parser]") {
       std::make_shared<peg::TerminalParsingExpression>("b")
   });
   REQUIRE(rule->dump() == "'a' ('c' | 'd') 'b'");
+}
+
+TEST_CASE("ParsingExpression from string", "[parser]") {
+  auto parseStringifyStaysSame = [] (const char* str) {
+    REQUIRE(str == peg::stringToParsingExpression(str)->dump());
+  };
+  parseStringifyStaysSame("'a' ('c' | 'd') 'b'");
 }
