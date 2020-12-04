@@ -27,13 +27,33 @@ static sp<ParsingExpression> parseAtom(ExpressionTokenizer &tok) {
   throw std::runtime_error{std::string{"Invalid atomic token: '"} + std::string{*tok.currentToken()} + "'"};
 }
 
+static sp<ParsingExpression> parseQuantifier(ExpressionTokenizer &tok) {
+  auto atom = parseAtom(tok);
+  if(!tok.currentToken()) {
+    return atom;
+  }
+  if(*tok.currentToken() == "?") {
+    auto expr = std::make_shared<OptionalParsingExpression>(std::move(atom));
+    tok.advance();
+    return expr;
+  } else if(*tok.currentToken() == "*") {
+    auto expr = std::make_shared<ZeroOrMoreParsingExpression>(std::move(atom));
+    tok.advance();
+    return expr;
+  } else if(*tok.currentToken() == "+") {
+    auto expr = std::make_shared<OneOrMoreParsingExpression>(std::move(atom));
+    tok.advance();
+    return expr;
+  }
+  return atom;
+}
 
 static sp<ParsingExpression> parseSequence(ExpressionTokenizer &tok) {
-  auto left = parseAtom(tok);
+  auto left = parseQuantifier(tok);
   std::vector<sp<ParsingExpression>> children;
   children.emplace_back(std::move(left));
   while(tok.currentToken() && *tok.currentToken() != "|" && *tok.currentToken() != ")") {
-    auto expr = parseAtom(tok);
+    auto expr = parseQuantifier(tok);
     if(!expr) {
       break;
     }

@@ -47,6 +47,42 @@ class TerminalParsingExpression : public ParsingExpression {
   std::optional<std::regex> mRegex;
 };
 
+class NonTerminalParsingExpression : public ParsingExpression {
+ public:
+  explicit NonTerminalParsingExpression(std::string value);
+  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  std::string mNonTerminal;
+};
+
+class OptionalParsingExpression : public ParsingExpression {
+ public:
+  explicit OptionalParsingExpression(sp<ParsingExpression> child);
+  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+};
+
+class OneOrMoreParsingExpression : public ParsingExpression {
+ public:
+  explicit OneOrMoreParsingExpression(sp<ParsingExpression> child);
+  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+};
+
+class ZeroOrMoreParsingExpression : public ParsingExpression {
+ public:
+  explicit ZeroOrMoreParsingExpression(sp<ParsingExpression> child);
+  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+};
+
 class SequenceParsingExpression : public ParsingExpression {
  public:
   explicit SequenceParsingExpression(std::vector<sp<ParsingExpression>> children);

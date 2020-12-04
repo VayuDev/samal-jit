@@ -108,20 +108,27 @@ TEST_CASE("ExpressionTokenizer advanced", "[parser]") {
   tokenizer.advance();
 }
 
+auto parseThenStringifyStaysSame = [] (const char* str) {
+  auto res = peg::stringToParsingExpression(str);
+  REQUIRE(res);
+  REQUIRE(str == res->dump());
+};
+auto parseThenStringifyStaysSameAfter = [] (const char* str, const char* after) {
+  auto res = peg::stringToParsingExpression(str);
+  REQUIRE(res);
+  REQUIRE(after == res->dump());
+};
+
 TEST_CASE("ParsingExpression from string simple", "[parser]") {
-  auto parseThenStringifyStaysSame = [] (const char* str) {
-    auto res = peg::stringToParsingExpression(str);
-    REQUIRE(res);
-    REQUIRE(str == res->dump());
-  };
-  auto parseThenStringifyStaysSameAfter = [] (const char* str, const char* after) {
-    auto res = peg::stringToParsingExpression(str);
-    REQUIRE(res);
-    REQUIRE(after == res->dump());
-  };
   parseThenStringifyStaysSame("'a' 'b'");
   parseThenStringifyStaysSame("'a' 'b' 'c'");
   parseThenStringifyStaysSameAfter("'a' 'b' 'c' | 'd'", "('a' 'b' 'c' | 'd')");
   parseThenStringifyStaysSame("'a' ('b' | 'c')");
   parseThenStringifyStaysSame("'a' ('b' | 'c') 'd'");
+}
+
+TEST_CASE("ParsingExpression from string quantifiers", "[parser]") {
+  parseThenStringifyStaysSameAfter("'a'+", "('a')+");
+  parseThenStringifyStaysSameAfter("'a'? 'b' 'c'*", "('a')? 'b' ('c')*");
+  parseThenStringifyStaysSame("('a')? ('b' 'c')*");
 }

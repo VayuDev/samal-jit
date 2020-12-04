@@ -52,4 +52,44 @@ std::string ChoiceParsingExpression::dump() const {
   ret += ')';
   return ret;
 }
+NonTerminalParsingExpression::NonTerminalParsingExpression(std::string value)
+: mNonTerminal(std::move(value)) {
+
+}
+RuleResult NonTerminalParsingExpression::match(ParsingState) const {
+  return ExpressionFailInfo{};
+}
+std::string NonTerminalParsingExpression::dump() const {
+  return mNonTerminal;
+}
+OptionalParsingExpression::OptionalParsingExpression(sp<ParsingExpression> child)
+: mChild(std::move(child)) {
+
+}
+RuleResult OptionalParsingExpression::match(ParsingState) const {
+  return ExpressionFailInfo{};
+}
+std::string OptionalParsingExpression::dump() const {
+  return "(" + mChild->dump() + ")?";
+}
+OneOrMoreParsingExpression::OneOrMoreParsingExpression(sp<ParsingExpression> child)
+: mChild(std::move(child)) {
+
+}
+RuleResult OneOrMoreParsingExpression::match(ParsingState) const {
+  return ExpressionFailInfo{};
+}
+std::string OneOrMoreParsingExpression::dump() const {
+  return "(" + mChild->dump() + ")+";
+}
+ZeroOrMoreParsingExpression::ZeroOrMoreParsingExpression(sp<ParsingExpression> child)
+: mChild(std::move(child)) {
+
+}
+RuleResult ZeroOrMoreParsingExpression::match(ParsingState) const {
+  return ExpressionFailInfo{};
+}
+std::string ZeroOrMoreParsingExpression::dump() const {
+  return "(" + mChild->dump() + ")*";
+}
 }

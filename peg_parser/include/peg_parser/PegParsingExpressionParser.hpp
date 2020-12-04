@@ -38,6 +38,7 @@ class ExpressionTokenizer {
         case '(':
         case '|':
         case '/':
+        case '?':
           mOffset += 1;
           break;
         default:
