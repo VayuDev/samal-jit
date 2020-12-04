@@ -19,10 +19,9 @@ class ExpressionTokenizer {
   inline void advance() {
     genNextToken();
   }
- private:
 
+ private:
   inline void genNextToken() {
-    const static std::string STOP_CHARS{".)({}+-|/"};
     skipWhitespaces();
     auto start = mOffset;
     if(mOffset < mExprString.size()) {
@@ -85,7 +84,7 @@ class ExpressionTokenizer {
     bool escapingChar = false;
     while(true) {
       if(mOffset >= mExprString.size()) {
-        throw std::runtime_error{"Unterminated string in expression!"};
+        throw std::runtime_error{"Unterminated regex in expression!"};
       }
       if(getCurrentChar() == '\\' && !escapingChar) {
         escapingChar = true;
