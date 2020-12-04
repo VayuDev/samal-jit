@@ -66,15 +66,14 @@ class ExpressionTokenizer {
       if(mOffset >= mExprString.size()) {
         throw std::runtime_error{"Unterminated string in expression!"};
       }
-      if(getCurrentChar() == '\\') {
+      if(getCurrentChar() == '\\' && !escapingChar) {
         escapingChar = true;
-      } else if(getCurrentChar() == '\'') {
-        if(escapingChar) {
-          escapingChar = false;
-        } else {
+      } else {
+        if(!escapingChar && getCurrentChar() == '\'') {
           mOffset += 1;
           return;
         }
+        escapingChar = false;
       }
 
       mOffset += 1;
@@ -88,15 +87,14 @@ class ExpressionTokenizer {
       if(mOffset >= mExprString.size()) {
         throw std::runtime_error{"Unterminated string in expression!"};
       }
-      if(getCurrentChar() == '\\') {
+      if(getCurrentChar() == '\\' && !escapingChar) {
         escapingChar = true;
-      } else if(getCurrentChar() == ']') {
-        if(escapingChar) {
-          escapingChar = false;
-        } else {
+      } else {
+        if(!escapingChar && getCurrentChar() == ']') {
           mOffset += 1;
           return;
         }
+        escapingChar = false;
       }
 
       mOffset += 1;
