@@ -2,12 +2,19 @@
 
 namespace peg {
 
-static sp<ParsingExpression> parseSequence(const std::string_view &expr) {
+
+static sp<ParsingExpression> parseSequence(ExpressionTokenizer &expr) {
+
+}
+
+static sp<ParsingExpression> parseChoice(ExpressionTokenizer &expr) {
+  auto left = parseSequence(expr);
 
 }
 
 sp<ParsingExpression> stringToParsingExpression(const std::string_view &expr) {
-  return parseSequence(expr);
+  ExpressionTokenizer tok{expr};
+  return parseChoice(tok);
 }
 
 }
