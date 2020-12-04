@@ -19,6 +19,8 @@ class ExpressionTokenizer {
   inline void advance() {
     genNextToken();
   }
+ private:
+
   inline void genNextToken() {
     const static std::string STOP_CHARS{".)({}+-|/"};
     skipWhitespaces();
@@ -112,7 +114,6 @@ class ExpressionTokenizer {
     }
     return didSkip;
   }
- private:
   size_t mOffset = 0;
   const std::string_view mExprString;
   std::optional<std::string_view> mCurrentToken;

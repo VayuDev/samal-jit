@@ -69,7 +69,7 @@ TEST_CASE("ExpressionTokenizer simple", "[parser]") {
   REQUIRE(!tokenizer.currentToken().has_value());
 }
 
-TEST_CASE("ExpressionTokenizer", "[parser]") {
+TEST_CASE("ExpressionTokenizer string and regex", "[parser]") {
   std::string s = "'strings \\'are' [so great and] nice";
   peg::ExpressionTokenizer tokenizer{s};
   REQUIRE(*tokenizer.currentToken() == "'strings \\'are'");
@@ -80,9 +80,37 @@ TEST_CASE("ExpressionTokenizer", "[parser]") {
   tokenizer.advance();
 }
 
-TEST_CASE("ParsingExpression from string", "[parser]") {
-  auto parseStringifyStaysSame = [] (const char* str) {
-    REQUIRE(str == peg::stringToParsingExpression(str)->dump());
+TEST_CASE("ExpressionTokenizer advanced", "[parser]") {
+  std::string s = "'a' ('b' | 'c')";
+  peg::ExpressionTokenizer tokenizer{s};
+  REQUIRE(*tokenizer.currentToken() == "'a'");
+  tokenizer.advance();
+  REQUIRE(*tokenizer.currentToken() == "(");
+  tokenizer.advance();
+  REQUIRE(*tokenizer.currentToken() == "'b'");
+  tokenizer.advance();
+  REQUIRE(*tokenizer.currentToken() == "|");
+  tokenizer.advance();
+  REQUIRE(*tokenizer.currentToken() == "'c'");
+  tokenizer.advance();
+  REQUIRE(*tokenizer.currentToken() == ")");
+  tokenizer.advance();
+}
+
+TEST_CASE("ParsingExpression from string simple", "[parser]") {
+  auto parseThenStringifyStaysSame = [] (const char* str) {
+    auto res = peg::stringToParsingExpression(str);
+    REQUIRE(res);
+    REQUIRE(str == res->dump());
   };
-  //parseStringifyStaysSame("'a' ('c' | 'd') 'b'");
+  auto parseThenStringifyStaysSameAfter = [] (const char* str, const char* after) {
+    auto res = peg::stringToParsingExpression(str);
+    REQUIRE(res);
+    REQUIRE(after == res->dump());
+  };
+  parseThenStringifyStaysSame("'a' 'b'");
+  parseThenStringifyStaysSame("'a' 'b' 'c'");
+  parseThenStringifyStaysSameAfter("'a' 'b' 'c' | 'd'", "('a' 'b' 'c' | 'd')");
+  parseThenStringifyStaysSame("'a' ('b' | 'c')");
+  parseThenStringifyStaysSame("'a' ('b' | 'c') 'd'");
 }
