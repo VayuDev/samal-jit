@@ -8,10 +8,9 @@
 #include <any>
 #include "peg_parser/PegUtil.hpp"
 #include "peg_parser/PegForward.hpp"
-#include "peg_parser/ParsingState.hpp"
+#include "peg_parser/PegStructs.hpp"
 
 namespace peg {
-
 
 enum class RuleFailReason {
   MISSING_SEQUENCE
@@ -22,16 +21,6 @@ class ExpressionFailInfo {
 
  private:
   RuleFailReason mReason;
-};
-
-using RuleMap = std::map<std::string, sp<ParsingExpression>>;
-
-struct MatchInfo {
-  const char* start = nullptr;
-  const char* end = nullptr;
-  std::optional<size_t> choice;
-  std::any result;
-  std::vector<MatchInfo> subs;
 };
 
 using RuleResult = std::variant<std::pair<ParsingState, MatchInfo>, ExpressionFailInfo>;

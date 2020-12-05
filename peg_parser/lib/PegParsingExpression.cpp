@@ -1,3 +1,4 @@
+#include <cassert>
 #include "peg_parser/PegParsingExpression.hpp"
 #include "peg_parser/PegTokenizer.hpp"
 
@@ -70,6 +71,9 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
   return ExpressionFailInfo{};
 }
 std::string TerminalParsingExpression::dump() const {
+  if(mRegex) {
+    return mStringRepresentation;
+  }
   return '\'' + mStringRepresentation + '\'';
 }
 ChoiceParsingExpression::ChoiceParsingExpression(std::vector<sp<ParsingExpression>> children)
@@ -116,10 +120,15 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
     // error in child
     return ruleRetValue;
   }
+  std::any callbackResult;
+  if(rule.callback) {
+    callbackResult = rule.callback(std::get<0>(ruleRetValue).second);
+  }
   auto end = tokenizer.getPtr(state);
   return std::make_pair(std::get<0>(ruleRetValue).first, MatchInfo{
     .start = start,
     .end = end,
+    .result = std::move(callbackResult),
     .subs = { std::move(std::get<0>(ruleRetValue).second) }
   });
 }
@@ -130,8 +139,25 @@ OptionalParsingExpression::OptionalParsingExpression(sp<ParsingExpression> child
 : mChild(std::move(child)) {
 
 }
-RuleResult OptionalParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
-  return ExpressionFailInfo{};
+RuleResult OptionalParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+  auto start = tokenizer.getPtr(state);
+  auto childRet = mChild->match(state, rules, tokenizer);
+  if(childRet.index() == 1) {
+    // error
+    return std::make_pair(state, MatchInfo{
+      .start = start,
+      .end = start
+    });
+  }
+  // success
+  state = std::get<0>(childRet).first;
+  return std::make_pair(state, MatchInfo{
+      .start = start,
+      .end = tokenizer.getPtr(state),
+      .subs = { std::move(std::get<0>(childRet).second) }
+  });
+
+  assert(false);
 }
 std::string OptionalParsingExpression::dump() const {
   return "(" + mChild->dump() + ")?";
@@ -140,8 +166,31 @@ OneOrMoreParsingExpression::OneOrMoreParsingExpression(sp<ParsingExpression> chi
 : mChild(std::move(child)) {
 
 }
-RuleResult OneOrMoreParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
-  return ExpressionFailInfo{};
+RuleResult OneOrMoreParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+  auto start = tokenizer.getPtr(state);
+  auto childRet = mChild->match(state, rules, tokenizer);
+  if(childRet.index() == 1) {
+    // error
+    return ExpressionFailInfo{};
+  }
+  // success
+  state = std::get<0>(childRet).first;
+  std::vector<MatchInfo> childrenResults;
+  childrenResults.emplace_back(std::move(std::get<0>(childRet).second));
+  while(true) {
+    childRet = mChild->match(state, rules, tokenizer);
+    if(childRet.index() == 1) {
+      // error
+      break;
+    }
+    childrenResults.emplace_back(std::move(std::get<0>(childRet).second));
+    state = std::get<0>(childRet).first;
+  }
+  return std::make_pair(state, MatchInfo{
+    .start = start,
+    .end = tokenizer.getPtr(state),
+    .subs = std::move(childrenResults)
+  });
 }
 std::string OneOrMoreParsingExpression::dump() const {
   return "(" + mChild->dump() + ")+";
@@ -150,8 +199,23 @@ ZeroOrMoreParsingExpression::ZeroOrMoreParsingExpression(sp<ParsingExpression> c
 : mChild(std::move(child)) {
 
 }
-RuleResult ZeroOrMoreParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
-  return ExpressionFailInfo{};
+RuleResult ZeroOrMoreParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+  auto start = tokenizer.getPtr(state);
+  std::vector<MatchInfo> childrenResults;
+  while(true) {
+    auto childRet = mChild->match(state, rules, tokenizer);
+    if(childRet.index() == 1) {
+      // error
+      break;
+    }
+    childrenResults.emplace_back(std::move(std::get<0>(childRet).second));
+    state = std::get<0>(childRet).first;
+  }
+  return std::make_pair(state, MatchInfo{
+      .start = start,
+      .end = tokenizer.getPtr(state),
+      .subs = std::move(childrenResults)
+  });
 }
 std::string ZeroOrMoreParsingExpression::dump() const {
   return "(" + mChild->dump() + ")*";

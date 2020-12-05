@@ -8,7 +8,8 @@ static sp<ParsingExpression> parseChoice(ExpressionTokenizer &tok);
 static sp<ParsingExpression> parseAtom(ExpressionTokenizer &tok) {
   if(!tok.currentToken())
     return nullptr;
-  if(tok.currentToken()->find("'") == 0) {
+  assert(!tok.currentToken()->empty());
+  if(tok.currentToken()->at(0) == '\'') {
     auto expr = std::make_shared<TerminalParsingExpression>(std::string{tok.currentToken()->substr(1, tok.currentToken()->size() - 2)});
     tok.advance();
     return expr;
@@ -21,6 +22,16 @@ static sp<ParsingExpression> parseAtom(ExpressionTokenizer &tok) {
     if(*tok.currentToken() != ")") {
       throw std::runtime_error{"Expected closing bracket, not '" + std::string{*tok.currentToken()}};
     }
+    tok.advance();
+    return expr;
+  } else if(isalnum(tok.currentToken()->at(0))) {
+    // non-terminal
+    auto expr = std::make_shared<NonTerminalParsingExpression>(std::string{*tok.currentToken()});
+    tok.advance();
+    return expr;
+  } else if(tok.currentToken()->at(0) == '[') {
+    // regex
+    auto expr = std::make_shared<TerminalParsingExpression>(std::string{*tok.currentToken()}, std::regex{"^" + std::string{*tok.currentToken()}});
     tok.advance();
     return expr;
   }

@@ -18,7 +18,7 @@ namespace peg {
 
 class PegParser {
  public:
-  void addRule(std::string nonTerminal, std::shared_ptr<ParsingExpression> rule);
+  void addRule(std::string nonTerminal, std::shared_ptr<ParsingExpression> rule, RuleCallback&& callback = {});
   RuleResult parse(const std::string_view& start, std::string code);
  private:
   RuleMap mRules;

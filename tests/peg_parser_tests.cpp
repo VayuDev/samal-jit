@@ -3,6 +3,7 @@
 #include <peg_parser/PegParsingExpressionParser.hpp>
 #include "peg_parser/PegTokenizer.hpp"
 #include "peg_parser/PegParser.hpp"
+#include <charconv>
 
 TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
   peg::PegTokenizer t{"a b c def"};
@@ -52,6 +53,24 @@ TEST_CASE("Tokenizer matches regex", "[tokenizer]") {
   shouldMatchReg("^b");
   shouldMatchReg("^c");
   shouldNotMatchReg("^f");
+}
+
+TEST_CASE("Tokenizer matches regex 2", "[tokenizer]") {
+  peg::PegTokenizer t{"5 + 3"};
+  peg::ParsingState state;
+  auto shouldMatchReg = [&](const char* param) {
+    auto ret = t.matchRegex(state, std::regex{param});
+    REQUIRE(ret);
+    state = *ret;
+  };
+  auto shouldMatch = [&](const char* param) {
+    auto ret = t.matchString(state, param);
+    REQUIRE(ret);
+    state = *ret;
+  };
+  shouldMatchReg("^[\\d]");
+  shouldMatch("+");
+  shouldMatchReg("^[\\d]");
 }
 
 TEST_CASE("ParsingExpression stringify", "[parser]") {
@@ -154,6 +173,12 @@ TEST_CASE("ParsingExpression from string quantifiers", "[parser]") {
   parseThenStringifyStaysSameAfter("'a'+", "('a')+");
   parseThenStringifyStaysSameAfter("'a'? 'b' 'c'*", "('a')? 'b' ('c')*");
   parseThenStringifyStaysSame("('a')? ('b' 'c')*");
+  parseThenStringifyStaysSame("Product (('+' | '-') Product)*");
+  parseThenStringifyStaysSame("Value");
+}
+
+TEST_CASE("ParsingExpression from string regex", "[parser]") {
+  parseThenStringifyStaysSameAfter("[\\d]", "[\\d]");
 }
 
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
@@ -211,6 +236,90 @@ TEST_CASE("Nonterminal parser match", "[parser]") {
     REQUIRE(parser.parse("Start", "b c").index() == 0);
     REQUIRE(parser.parse("Start", "a b c").index() == 1);
   }
+}
+
+TEST_CASE("Quantifier parser match", "[parser]") {
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' | 'b' 'c'?"));
+    REQUIRE(parser.parse("Start", "a").index() == 0);
+    REQUIRE(parser.parse("Start", "b").index() == 0);
+    REQUIRE(parser.parse("Start", "b c").index() == 0);
+  }
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' | 'b' 'c'*"));
+    REQUIRE(parser.parse("Start", "a").index() == 0);
+    REQUIRE(parser.parse("Start", "b").index() == 0);
+    REQUIRE(parser.parse("Start", "b c c c c").index() == 0);
+  }
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' | 'b' 'c'+"));
+    REQUIRE(parser.parse("Start", "a").index() == 0);
+    REQUIRE(parser.parse("Start", "b").index() == 1);
+    REQUIRE(parser.parse("Start", "b c c c c").index() == 0);
+  }
+}
+
+TEST_CASE("Nonterminal parsing", "[parser]") {
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' | Second"), [](const peg::MatchInfo& i) -> std::any {
+      if(*i.choice == 0) {
+        return 1;
+      } else {
+        return 2 + std::any_cast<int>(i.subs.at(0).result);
+      }
+    });
+    parser.addRule("Second", peg::stringToParsingExpression("'b' 'c'"), [](const peg::MatchInfo&) -> std::any {
+      return 3;
+    });
+    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "a")).second.result) == 1);
+    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "b c")).second.result) == 5);
+  }
+}
+TEST_CASE("Calculator test", "[parser]") {
+  peg::PegParser parser;
+  parser.addRule("Expr", peg::stringToParsingExpression("Sum"), [](const peg::MatchInfo& i) -> std::any {
+    return i.result;
+  });
+  parser.addRule("Sum", peg::stringToParsingExpression("Product (('+' | '-') Product)*"), [](const peg::MatchInfo& i) -> std::any {
+    int sum = std::any_cast<int>(i.subs.at(0).result);
+    for(auto& child: i.subs.at(1).subs) {
+      sum += std::any_cast<int>(child.subs.at(1).result);
+    }
+    return sum;
+  });
+  parser.addRule("Product", peg::stringToParsingExpression("Value (('*' | '/') Value)*"), [](const peg::MatchInfo& i) -> std::any {
+    int sum = std::any_cast<int>(i.subs.at(0).result);
+    for(auto& child: i.subs.at(1).subs) {
+      sum *= std::any_cast<int>(child.subs.at(1).result);
+    }
+    return sum;
+  });
+  parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ | ('(' Expr ')')"), [](const peg::MatchInfo& i) -> std::any {
+    int val;
+    if(*i.choice == 0) {
+      // trim string
+      auto start = i.start;
+      auto end = i.end;
+      while(*start == ' ' && start < end) {
+        start += 1;
+      }
+      while(*(end-1) == ' ' && start < end) {
+        end -= 1;
+      }
+      std::from_chars(start, end, val);
+      return val;
+    } else {
+      return i.subs.at(0).result;
+    }
+  });
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3")).second.result) == 8);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3*2")).second.result) == 11);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5*2 + 3")).second.result) == 13);
+
 }
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
 TEST_CASE("ParsingExpression matching benchmarks", "[parser]") {
