@@ -285,10 +285,10 @@ TEST_CASE("Calculator test", "[parser]") {
     return i.result;
   });
   parser.addRule("Sum", peg::stringToParsingExpression("Product (('+' | '-') Product)*"), [](const peg::MatchInfo& i) -> std::any {
-    int res = std::any_cast<int>(i.subs.at(0).result);
-    for(auto& child: i.subs.at(1).subs) {
-      auto val = std::any_cast<int>(child.subs.at(1).result);
-      if(*child.subs.at(0).choice == 0) {
+    int res = std::any_cast<int>(i[0].result);
+    for(auto& child: i[1].subs) {
+      auto val = std::any_cast<int>(child[1].result);
+      if(*child[0].choice == 0) {
         res += val;
       } else {
         res -= val;
@@ -297,10 +297,10 @@ TEST_CASE("Calculator test", "[parser]") {
     return res;
   });
   parser.addRule("Product", peg::stringToParsingExpression("Value (('*' | '/') Value)*"), [](const peg::MatchInfo& i) -> std::any {
-    int res = std::any_cast<int>(i.subs.at(0).result);
-    for(auto& child: i.subs.at(1).subs) {
-      auto val = std::any_cast<int>(child.subs.at(1).result);
-      if(*child.subs.at(0).choice == 0) {
+    int res = std::any_cast<int>(i[0].result);
+    for(auto& child: i[1].subs) {
+      auto val = std::any_cast<int>(child[1].result);
+      if(*child[0].choice == 0) {
         res *= val;
       } else {
         res /= val;
@@ -314,7 +314,7 @@ TEST_CASE("Calculator test", "[parser]") {
       std::from_chars(i.startTrimmed(), i.endTrimmed(), val);
       return val;
     } else {
-      return i.subs.at(0).subs.at(1).result;
+      return i[0][1].result;
     }
   });
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3")).second.result) == 8);

@@ -34,6 +34,9 @@ struct MatchInfo {
     }
     return retEnd;
   }
+  inline const MatchInfo& operator[](size_t index) const {
+    return subs.at(index);
+  };
 };
 
 using RuleCallback = std::function<std::any(const MatchInfo& info)>;
