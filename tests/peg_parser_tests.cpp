@@ -317,12 +317,13 @@ TEST_CASE("Calculator test", "[parser]") {
       return i[0][1].result;
     }
   });
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3")).second.result) == 8);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "52 + 3")).second.result) == 55);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3*2")).second.result) == 11);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5*2 + 3")).second.result) == 13);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "4/2 + 3*5")).second.result) == 17);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5-2*3")).second.result) == -1);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(5-2)*3")).second.result) == 9);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(20-2)*3")).second.result) == 18*3);
 
 }
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
