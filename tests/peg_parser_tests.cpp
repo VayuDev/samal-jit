@@ -285,18 +285,28 @@ TEST_CASE("Calculator test", "[parser]") {
     return i.result;
   });
   parser.addRule("Sum", peg::stringToParsingExpression("Product (('+' | '-') Product)*"), [](const peg::MatchInfo& i) -> std::any {
-    int sum = std::any_cast<int>(i.subs.at(0).result);
+    int res = std::any_cast<int>(i.subs.at(0).result);
     for(auto& child: i.subs.at(1).subs) {
-      sum += std::any_cast<int>(child.subs.at(1).result);
+      auto val = std::any_cast<int>(child.subs.at(1).result);
+      if(*child.subs.at(0).choice == 0) {
+        res += val;
+      } else {
+        res -= val;
+      }
     }
-    return sum;
+    return res;
   });
   parser.addRule("Product", peg::stringToParsingExpression("Value (('*' | '/') Value)*"), [](const peg::MatchInfo& i) -> std::any {
-    int sum = std::any_cast<int>(i.subs.at(0).result);
+    int res = std::any_cast<int>(i.subs.at(0).result);
     for(auto& child: i.subs.at(1).subs) {
-      sum *= std::any_cast<int>(child.subs.at(1).result);
+      auto val = std::any_cast<int>(child.subs.at(1).result);
+      if(*child.subs.at(0).choice == 0) {
+        res *= val;
+      } else {
+        res /= val;
+      }
     }
-    return sum;
+    return res;
   });
   parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ | ('(' Expr ')')"), [](const peg::MatchInfo& i) -> std::any {
     int val;
@@ -319,6 +329,8 @@ TEST_CASE("Calculator test", "[parser]") {
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3")).second.result) == 8);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3*2")).second.result) == 11);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5*2 + 3")).second.result) == 13);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "4/2 + 3*5")).second.result) == 17);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5-2*3")).second.result) == -1);
 
 }
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
