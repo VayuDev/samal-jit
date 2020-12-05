@@ -1,3 +1,4 @@
+#define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include <catch2/catch.hpp>
 #include <peg_parser/PegParsingExpressionParser.hpp>
 #include "peg_parser/PegTokenizer.hpp"
@@ -155,9 +156,19 @@ TEST_CASE("ParsingExpression from string quantifiers", "[parser]") {
   parseThenStringifyStaysSame("('a')? ('b' 'c')*");
 }
 
+#ifdef SAMAL_PEG_PARSER_BENCHMARKS
+TEST_CASE("ParsingExpression conversion benchmarks", "[parser]") {
+  BENCHMARK("Expression compilation 1") {
+    return peg::stringToParsingExpression("'a' ('b' | 'c' 'd') 'e'");
+  };
+  BENCHMARK("Expression compilation 2") {
+    return peg::stringToParsingExpression("'a' 'abcdef' 'd' | 'f' 'g' ('e' | '2')");
+  };
+}
+#endif
+
 TEST_CASE("Simple parser match", "[parser]") {
   {
-
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' 'b' 'c'"));
     REQUIRE(parser.parse("Start", "abc").index() == 0);
@@ -190,3 +201,12 @@ TEST_CASE("Simple parser match", "[parser]") {
     REQUIRE(parser.parse("Start", "a cd e").index() == 0);
   }
 }
+#ifdef SAMAL_PEG_PARSER_BENCHMARKS
+TEST_CASE("ParsingExpression matching benchmarks", "[parser]") {
+  peg::PegParser parser;
+  parser.addRule("Start", peg::stringToParsingExpression("'a' ('b' | 'c' 'd') 'e'"));
+  BENCHMARK("Expression matching") {
+    return parser.parse("Start", "a cd e");
+  };
+}
+#endif
