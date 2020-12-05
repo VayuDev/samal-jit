@@ -5,30 +5,45 @@
 
 TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
   peg::PegTokenizer t{"a b c def"};
-  t.pushState();
-  REQUIRE(t.matchString("a"));
-  REQUIRE(t.matchString("b"));
-  REQUIRE(t.matchString("c"));
-  REQUIRE(!t.isEmpty());
-  t.popState();
-  REQUIRE(t.matchString("a"));
-  REQUIRE(t.matchString("b"));
-  REQUIRE(!t.matchString("cd"));
-  REQUIRE(!t.matchString("eghh"));
-  REQUIRE(t.matchString("c"));
-  REQUIRE(t.matchString("de"));
-  REQUIRE(!t.matchString("de"));
-  REQUIRE(t.matchString("f"));
-  REQUIRE(t.isEmpty());
+  peg::ParsingState state;
+  auto shouldMatch = [&](const char* param) {
+    auto ret = t.matchString(state, param);
+    REQUIRE(ret);
+    state = *ret;
+  };
+  auto shouldNotMatch = [&](const char* param) {
+    auto ret = t.matchString(state, param);
+    REQUIRE(!ret);
+  };
+  shouldMatch("a");
+  shouldMatch("b");
+  shouldMatch("c");
+  shouldNotMatch("abc");
+  state = peg::ParsingState{};
+  shouldMatch("a");
+  shouldMatch("b");
+  shouldMatch("c");
+  shouldMatch("de");
+  shouldNotMatch("gef");
+  shouldMatch("f");
 }
 
 TEST_CASE("Tokenizer matches regex", "[tokenizer]") {
   peg::PegTokenizer t{"a b c def"};
-  t.pushState();
-  REQUIRE(t.matchRegex(std::regex{"^."}));
-  REQUIRE(t.matchString("b"));
-  REQUIRE(t.matchRegex(std::regex{"^c"}));
-  REQUIRE(!t.matchRegex(std::regex{"^f"}));
+  peg::ParsingState state;
+  auto shouldMatchReg = [&](const char* param) {
+    auto ret = t.matchRegex(state, std::regex{param});
+    REQUIRE(ret);
+    state = *ret;
+  };
+  auto shouldNotMatchReg = [&](const char* param) {
+    auto ret = t.matchRegex(state, std::regex{param});
+    REQUIRE(!ret);
+  };
+  shouldMatchReg("^.");
+  shouldMatchReg("b");
+  shouldMatchReg("^c");
+  shouldNotMatchReg("^f");
 }
 
 TEST_CASE("ParsingExpression stringify", "[parser]") {

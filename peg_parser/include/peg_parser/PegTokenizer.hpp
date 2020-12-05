@@ -3,22 +3,19 @@
 #include <stack>
 #include <string_view>
 #include <regex>
+#include "peg_parser/ParsingState.hpp"
 
 namespace peg {
 
 class PegTokenizer {
  public:
   explicit PegTokenizer(std::string code);
-  const char* pushState();
-  const char* popState();
-  const char* updateState();
-  bool matchString(const std::string_view& string);
-  bool matchRegex(const std::regex& regex);
-  bool isEmpty() const;
+  [[nodiscard]] std::optional<ParsingState> matchString(ParsingState, const std::string_view& string) const;
+  [[nodiscard]] std::optional<ParsingState> matchRegex(ParsingState, const std::regex& regex) const;
+  [[nodiscard]] bool isEmpty(ParsingState) const;
  private:
-  void skipWhitespaces();
+  [[nodiscard]] ParsingState skipWhitespaces(ParsingState) const;
   std::string mCode;
-  std::stack<size_t> mStates;
 };
 
 }

@@ -8,6 +8,7 @@
 #include <any>
 #include "peg_parser/PegUtil.hpp"
 #include "peg_parser/PegForward.hpp"
+#include "peg_parser/ParsingState.hpp"
 
 namespace peg {
 
@@ -23,15 +24,13 @@ class ExpressionFailInfo {
   RuleFailReason mReason;
 };
 
-struct ParsingState {
-  PegTokenizer& tokenizer;
-};
+using RuleMap = std::map<std::string, sp<ParsingExpression>>;
 
 using RuleResult = std::variant<std::pair<ParsingState, std::any>, ExpressionFailInfo>;
 
 class ParsingExpression {
  public:
-  [[nodiscard]] virtual RuleResult match(ParsingState) const = 0;
+  [[nodiscard]] virtual RuleResult match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const = 0;
   virtual std::string dump() const = 0;
  private:
 };
@@ -40,7 +39,7 @@ class TerminalParsingExpression : public ParsingExpression {
  public:
   explicit TerminalParsingExpression(std::string value);
   explicit TerminalParsingExpression(std::string stringRep, std::regex value);
-  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:
   std::string mStringRepresentation;
@@ -50,7 +49,7 @@ class TerminalParsingExpression : public ParsingExpression {
 class NonTerminalParsingExpression : public ParsingExpression {
  public:
   explicit NonTerminalParsingExpression(std::string value);
-  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:
   std::string mNonTerminal;
@@ -59,7 +58,7 @@ class NonTerminalParsingExpression : public ParsingExpression {
 class OptionalParsingExpression : public ParsingExpression {
  public:
   explicit OptionalParsingExpression(sp<ParsingExpression> child);
-  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:
   sp<ParsingExpression> mChild;
@@ -68,7 +67,7 @@ class OptionalParsingExpression : public ParsingExpression {
 class OneOrMoreParsingExpression : public ParsingExpression {
  public:
   explicit OneOrMoreParsingExpression(sp<ParsingExpression> child);
-  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:
   sp<ParsingExpression> mChild;
@@ -77,7 +76,7 @@ class OneOrMoreParsingExpression : public ParsingExpression {
 class ZeroOrMoreParsingExpression : public ParsingExpression {
  public:
   explicit ZeroOrMoreParsingExpression(sp<ParsingExpression> child);
-  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:
   sp<ParsingExpression> mChild;
@@ -86,7 +85,7 @@ class ZeroOrMoreParsingExpression : public ParsingExpression {
 class SequenceParsingExpression : public ParsingExpression {
  public:
   explicit SequenceParsingExpression(std::vector<sp<ParsingExpression>> children);
-  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:
   std::vector<sp<ParsingExpression>> mChildren;
@@ -95,7 +94,7 @@ class SequenceParsingExpression : public ParsingExpression {
 class ChoiceParsingExpression : public ParsingExpression {
  public:
   explicit ChoiceParsingExpression(std::vector<sp<ParsingExpression>> children);
-  [[nodiscard]] RuleResult match(ParsingState) const override;
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:
   std::vector<sp<ParsingExpression>> mChildren;

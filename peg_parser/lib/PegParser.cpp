@@ -1,12 +1,13 @@
 #include <stdexcept>
 #include "peg_parser/PegParser.hpp"
 #include "peg_parser/PegTokenizer.hpp"
+#include "peg_parser/PegParsingExpression.hpp"
 
 namespace peg {
 
 std::any PegParser::parse(const std::string_view &start, std::string code) {
   PegTokenizer tokenizer{std::move(code)};
-
+  mRules.at(std::string{start})->match(ParsingState{}, mRules, tokenizer);
   return 0;
 }
 void PegParser::addRule(std::string nonTerminal, std::unique_ptr<ParsingExpression> rule) {

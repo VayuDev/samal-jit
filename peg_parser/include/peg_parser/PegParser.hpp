@@ -21,7 +21,7 @@ class PegParser {
   void addRule(std::string nonTerminal, std::unique_ptr<ParsingExpression> rule);
   std::any parse(const std::string_view& start, std::string code);
  private:
-  std::map<std::string, up<ParsingExpression>> mRules;
+  RuleMap mRules;
 };
 
 }

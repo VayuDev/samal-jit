@@ -6,7 +6,7 @@ SequenceParsingExpression::SequenceParsingExpression(std::vector<sp<ParsingExpre
     : mChildren(std::move(children)) {
 
 }
-RuleResult SequenceParsingExpression::match(ParsingState) const {
+RuleResult SequenceParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
   return ExpressionFailInfo{};
 }
 std::string SequenceParsingExpression::dump() const {
@@ -28,7 +28,7 @@ TerminalParsingExpression::TerminalParsingExpression(std::string stringRep, std:
     : mStringRepresentation(std::move(stringRep)), mRegex(std::move(value)) {
 
 }
-RuleResult TerminalParsingExpression::match(ParsingState state) const {
+RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, const PegTokenizer& tokenizer) const {
   return ExpressionFailInfo{};
 }
 std::string TerminalParsingExpression::dump() const {
@@ -38,7 +38,7 @@ ChoiceParsingExpression::ChoiceParsingExpression(std::vector<sp<ParsingExpressio
     : mChildren(std::move(children)) {
 
 }
-RuleResult ChoiceParsingExpression::match(ParsingState) const {
+RuleResult ChoiceParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
   return ExpressionFailInfo{};
 }
 std::string ChoiceParsingExpression::dump() const {
@@ -56,7 +56,7 @@ NonTerminalParsingExpression::NonTerminalParsingExpression(std::string value)
 : mNonTerminal(std::move(value)) {
 
 }
-RuleResult NonTerminalParsingExpression::match(ParsingState) const {
+RuleResult NonTerminalParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
   return ExpressionFailInfo{};
 }
 std::string NonTerminalParsingExpression::dump() const {
@@ -66,7 +66,7 @@ OptionalParsingExpression::OptionalParsingExpression(sp<ParsingExpression> child
 : mChild(std::move(child)) {
 
 }
-RuleResult OptionalParsingExpression::match(ParsingState) const {
+RuleResult OptionalParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
   return ExpressionFailInfo{};
 }
 std::string OptionalParsingExpression::dump() const {
@@ -76,7 +76,7 @@ OneOrMoreParsingExpression::OneOrMoreParsingExpression(sp<ParsingExpression> chi
 : mChild(std::move(child)) {
 
 }
-RuleResult OneOrMoreParsingExpression::match(ParsingState) const {
+RuleResult OneOrMoreParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
   return ExpressionFailInfo{};
 }
 std::string OneOrMoreParsingExpression::dump() const {
@@ -86,7 +86,7 @@ ZeroOrMoreParsingExpression::ZeroOrMoreParsingExpression(sp<ParsingExpression> c
 : mChild(std::move(child)) {
 
 }
-RuleResult ZeroOrMoreParsingExpression::match(ParsingState) const {
+RuleResult ZeroOrMoreParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
   return ExpressionFailInfo{};
 }
 std::string ZeroOrMoreParsingExpression::dump() const {
