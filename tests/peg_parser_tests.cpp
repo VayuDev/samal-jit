@@ -41,7 +41,7 @@ TEST_CASE("Tokenizer matches regex", "[tokenizer]") {
     REQUIRE(!ret);
   };
   shouldMatchReg("^.");
-  shouldMatchReg("b");
+  shouldMatchReg("^b");
   shouldMatchReg("^c");
   shouldNotMatchReg("^f");
 }

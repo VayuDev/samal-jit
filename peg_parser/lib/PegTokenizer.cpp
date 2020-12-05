@@ -8,27 +8,34 @@ PegTokenizer::PegTokenizer(std::string code)
 }
 
 std::optional<ParsingState> PegTokenizer::matchString(ParsingState state, const std::string_view &string) const {
-  state = skipWhitespaces(state);
-  for(size_t i = 0; i < string.size(); ++i) {
-    if(i >= mCode.size()) {
+  bool skippedWhiteSpaces = false;
+  for(ssize_t i = 0; i < string.size(); ++i) {
+    if(state.tokenizerState + i >= mCode.size()) {
       return {};
     }
     if(string.at(i) != mCode.at(state.tokenizerState + i)) {
-      return {};
+      if(i == 0 && !skippedWhiteSpaces) {
+        state = skipWhitespaces(state);
+        i = -1;
+        skippedWhiteSpaces = true;
+      } else {
+        return {};
+      }
     }
   }
   state.tokenizerState += string.size();
-  state = skipWhitespaces(state);
   return state;
 }
 std::optional<ParsingState> PegTokenizer::matchRegex(ParsingState state, const std::regex &regex) const {
-  state = skipWhitespaces(state);
   auto it = std::sregex_iterator (mCode.cbegin() + state.tokenizerState, mCode.cend(), regex);
   if(it == std::sregex_iterator()) {
-    return {};
+    state = skipWhitespaces(state);
+    it = std::sregex_iterator (mCode.cbegin() + state.tokenizerState, mCode.cend(), regex);
+    if(it == std::sregex_iterator()) {
+      return {};
+    }
   }
   state.tokenizerState += it->size();
-  state = skipWhitespaces(state);
   return state;
 }
 
