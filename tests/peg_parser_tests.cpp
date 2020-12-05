@@ -311,16 +311,7 @@ TEST_CASE("Calculator test", "[parser]") {
   parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ | ('(' Expr ')')"), [](const peg::MatchInfo& i) -> std::any {
     int val;
     if(*i.choice == 0) {
-      // trim string
-      auto start = i.start;
-      auto end = i.end;
-      while(*start == ' ' && start < end) {
-        start += 1;
-      }
-      while(*(end-1) == ' ' && start < end) {
-        end -= 1;
-      }
-      std::from_chars(start, end, val);
+      std::from_chars(i.startTrimmed(), i.endTrimmed(), val);
       return val;
     } else {
       return i.subs.at(0).result;
