@@ -1,4 +1,5 @@
 #include "peg_parser/PegParsingExpression.hpp"
+#include "peg_parser/PegTokenizer.hpp"
 
 namespace peg {
 
@@ -6,8 +7,26 @@ SequenceParsingExpression::SequenceParsingExpression(std::vector<sp<ParsingExpre
     : mChildren(std::move(children)) {
 
 }
-RuleResult SequenceParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
-  return ExpressionFailInfo{};
+RuleResult SequenceParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+  auto start = tokenizer.getPtr(state);
+  std::vector<MatchInfo> childrenResults;
+  for(auto& child: mChildren) {
+    auto childRet = child->match(state, rules, tokenizer);
+    if(childRet.index() == 0) {
+      // child matched
+      state = std::get<0>(childRet).first;
+      childrenResults.emplace_back(std::move(std::get<0>(childRet).second));
+    } else {
+      // child failed
+      // TODO return more information
+      return ExpressionFailInfo{};
+    }
+  }
+  return std::make_pair(state, MatchInfo{
+    .start = start,
+    .end = tokenizer.getPtr(state),
+    .subs = std::move(childrenResults)
+  });
 }
 std::string SequenceParsingExpression::dump() const {
   std::string ret;
@@ -29,6 +48,25 @@ TerminalParsingExpression::TerminalParsingExpression(std::string stringRep, std:
 
 }
 RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, const PegTokenizer& tokenizer) const {
+  auto start = tokenizer.getPtr(state);
+  if(mRegex) {
+    auto newState = tokenizer.matchRegex(state, *mRegex);
+    if(newState) {
+      return std::make_pair(*newState, MatchInfo{
+        .start = start,
+        .end = tokenizer.getPtr(*newState)
+      });
+    }
+  } else {
+    auto newState = tokenizer.matchString(state, mStringRepresentation);
+    if(newState) {
+      return std::make_pair(*newState, MatchInfo{
+          .start = start,
+          .end = tokenizer.getPtr(*newState)
+      });
+    }
+  }
+  // TODO return more information
   return ExpressionFailInfo{};
 }
 std::string TerminalParsingExpression::dump() const {
@@ -38,7 +76,21 @@ ChoiceParsingExpression::ChoiceParsingExpression(std::vector<sp<ParsingExpressio
     : mChildren(std::move(children)) {
 
 }
-RuleResult ChoiceParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
+RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+  size_t i = 0;
+  for(auto& child: mChildren) {
+    auto childRet = child->match(state, rules, tokenizer);
+    if(childRet.index() == 0) {
+      // child matched
+      return std::make_pair(std::get<0>(childRet).first, MatchInfo{
+        .start = std::get<0>(childRet).second.start,
+        .end = std::get<0>(childRet).second.end,
+        .choice = i,
+        .subs = { std::get<0>(childRet).second }});
+    }
+    i++;
+  }
+  // TODO return more info
   return ExpressionFailInfo{};
 }
 std::string ChoiceParsingExpression::dump() const {

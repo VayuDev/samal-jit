@@ -49,4 +49,11 @@ ParsingState PegTokenizer::skipWhitespaces(ParsingState state)  const {
 bool PegTokenizer::isEmpty(ParsingState state) const {
   return state.tokenizerState >= mCode.size();
 }
+const char *PegTokenizer::getPtr(ParsingState state) const {
+  assert(state.tokenizerState <= mCode.size());
+  if(state.tokenizerState == mCode.size()) {
+    return &*mCode.cend();
+  }
+  return &mCode.at(state.tokenizerState);
+}
 }

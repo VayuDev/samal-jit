@@ -26,6 +26,13 @@ TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
   shouldMatch("de");
   shouldNotMatch("gef");
   shouldMatch("f");
+  state = peg::ParsingState{};
+  shouldMatch("a");
+  shouldMatch("b");
+  shouldMatch("c");
+  shouldMatch("def");
+  shouldNotMatch("a");
+  shouldNotMatch("f");
 }
 
 TEST_CASE("Tokenizer matches regex", "[tokenizer]") {
@@ -146,4 +153,40 @@ TEST_CASE("ParsingExpression from string quantifiers", "[parser]") {
   parseThenStringifyStaysSameAfter("'a'+", "('a')+");
   parseThenStringifyStaysSameAfter("'a'? 'b' 'c'*", "('a')? 'b' ('c')*");
   parseThenStringifyStaysSame("('a')? ('b' 'c')*");
+}
+
+TEST_CASE("Simple parser match", "[parser]") {
+  {
+
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' 'b' 'c'"));
+    REQUIRE(parser.parse("Start", "abc").index() == 0);
+    REQUIRE(parser.parse("Start", "a").index() == 1);
+    REQUIRE(parser.parse("Start", "a b c").index() == 0);
+    REQUIRE(parser.parse("Start", "ab").index() == 1);
+  }
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' ' ' 'c'"));
+    REQUIRE(parser.parse("Start", "a c").index() == 0);
+    REQUIRE(parser.parse("Start", "a").index() == 1);
+    REQUIRE(parser.parse("Start", "a b c").index() == 1);
+    REQUIRE(parser.parse("Start", "ac").index() == 1);
+  }
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' ('b' | 'c')"));
+    REQUIRE(parser.parse("Start", "a b").index() == 0);
+    REQUIRE(parser.parse("Start", "a c").index() == 0);
+    REQUIRE(parser.parse("Start", "a").index() == 1);
+    REQUIRE(parser.parse("Start", "a b c").index() == 1);
+  }
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' ('b' | 'c' 'd') 'e'"));
+    REQUIRE(parser.parse("Start", "a b e").index() == 0);
+    REQUIRE(parser.parse("Start", "a c").index() == 1);
+    REQUIRE(parser.parse("Start", "a e").index() == 1);
+    REQUIRE(parser.parse("Start", "a cd e").index() == 0);
+  }
 }

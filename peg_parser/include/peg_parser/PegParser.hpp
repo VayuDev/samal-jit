@@ -18,8 +18,8 @@ namespace peg {
 
 class PegParser {
  public:
-  void addRule(std::string nonTerminal, std::unique_ptr<ParsingExpression> rule);
-  std::any parse(const std::string_view& start, std::string code);
+  void addRule(std::string nonTerminal, std::shared_ptr<ParsingExpression> rule);
+  RuleResult parse(const std::string_view& start, std::string code);
  private:
   RuleMap mRules;
 };

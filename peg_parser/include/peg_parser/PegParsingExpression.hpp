@@ -26,12 +26,20 @@ class ExpressionFailInfo {
 
 using RuleMap = std::map<std::string, sp<ParsingExpression>>;
 
-using RuleResult = std::variant<std::pair<ParsingState, std::any>, ExpressionFailInfo>;
+struct MatchInfo {
+  const char* start = nullptr;
+  const char* end = nullptr;
+  std::optional<size_t> choice;
+  std::any result;
+  std::vector<MatchInfo> subs;
+};
+
+using RuleResult = std::variant<std::pair<ParsingState, MatchInfo>, ExpressionFailInfo>;
 
 class ParsingExpression {
  public:
   [[nodiscard]] virtual RuleResult match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const = 0;
-  virtual std::string dump() const = 0;
+  [[nodiscard]] virtual std::string dump() const = 0;
  private:
 };
 
