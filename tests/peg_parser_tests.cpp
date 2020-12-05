@@ -201,6 +201,17 @@ TEST_CASE("Simple parser match", "[parser]") {
     REQUIRE(parser.parse("Start", "a cd e").index() == 0);
   }
 }
+
+TEST_CASE("Nonterminal parser match", "[parser]") {
+  {
+    peg::PegParser parser;
+    parser.addRule("Start", peg::stringToParsingExpression("'a' | Second"));
+    parser.addRule("Second", peg::stringToParsingExpression("'b' 'c'"));
+    REQUIRE(parser.parse("Start", "a").index() == 0);
+    REQUIRE(parser.parse("Start", "b c").index() == 0);
+    REQUIRE(parser.parse("Start", "a b c").index() == 1);
+  }
+}
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
 TEST_CASE("ParsingExpression matching benchmarks", "[parser]") {
   peg::PegParser parser;

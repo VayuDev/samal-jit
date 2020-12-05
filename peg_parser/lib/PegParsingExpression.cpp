@@ -108,8 +108,20 @@ NonTerminalParsingExpression::NonTerminalParsingExpression(std::string value)
 : mNonTerminal(std::move(value)) {
 
 }
-RuleResult NonTerminalParsingExpression::match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const {
-  return ExpressionFailInfo{};
+RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+  auto start = tokenizer.getPtr(state);
+  auto& rule = rules.at(mNonTerminal);
+  auto ruleRetValue = rule.expr->match(state, rules, tokenizer);
+  if(ruleRetValue.index() == 1) {
+    // error in child
+    return ruleRetValue;
+  }
+  auto end = tokenizer.getPtr(state);
+  return std::make_pair(std::get<0>(ruleRetValue).first, MatchInfo{
+    .start = start,
+    .end = end,
+    .subs = { std::move(std::get<0>(ruleRetValue).second) }
+  });
 }
 std::string NonTerminalParsingExpression::dump() const {
   return mNonTerminal;
