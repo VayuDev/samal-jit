@@ -196,34 +196,34 @@ TEST_CASE("Simple parser match", "[parser]") {
   {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' 'b' 'c'"));
-    REQUIRE(parser.parse("Start", "abc").index() == 0);
-    REQUIRE(parser.parse("Start", "a").index() == 1);
-    REQUIRE(parser.parse("Start", "a b c").index() == 0);
-    REQUIRE(parser.parse("Start", "ab").index() == 1);
+    REQUIRE(parser.parse("Start", "abc").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a").first.index() == 1);
+    REQUIRE(parser.parse("Start", "a b c").first.index() == 0);
+    REQUIRE(parser.parse("Start", "ab").first.index() == 1);
   }
   {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' ' ' 'c'"));
-    REQUIRE(parser.parse("Start", "a c").index() == 0);
-    REQUIRE(parser.parse("Start", "a").index() == 1);
-    REQUIRE(parser.parse("Start", "a b c").index() == 1);
-    REQUIRE(parser.parse("Start", "ac").index() == 1);
+    REQUIRE(parser.parse("Start", "a c").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a").first.index() == 1);
+    REQUIRE(parser.parse("Start", "a b c").first.index() == 1);
+    REQUIRE(parser.parse("Start", "ac").first.index() == 1);
   }
   {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' ('b' | 'c')"));
-    REQUIRE(parser.parse("Start", "a b").index() == 0);
-    REQUIRE(parser.parse("Start", "a c").index() == 0);
-    REQUIRE(parser.parse("Start", "a").index() == 1);
-    REQUIRE(parser.parse("Start", "a b c").index() == 1);
+    REQUIRE(parser.parse("Start", "a b").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a c").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a").first.index() == 1);
+    REQUIRE(parser.parse("Start", "a b c").first.index() == 1);
   }
   {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' ('b' | 'c' 'd') 'e'"));
-    REQUIRE(parser.parse("Start", "a b e").index() == 0);
-    REQUIRE(parser.parse("Start", "a c").index() == 1);
-    REQUIRE(parser.parse("Start", "a e").index() == 1);
-    REQUIRE(parser.parse("Start", "a cd e").index() == 0);
+    REQUIRE(parser.parse("Start", "a b e").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a c").first.index() == 1);
+    REQUIRE(parser.parse("Start", "a e").first.index() == 1);
+    REQUIRE(parser.parse("Start", "a cd e").first.index() == 0);
   }
 }
 
@@ -232,9 +232,9 @@ TEST_CASE("Nonterminal parser match", "[parser]") {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' | Second"));
     parser.addRule("Second", peg::stringToParsingExpression("'b' 'c'"));
-    REQUIRE(parser.parse("Start", "a").index() == 0);
-    REQUIRE(parser.parse("Start", "b c").index() == 0);
-    REQUIRE(parser.parse("Start", "a b c").index() == 1);
+    REQUIRE(parser.parse("Start", "a").first.index() == 0);
+    REQUIRE(parser.parse("Start", "b c").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a b c").first.index() == 1);
   }
 }
 
@@ -242,23 +242,23 @@ TEST_CASE("Quantifier parser match", "[parser]") {
   {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' | 'b' 'c'?"));
-    REQUIRE(parser.parse("Start", "a").index() == 0);
-    REQUIRE(parser.parse("Start", "b").index() == 0);
-    REQUIRE(parser.parse("Start", "b c").index() == 0);
+    REQUIRE(parser.parse("Start", "a").first.index() == 0);
+    REQUIRE(parser.parse("Start", "b").first.index() == 0);
+    REQUIRE(parser.parse("Start", "b c").first.index() == 0);
   }
   {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' | 'b' 'c'*"));
-    REQUIRE(parser.parse("Start", "a").index() == 0);
-    REQUIRE(parser.parse("Start", "b").index() == 0);
-    REQUIRE(parser.parse("Start", "b c c c c").index() == 0);
+    REQUIRE(parser.parse("Start", "a").first.index() == 0);
+    REQUIRE(parser.parse("Start", "b").first.index() == 0);
+    REQUIRE(parser.parse("Start", "b c c c c").first.index() == 0);
   }
   {
     peg::PegParser parser;
     parser.addRule("Start", peg::stringToParsingExpression("'a' | 'b' 'c'+"));
-    REQUIRE(parser.parse("Start", "a").index() == 0);
-    REQUIRE(parser.parse("Start", "b").index() == 1);
-    REQUIRE(parser.parse("Start", "b c c c c").index() == 0);
+    REQUIRE(parser.parse("Start", "a").first.index() == 0);
+    REQUIRE(parser.parse("Start", "b").first.index() == 1);
+    REQUIRE(parser.parse("Start", "b c c c c").first.index() == 0);
   }
 }
 
@@ -275,8 +275,8 @@ TEST_CASE("Nonterminal parsing", "[parser]") {
     parser.addRule("Second", peg::stringToParsingExpression("'b' 'c'"), [](const peg::MatchInfo&) -> std::any {
       return 3;
     });
-    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "a")).second.result) == 1);
-    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "b c")).second.result) == 5);
+    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "a").first).getMatchInfo().result) == 1);
+    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "b c").first).getMatchInfo().result) == 5);
   }
 }
 TEST_CASE("Calculator test", "[parser]") {
@@ -317,14 +317,15 @@ TEST_CASE("Calculator test", "[parser]") {
       return i[0][1].result;
     }
   });
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "52 + 3")).second.result) == 55);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3*2")).second.result) == 11);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5*2 + 3")).second.result) == 13);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "4/2 + 3*5")).second.result) == 17);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5-2*3")).second.result) == -1);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(5-2)*3")).second.result) == 9);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(20-2)*3")).second.result) == 18*3);
-
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "52 + 3").first).getMatchInfo().result) == 55);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3*2").first).getMatchInfo().result) == 11);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5*2 + 3").first).getMatchInfo().result) == 13);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "4/2 + 3*5").first).getMatchInfo().result) == 17);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5-2*3").first).getMatchInfo().result) == -1);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(5-2)*3").first).getMatchInfo().result) == 9);
+  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(20-2)*3").first).getMatchInfo().result) == 18*3);
+  auto res = parser.parse("Expr", "(20-2)*");
+  REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) != std::string{""});
 }
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
 TEST_CASE("ParsingExpression matching benchmarks", "[parser]") {
