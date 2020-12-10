@@ -31,62 +31,43 @@ enum class ExpressionFailReason {
 
 class ExpressionFailInfo {
  public:
-  explicit ExpressionFailInfo(ParsingState state)
-  : mState(state) {
+  explicit ExpressionFailInfo(ParsingState state, std::string selfDump)
+  : mState(state), mSelfDump(std::move(selfDump)) {
 
   }
-  explicit ExpressionFailInfo(ParsingState state, ExpressionFailReason reason, std::string info1, std::string info2)
-  : mReason(reason), mState(state), mInfo1(std::move(info1)), mInfo2(std::move(info2)){
+  explicit ExpressionFailInfo(ParsingState state, std::string selfDump, ExpressionFailReason reason, std::string info1, std::string info2)
+  : mReason(reason), mState(state), mSelfDump(std::move(selfDump)), mInfo1(std::move(info1)), mInfo2(std::move(info2)){
 
   }
-  explicit ExpressionFailInfo(ParsingState state, ExpressionFailReason reason, std::vector<ExpressionFailInfo> subExprFailInfo)
-      : mReason(reason), mState(state), mSubExprFailInfo(std::move(subExprFailInfo)){
+  explicit ExpressionFailInfo(ParsingState state, std::string selfDump, ExpressionFailReason reason, std::vector<ExpressionFailInfo> subExprFailInfo)
+      : mReason(reason), mState(state), mSelfDump(std::move(selfDump)), mSubExprFailInfo(std::move(subExprFailInfo)){
 
   }
-  explicit ExpressionFailInfo(ParsingState state, ExpressionFailReason reason, std::string info, std::vector<ExpressionFailInfo> subExprFailInfo)
-      : mReason(reason), mState(state), mInfo1(std::move(info)), mSubExprFailInfo(std::move(subExprFailInfo)){
+  explicit ExpressionFailInfo(ParsingState state, std::string selfDump, ExpressionFailReason reason, std::string info, std::vector<ExpressionFailInfo> subExprFailInfo)
+      : mReason(reason), mState(state), mSelfDump(std::move(selfDump)), mInfo1(std::move(info)), mSubExprFailInfo(std::move(subExprFailInfo)){
 
   }
   // Assumes success
-  explicit ExpressionFailInfo(ParsingState state, std::vector<ExpressionFailInfo> subExprFailInfo)
-      : mReason(ExpressionFailReason::SUCCESS), mState(state), mSubExprFailInfo(std::move(subExprFailInfo)){
+  explicit ExpressionFailInfo(ParsingState state, std::string selfDump, std::vector<ExpressionFailInfo> subExprFailInfo)
+      : mReason(ExpressionFailReason::SUCCESS), mState(state), mSelfDump(std::move(selfDump)), mSubExprFailInfo(std::move(subExprFailInfo)){
 
   }
-  [[nodiscard]] inline std::string dump(const PegTokenizer& tokenizer) const {
-    std::string msg;
-    switch (mReason) {
-      case ExpressionFailReason::SUCCESS:
-        msg = "Success!";
-        break;
-      case ExpressionFailReason::SEQUENCE_CHILD_FAILED:
-        msg = "Needed to parse more children - already parsed: " + mInfo1 + ". Children failure info:";
-        break;
-      case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
-        msg = "No possible choice matched. The options were (in order):";
-        break;
-      case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
-        msg = "We need to match one or more of the following, but not even one succeeded:";
-        break;
-      case ExpressionFailReason::UNMATCHED_REGEX:
-        msg = "The regex '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
-        break;
-      case ExpressionFailReason::UNMATCHED_STRING:
-        msg = "The string '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
-        break;
-      default:
-        assert(false);
-    }
-    return msg;
-  }
+  [[nodiscard]] std::string dump(const PegTokenizer& tokenizer, bool reverseOrder = false) const;
   [[nodiscard]] bool isSuccess() const {
     return mReason == ExpressionFailReason::SUCCESS;
+  }
+  [[nodiscard]] bool isFromSequenceExpression() const {
+    return mReason == ExpressionFailReason::SEQUENCE_CHILD_FAILED;
+  }
+  [[nodiscard]] bool isStoppingPoint() const {
+    return mReason == ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED || mReason == ExpressionFailReason::SUCCESS;
   }
  private:
   ExpressionFailReason mReason { ExpressionFailReason::SUCCESS };
   ParsingState mState;
-  std::string mInfo1, mInfo2;
+  std::string mSelfDump, mInfo1, mInfo2;
   std::vector<ExpressionFailInfo> mSubExprFailInfo;
-  friend std::string errorsToStringRec(const ExpressionFailInfo & info, const PegTokenizer& tokenizer, int depth);
+  friend sp<class ErrorTree> createErrorTree(const ExpressionFailInfo& info, const PegTokenizer& tokenizer, wp<ErrorTree> parent);
 };
 
 std::string errorsToString(const class ExpressionFailInfo&, const PegTokenizer&);

@@ -4,6 +4,7 @@
 #include "peg_parser/PegTokenizer.hpp"
 #include "peg_parser/PegParser.hpp"
 #include <charconv>
+#include <iostream>
 
 TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
   peg::PegTokenizer t{"a b c def"};
@@ -324,8 +325,9 @@ TEST_CASE("Calculator test", "[parser]") {
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5-2*3").first).getMatchInfo().result) == -1);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(5-2)*3").first).getMatchInfo().result) == 9);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(20-2)*3").first).getMatchInfo().result) == 18*3);
-  auto res = parser.parse("Expr", "(20-2)*");
-  REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) != std::string{""});
+  auto res = parser.parse("Expr", "3*");
+  std::cout << peg::errorsToString(std::get<1>(res.first), res.second) << "\n";
+  //REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) == std::string{""});
 }
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
 TEST_CASE("ParsingExpression matching benchmarks", "[parser]") {

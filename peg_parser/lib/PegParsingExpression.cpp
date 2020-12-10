@@ -4,6 +4,65 @@
 
 namespace peg {
 
+std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverseOrder) const {
+  auto[line, column] = tokenizer.getPosition(mState);
+  std::string msg;
+  switch(mReason) {
+    case ExpressionFailReason::SEQUENCE_CHILD_FAILED:
+      msg += "\033[36m";
+      break;
+    case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
+      msg += "\033[34m";
+      break;
+    default:
+      break;
+  }
+  msg += "" + std::to_string(line) + ":" + std::to_string(column) + ": " + mSelfDump + " - ";
+  if(!reverseOrder) {
+    switch (mReason) {
+      case ExpressionFailReason::SUCCESS:
+        msg += "Success!";
+        break;
+      case ExpressionFailReason::SEQUENCE_CHILD_FAILED:
+        msg += "Needed to parse more children - already parsed: '" + mInfo1 + "'. Children failure info:\033[0m";
+        break;
+      case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
+        msg += "No possible choice matched. The options were (in order):\033[0m";
+        break;
+      case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
+        msg += "We need to match one or more of the following, but not even one succeeded:";
+        break;
+      case ExpressionFailReason::UNMATCHED_REGEX:msg += "The regex '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+        break;
+      case ExpressionFailReason::UNMATCHED_STRING:msg += "The string '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+        break;
+      default:assert(false);
+    }
+  } else {
+    switch (mReason) {
+      case ExpressionFailReason::SUCCESS:
+        msg += "Success!";
+        break;
+      case ExpressionFailReason::SEQUENCE_CHILD_FAILED:
+        msg += "Needed to parse more children - already parsed: '" + mInfo1 + "'. Children failure info:\033[0m";
+        break;
+      case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
+        msg += "No child option succeeded.\033[0m";
+        break;
+      case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
+        msg += "We need to match one or more of the following, but not even one succeeded:";
+        break;
+      case ExpressionFailReason::UNMATCHED_REGEX:msg += "The regex '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+        break;
+      case ExpressionFailReason::UNMATCHED_STRING:msg += "The string '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+        break;
+      default:assert(false);
+    }
+  }
+
+  return msg;
+}
+
 SequenceParsingExpression::SequenceParsingExpression(std::vector<sp<ParsingExpression>> children)
     : mChildren(std::move(children)) {
 
@@ -24,6 +83,7 @@ RuleResult SequenceParsingExpression::match(ParsingState state, const RuleMap& r
       childrenFailReasons.emplace_back(std::move(std::get<1>(childRet)));
       return ExpressionFailInfo {
         state,
+        dump(),
         ExpressionFailReason::SEQUENCE_CHILD_FAILED,
         std::string{std::string_view(start, tokenizer.getPtr(state) - start)},
         std::move(childrenFailReasons)
@@ -37,7 +97,7 @@ RuleResult SequenceParsingExpression::match(ParsingState state, const RuleMap& r
       .end = tokenizer.getPtr(state),
       .subs = std::move(childrenResults)
     },
-    ExpressionFailInfo{state, std::move(childrenFailReasons)}
+    ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}
   };
 }
 std::string SequenceParsingExpression::dump() const {
@@ -74,7 +134,7 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
             .start = start,
             .end = tokenizer.getPtr(*tokenizerRet)
         },
-        ExpressionFailInfo{state}
+        ExpressionFailInfo{state, dump()}
     };
   } else {
     // TODO cache regex
@@ -82,6 +142,7 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
     std::string failedString{std::string_view{tokenizer.getPtr(state), len}};
     return ExpressionFailInfo{
         state,
+        dump(),
         ExpressionFailReason::UNMATCHED_STRING,
         mStringRepresentation,
         failedString
@@ -112,7 +173,7 @@ RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rul
               .end = std::get<0>(childRet).getMatchInfo().end,
               .choice = i,
               .subs = {std::get<0>(childRet).moveMatchInfo()}},
-          ExpressionFailInfo{state, std::move(childrenFailReasons)}};
+          ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
     } else {
       childrenFailReasons.emplace_back(std::get<1>(childRet));
     }
@@ -121,6 +182,7 @@ RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rul
   // TODO return more info
   return ExpressionFailInfo {
     state,
+    dump(),
     ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED,
     std::move(childrenFailReasons)};
 }
@@ -157,7 +219,7 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
     .end = end,
     .result = std::move(callbackResult),
     .subs = { std::get<0>(ruleRetValue).moveMatchInfo() }
-  },ExpressionFailInfo{std::get<0>(ruleRetValue).getState(), {std::get<0>(ruleRetValue).moveFailInfo()}}};
+  }, std::get<0>(ruleRetValue).moveFailInfo()};
 }
 std::string NonTerminalParsingExpression::dump() const {
   return mNonTerminal;
@@ -174,7 +236,7 @@ RuleResult OptionalParsingExpression::match(ParsingState state, const RuleMap& r
     return ExpressionSuccessInfo{state, MatchInfo{
       .start = start,
       .end = start
-    },ExpressionFailInfo{state, { std::move(std::get<1>(childRet)) }}};
+    },ExpressionFailInfo{state, dump(), { std::move(std::get<1>(childRet)) }}};
   }
   // success
   state = std::get<0>(childRet).getState();
@@ -182,7 +244,7 @@ RuleResult OptionalParsingExpression::match(ParsingState state, const RuleMap& r
         .start = start,
         .end = tokenizer.getPtr(state),
         .subs = { std::get<0>(childRet).moveMatchInfo() }
-  },ExpressionFailInfo{state, { std::get<0>(childRet).moveFailInfo() }}};
+  },ExpressionFailInfo{state, dump(), { std::get<0>(childRet).moveFailInfo() }}};
 
   assert(false);
 }
@@ -198,7 +260,7 @@ RuleResult OneOrMoreParsingExpression::match(ParsingState state, const RuleMap& 
   auto childRet = mChild->match(state, rules, tokenizer);
   if(childRet.index() == 1) {
     // error
-    return ExpressionFailInfo{state, ExpressionFailReason::REQUIRED_ONE_OR_MORE, {std::get<1>(childRet)}};
+    return ExpressionFailInfo{state, dump(), ExpressionFailReason::REQUIRED_ONE_OR_MORE, {std::get<1>(childRet)}};
   }
   // success
   state = std::get<0>(childRet).getState();
@@ -219,7 +281,7 @@ RuleResult OneOrMoreParsingExpression::match(ParsingState state, const RuleMap& 
     .start = start,
     .end = tokenizer.getPtr(state),
     .subs = std::move(childrenResults)
-  }, ExpressionFailInfo{state, std::move(childrenFailReasons)}};
+  }, ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
 }
 std::string OneOrMoreParsingExpression::dump() const {
   return "(" + mChild->dump() + ")+";
@@ -246,23 +308,98 @@ RuleResult ZeroOrMoreParsingExpression::match(ParsingState state, const RuleMap&
       .start = start,
       .end = tokenizer.getPtr(state),
       .subs = std::move(childrenResults)
-  }, ExpressionFailInfo{state, std::move(childrenFailReasons)}};
+  }, ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
 }
 std::string ZeroOrMoreParsingExpression::dump() const {
   return "(" + mChild->dump() + ")*";
 }
-std::string errorsToStringRec(const ExpressionFailInfo & info, const PegTokenizer& tokenizer, int depth) {
-  std::string ret;
-  for(int i = 0; i < depth; ++i) {
-    ret += " ";
+
+class ErrorTree {
+ public:
+  ErrorTree(wp<ErrorTree> parent, const ExpressionFailInfo& sourceNode)
+  : mParent(std::move(parent)), mSourceNode(sourceNode) {
+
   }
-  ret += info.dump(tokenizer) + "\n";
+  void attach(sp<ErrorTree>&& child) {
+    mChildren.emplace_back(std::move(child));
+  }
+  [[nodiscard]] const auto& getChildren() const {
+    return mChildren;
+  }
+  [[nodiscard]] auto getParent() const {
+    return mParent;
+  }
+  [[nodiscard]] const auto& getSourceNode() const {
+    return mSourceNode;
+  }
+  [[nodiscard]] std::string dump(const PegTokenizer& tok, size_t depth) const {
+    std::string ret = dumpSelf(tok, depth, false);
+    for(const auto& child: mChildren) {
+      ret += child->dump(tok, depth + 1);
+    }
+    return ret;
+  }
+  [[nodiscard]] std::string dumpReverse(const PegTokenizer& tok, size_t depth, size_t maxDepth) const {
+    if(depth >= maxDepth) {
+      return "";
+    }
+    std::string ret;
+    for(const auto& child: mChildren) {
+      assert(depth > 0);
+      ret += child->dumpSelf(tok, depth - 1, true);
+    }
+    ret += mParent.lock()->dumpReverse(tok, depth + 1, maxDepth);
+    return ret;
+  }
+ private:
+  [[nodiscard]] std::string dumpSelf(const PegTokenizer& tok, size_t depth, bool revOrder) const {
+    std::string ret;
+    for(size_t i = 0; i < depth; ++i) {
+      ret += " ";
+    }
+    ret += mSourceNode.dump(tok, revOrder);
+    ret += "\n";
+    return ret;
+  }
+  std::vector<sp<ErrorTree>> mChildren;
+  wp<ErrorTree> mParent;
+  const ExpressionFailInfo& mSourceNode;
+};
+sp<ErrorTree> createErrorTree(const ExpressionFailInfo& info, const PegTokenizer& tokenizer, wp<ErrorTree> parent) {
+  auto tree = std::make_shared<ErrorTree>(parent, info);
   for(const auto& child: info.mSubExprFailInfo) {
-    ret += errorsToStringRec(child, tokenizer, depth + 1);
+    tree->attach(createErrorTree(child, tokenizer, tree));
   }
-  return ret;
+  return tree;
 }
-std::string errorsToString(const ExpressionFailInfo & info, const PegTokenizer& tokenizer) {
-  return errorsToStringRec(info, tokenizer, 0);
+std::string errorsToString(const ExpressionFailInfo& info, const PegTokenizer& tokenizer) {
+  auto tree = createErrorTree(info, tokenizer, wp<ErrorTree>{});
+  /*// walk to the last node in the tree
+  sp<ErrorTree> lastNode = tree;
+  while(lastNode) {
+    if(lastNode->getChildren().empty()) {
+      break;
+    } else {
+      lastNode = lastNode->getChildren().at(lastNode->getChildren().size() - 1);
+    }
+  }
+  size_t stepsToSuccess = 0;
+  size_t stops = 0;
+  constexpr size_t MAX_STOPS = 4;
+  assert(lastNode);
+  // walk up from the last node until we encounter a "Success!"
+  sp<ErrorTree> lastSuccessNode = lastNode;
+  while(lastSuccessNode) {
+    if(lastSuccessNode->getSourceNode().isStoppingPoint()) {
+      stops += 1;
+      if(stops > MAX_STOPS) {
+        break;
+      }
+    }
+    lastSuccessNode = lastSuccessNode->getParent().lock();
+    stepsToSuccess += 1;
+  }*/
+
+  return tree->dump(tokenizer, 0);//+ "\n" + lastNode->dumpReverse(tokenizer, 0, stepsToSuccess);
 }
 }
