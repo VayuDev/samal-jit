@@ -35,7 +35,7 @@ std::optional<ParsingState> PegTokenizer::matchRegex(ParsingState state, const s
       return {};
     }
   }
-  state.tokenizerState += it->size();
+  state.tokenizerState += it->length();
   return state;
 }
 
