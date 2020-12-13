@@ -27,10 +27,13 @@ class ExpressionTokenizer {
     if(mOffset < mExprString.size()) {
       switch(getCurrentChar()) {
         case '\'':
-          consumeString();
+          consumeString('\'', '\'');
           break;
         case '[':
-          consumeRegex();
+          consumeString('[', ']');
+          break;
+        case '#':
+          consumeString('#', '#');
           break;
         case '+':
         case '*':
@@ -58,8 +61,8 @@ class ExpressionTokenizer {
       mOffset += 1;
     }
   }
-  inline void consumeString() {
-    assert(getCurrentChar() == '\'');
+  inline void consumeString(const char start, const char end) {
+    assert(getCurrentChar() == start);
     mOffset += 1;
     bool escapingChar = false;
     while(true) {
@@ -69,34 +72,12 @@ class ExpressionTokenizer {
       if(getCurrentChar() == '\\' && !escapingChar) {
         escapingChar = true;
       } else {
-        if(!escapingChar && getCurrentChar() == '\'') {
+        if(!escapingChar && getCurrentChar() == end) {
           mOffset += 1;
           return;
         }
         escapingChar = false;
       }
-
-      mOffset += 1;
-    }
-  }
-  inline void consumeRegex() {
-    assert(getCurrentChar() == '[');
-    mOffset += 1;
-    bool escapingChar = false;
-    while(true) {
-      if(mOffset >= mExprString.size()) {
-        throw std::runtime_error{"Unterminated regex in expression!"};
-      }
-      if(getCurrentChar() == '\\' && !escapingChar) {
-        escapingChar = true;
-      } else {
-        if(!escapingChar && getCurrentChar() == ']') {
-          mOffset += 1;
-          return;
-        }
-        escapingChar = false;
-      }
-
       mOffset += 1;
     }
   }

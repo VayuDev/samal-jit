@@ -24,6 +24,7 @@ enum class ExpressionFailReason {
   SUCCESS,
   SEQUENCE_CHILD_FAILED,
   CHOICE_NO_CHILD_SUCCEEDED,
+  ADDITIONAL_ERROR_MESSAGE,
   REQUIRED_ONE_OR_MORE,
   UNMATCHED_REGEX,
   UNMATCHED_STRING,
@@ -43,8 +44,8 @@ class ExpressionFailInfo {
       : mReason(reason), mState(state), mSelfDump(std::move(selfDump)), mSubExprFailInfo(std::move(subExprFailInfo)){
 
   }
-  explicit ExpressionFailInfo(ParsingState state, std::string selfDump, ExpressionFailReason reason, std::string info, std::vector<ExpressionFailInfo> subExprFailInfo)
-      : mReason(reason), mState(state), mSelfDump(std::move(selfDump)), mInfo1(std::move(info)), mSubExprFailInfo(std::move(subExprFailInfo)){
+  explicit ExpressionFailInfo(ParsingState state, std::string selfDump, ExpressionFailReason reason, std::string info, std::string info2, std::vector<ExpressionFailInfo> subExprFailInfo)
+      : mReason(reason), mState(state), mSelfDump(std::move(selfDump)), mInfo1(std::move(info)), mInfo2(std::move(info2)), mSubExprFailInfo(std::move(subExprFailInfo)){
 
   }
   // Assumes success
@@ -59,8 +60,8 @@ class ExpressionFailInfo {
   [[nodiscard]] bool isFromSequenceExpression() const {
     return mReason == ExpressionFailReason::SEQUENCE_CHILD_FAILED;
   }
-  [[nodiscard]] bool isStoppingPoint() const {
-    return mReason == ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED || mReason == ExpressionFailReason::SUCCESS;
+  [[nodiscard]] bool isAdditionalErrorMessage() const {
+    return mReason == ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE;
   }
  private:
   ExpressionFailReason mReason { ExpressionFailReason::SUCCESS };
@@ -70,7 +71,7 @@ class ExpressionFailInfo {
   friend sp<class ErrorTree> createErrorTree(const ExpressionFailInfo& info, const PegTokenizer& tokenizer, wp<ErrorTree> parent);
 };
 
-std::string errorsToString(const class ExpressionFailInfo&, const PegTokenizer&);
+std::string errorsToString(const ParsingFailInfo&, const PegTokenizer&);
 
 class ExpressionSuccessInfo {
  public:
@@ -168,6 +169,16 @@ class ChoiceParsingExpression : public ParsingExpression {
   [[nodiscard]] std::string dump() const override;
  private:
   std::vector<sp<ParsingExpression>> mChildren;
+};
+
+class ErrorMessageInfoExpression : public ParsingExpression {
+ public:
+  explicit ErrorMessageInfoExpression(sp<ParsingExpression> child, std::string error);
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+  std::string mErrorMsg;
 };
 
 }

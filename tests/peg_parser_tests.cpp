@@ -285,7 +285,7 @@ TEST_CASE("Calculator test", "[parser]") {
   parser.addRule("Expr", peg::stringToParsingExpression("Sum"), [](const peg::MatchInfo& i) -> std::any {
     return i.result;
   });
-  parser.addRule("Sum", peg::stringToParsingExpression("Product (('+' | '-') Product)*"), [](const peg::MatchInfo& i) -> std::any {
+  parser.addRule("Sum", peg::stringToParsingExpression("Product (('+' #Expected +# | '-' #Expected -#) Product)*"), [](const peg::MatchInfo& i) -> std::any {
     int res = std::any_cast<int>(i[0].result);
     for(auto& child: i[1].subs) {
       auto val = std::any_cast<int>(child[1].result);
@@ -297,7 +297,7 @@ TEST_CASE("Calculator test", "[parser]") {
     }
     return res;
   });
-  parser.addRule("Product", peg::stringToParsingExpression("Value (('*' | '/') Value)*"), [](const peg::MatchInfo& i) -> std::any {
+  parser.addRule("Product", peg::stringToParsingExpression("Value (('*' #Expected *# | '/' #Expected /#) Value)*"), [](const peg::MatchInfo& i) -> std::any {
     int res = std::any_cast<int>(i[0].result);
     for(auto& child: i[1].subs) {
       auto val = std::any_cast<int>(child[1].result);
@@ -309,7 +309,7 @@ TEST_CASE("Calculator test", "[parser]") {
     }
     return res;
   });
-  parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ | ('(' Expr ')')"), [](const peg::MatchInfo& i) -> std::any {
+  parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ #Expected digit# | ('(' Expr ')') #Expected subexpression#"), [](const peg::MatchInfo& i) -> std::any {
     int val;
     if(*i.choice == 0) {
       std::from_chars(i.startTrimmed(), i.endTrimmed(), val);
@@ -325,7 +325,7 @@ TEST_CASE("Calculator test", "[parser]") {
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5-2*3").first).getMatchInfo().result) == -1);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(5-2)*3").first).getMatchInfo().result) == 9);
   REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(20-2)*3").first).getMatchInfo().result) == 18*3);
-  auto res = parser.parse("Expr", "3*");
+  auto res = parser.parse("Expr", "3*hallo");
   std::cout << peg::errorsToString(std::get<1>(res.first), res.second) << "\n";
   //REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) == std::string{""});
 }

@@ -14,6 +14,9 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
     case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
       msg += "\033[34m";
       break;
+    case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
+      msg += "\033[31m";
+      break;
     default:
       break;
   }
@@ -36,6 +39,9 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
         break;
       case ExpressionFailReason::UNMATCHED_STRING:msg += "The string '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
         break;
+      case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
+        msg += mInfo1 + ", got: '" + mInfo2 + "'\033[0m";
+        break;
       default:assert(false);
     }
   } else {
@@ -55,6 +61,9 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
       case ExpressionFailReason::UNMATCHED_REGEX:msg += "The regex '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
         break;
       case ExpressionFailReason::UNMATCHED_STRING:msg += "The string '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+        break;
+      case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
+        msg += mInfo1 + " (" + mInfo2 + ")\033[0m";
         break;
       default:assert(false);
     }
@@ -86,6 +95,7 @@ RuleResult SequenceParsingExpression::match(ParsingState state, const RuleMap& r
         dump(),
         ExpressionFailReason::SEQUENCE_CHILD_FAILED,
         std::string{std::string_view(start, tokenizer.getPtr(state) - start)},
+        "",
         std::move(childrenFailReasons)
       };
     }
@@ -138,7 +148,7 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
     };
   } else {
     // TODO cache regex
-    size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"[^ ]*"})) - tokenizer.getPtr(state);
+    size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^ ]*"})) - tokenizer.getPtr(state);
     std::string failedString{std::string_view{tokenizer.getPtr(state), len}};
     return ExpressionFailInfo{
         state,
@@ -313,6 +323,30 @@ RuleResult ZeroOrMoreParsingExpression::match(ParsingState state, const RuleMap&
 std::string ZeroOrMoreParsingExpression::dump() const {
   return "(" + mChild->dump() + ")*";
 }
+ErrorMessageInfoExpression::ErrorMessageInfoExpression(sp<ParsingExpression> child, std::string error)
+: mChild(std::move(child)), mErrorMsg(std::move(error)) {
+
+}
+RuleResult ErrorMessageInfoExpression::match(ParsingState state, const RuleMap &rules, const PegTokenizer &tokenizer) const {
+  auto childRes = mChild->match(state, rules, tokenizer);
+  if(childRes.index() == 0) {
+    return childRes;
+  }
+  // TODO cache regex
+  size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^\\s]*"})) - tokenizer.getPtr(state);
+  std::string failedString{std::string_view{tokenizer.getPtr(state), len}};
+  return ExpressionFailInfo{
+    state,
+    mChild->dump(),
+    ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE,
+    mErrorMsg,
+    std::move(failedString),
+    { std::move(std::get<1>(childRes)) }
+  };
+}
+std::string ErrorMessageInfoExpression::dump() const {
+  return mChild->dump() + " #" + mErrorMsg + "#";
+}
 
 class ErrorTree {
  public:
@@ -334,8 +368,10 @@ class ErrorTree {
   }
   [[nodiscard]] std::string dump(const PegTokenizer& tok, size_t depth) const {
     std::string ret = dumpSelf(tok, depth, false);
-    for(const auto& child: mChildren) {
-      ret += child->dump(tok, depth + 1);
+    if(!mSourceNode.isAdditionalErrorMessage()) {
+      for(const auto& child: mChildren) {
+        ret += child->dump(tok, depth + 1);
+      }
     }
     return ret;
   }
@@ -372,9 +408,9 @@ sp<ErrorTree> createErrorTree(const ExpressionFailInfo& info, const PegTokenizer
   }
   return tree;
 }
-std::string errorsToString(const ExpressionFailInfo& info, const PegTokenizer& tokenizer) {
-  auto tree = createErrorTree(info, tokenizer, wp<ErrorTree>{});
-  /*// walk to the last node in the tree
+std::string errorsToString(const ParsingFailInfo& info, const PegTokenizer& tokenizer) {
+  auto tree = createErrorTree(*info.error, tokenizer, wp<ErrorTree>{});
+  // walk to the last node in the tree
   sp<ErrorTree> lastNode = tree;
   while(lastNode) {
     if(lastNode->getChildren().empty()) {
@@ -383,23 +419,27 @@ std::string errorsToString(const ExpressionFailInfo& info, const PegTokenizer& t
       lastNode = lastNode->getChildren().at(lastNode->getChildren().size() - 1);
     }
   }
-  size_t stepsToSuccess = 0;
-  size_t stops = 0;
-  constexpr size_t MAX_STOPS = 4;
+  /*size_t stepsToSuccess = 0;
   assert(lastNode);
-  // walk up from the last node until we encounter a "Success!"
+  // walk up from the last node until we encounter something like Success or an additional error
   sp<ErrorTree> lastSuccessNode = lastNode;
   while(lastSuccessNode) {
     if(lastSuccessNode->getSourceNode().isStoppingPoint()) {
-      stops += 1;
-      if(stops > MAX_STOPS) {
-        break;
-      }
+      break;
     }
-    lastSuccessNode = lastSuccessNode->getParent().lock();
+    auto next = lastSuccessNode->getParent().lock();
+    if(!next) {
+      break;
+    }
+    lastSuccessNode = next;
     stepsToSuccess += 1;
-  }*/
-
-  return tree->dump(tokenizer, 0);//+ "\n" + lastNode->dumpReverse(tokenizer, 0, stepsToSuccess);
+  }
+  assert(lastSuccessNode);*/
+  std::string ret;
+  if(info.eof) {
+    ret += "Unexpected EOF\n";
+  }
+  ret += tree->dump(tokenizer, 0);// + "\n" + lastNode->dumpReverse(tokenizer, 0, stepsToSuccess);
+  return ret;
 }
 }

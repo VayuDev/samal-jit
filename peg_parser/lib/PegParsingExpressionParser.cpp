@@ -40,7 +40,7 @@ static sp<ParsingExpression> parseAtom(ExpressionTokenizer &tok) {
 
 static sp<ParsingExpression> parseQuantifier(ExpressionTokenizer &tok) {
   auto atom = parseAtom(tok);
-  if(!tok.currentToken()) {
+  if(!tok.currentToken() || tok.currentToken()->empty()) {
     return atom;
   }
   if(*tok.currentToken() == "?") {
@@ -59,12 +59,26 @@ static sp<ParsingExpression> parseQuantifier(ExpressionTokenizer &tok) {
   return atom;
 }
 
+static sp<ParsingExpression> parseErrorInfo(ExpressionTokenizer &tok) {
+  auto quantifier = parseQuantifier(tok);
+  if(!tok.currentToken() || tok.currentToken()->empty()) {
+    return quantifier;
+  }
+  if (tok.currentToken()->at(0) == '#') {
+    // error-info
+    auto expr = std::make_shared<ErrorMessageInfoExpression>(std::move(quantifier), std::string{tok.currentToken()->substr(1, tok.currentToken()->size() - 2)});
+    tok.advance();
+    return expr;
+  }
+  return quantifier;
+}
+
 static sp<ParsingExpression> parseSequence(ExpressionTokenizer &tok) {
-  auto left = parseQuantifier(tok);
+  auto left = parseErrorInfo(tok);
   std::vector<sp<ParsingExpression>> children;
   children.emplace_back(std::move(left));
   while(tok.currentToken() && *tok.currentToken() != "|" && *tok.currentToken() != ")") {
-    auto expr = parseQuantifier(tok);
+    auto expr = parseErrorInfo(tok);
     if(!expr) {
       break;
     }

@@ -48,4 +48,9 @@ struct Rule {
 
 using RuleMap = std::map<std::string, Rule>;
 
+struct ParsingFailInfo {
+  bool eof = false;
+  up<class ExpressionFailInfo> error;
+};
+
 }
