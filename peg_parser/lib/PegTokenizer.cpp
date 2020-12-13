@@ -57,8 +57,8 @@ const char *PegTokenizer::getPtr(ParsingState state) const {
 }
 std::pair<size_t, size_t> PegTokenizer::getPosition(ParsingState state) const {
   size_t line = 1, column = 1;
-  for(char c: mCode) {
-    if(c == '\n') {
+  for(size_t i = 0; i < state.tokenizerState && i < mCode.size(); ++i) {
+    if(mCode.at(i) == '\n') {
       line += 1;
       column = 1;
     } else {
