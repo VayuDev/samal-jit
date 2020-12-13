@@ -9,90 +9,18 @@ sp<ParsingExpression> stringToParsingExpression(const std::string_view &);
 // Just for the tests here
 class ExpressionTokenizer {
  public:
-  explicit inline ExpressionTokenizer(const std::string_view& expr)
-      : mExprString(expr) {
-    genNextToken();
-  }
+  explicit ExpressionTokenizer(const std::string_view& expr);
   [[nodiscard]] inline const std::optional<std::string_view>& currentToken() const {
     return mCurrentToken;
   }
-  inline void advance() {
-    genNextToken();
-  }
-
+  void advance();
  private:
-  inline void genNextToken() {
-    skipWhitespaces();
-    auto start = mOffset;
-    if(mOffset < mExprString.size()) {
-      switch(getCurrentChar()) {
-        case '\'':
-          consumeString('\'', '\'');
-          break;
-        case '[':
-          consumeString('[', ']');
-          break;
-        case '#':
-          consumeString('#', '#');
-          break;
-        case '+':
-        case '*':
-        case ')':
-        case '(':
-        case '|':
-        case '/':
-        case '?':
-          mOffset += 1;
-          break;
-        default:
-          if(isalnum(getCurrentChar())) {
-            consumeNonTerminal();
-          } else {
-            throw std::runtime_error{std::string{"Invalid input char: '"} + getCurrentChar() + "\'"};
-          }
-      }
-      mCurrentToken = mExprString.substr(start, mOffset - start);
-    } else {
-      mCurrentToken = {};
-    }
-  }
-  inline void consumeNonTerminal() {
-    while(mOffset < mExprString.size() && isalnum(getCurrentChar())) {
-      mOffset += 1;
-    }
-  }
-  inline void consumeString(const char start, const char end) {
-    assert(getCurrentChar() == start);
-    mOffset += 1;
-    bool escapingChar = false;
-    while(true) {
-      if(mOffset >= mExprString.size()) {
-        throw std::runtime_error{"Unterminated string in expression!"};
-      }
-      if(getCurrentChar() == '\\' && !escapingChar) {
-        escapingChar = true;
-      } else {
-        if(!escapingChar && getCurrentChar() == end) {
-          mOffset += 1;
-          return;
-        }
-        escapingChar = false;
-      }
-      mOffset += 1;
-    }
-  }
-  inline char getCurrentChar() {
-    return mExprString.at(mOffset);
-  }
-  inline bool skipWhitespaces() {
-    const static std::string WHITESPACE_CHARS{"\t \n"};
-    bool didSkip = false;
-    while(mExprString.size() > mOffset && WHITESPACE_CHARS.find(mExprString.at(mOffset)) != std::string::npos) {
-      didSkip = true;
-      mOffset += 1;
-    }
-    return didSkip;
-  }
+  void genNextToken();
+  void consumeNonTerminal();
+  void consumeString(char start, char end);
+  char getCurrentChar();
+  bool skipWhitespaces();
+
   size_t mOffset = 0;
   const std::string_view mExprString;
   std::optional<std::string_view> mCurrentToken;

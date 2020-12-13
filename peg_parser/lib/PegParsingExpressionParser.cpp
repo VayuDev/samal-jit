@@ -109,4 +109,90 @@ sp<ParsingExpression> stringToParsingExpression(const std::string_view &expr) {
   return parseChoice(tok);
 }
 
+ExpressionTokenizer::ExpressionTokenizer(const std::string_view& expr)
+    : mExprString(expr) {
+  genNextToken();
+}
+
+void ExpressionTokenizer::advance() {
+  genNextToken();
+}
+
+void ExpressionTokenizer::genNextToken() {
+  skipWhitespaces();
+  auto start = mOffset;
+  if(mOffset < mExprString.size()) {
+    switch(getCurrentChar()) {
+      case '\'':
+        consumeString('\'', '\'');
+        break;
+      case '[':
+        consumeString('[', ']');
+        break;
+      case '#':
+        consumeString('#', '#');
+        break;
+      case '+':
+      case '*':
+      case ')':
+      case '(':
+      case '|':
+      case '/':
+      case '?':
+        mOffset += 1;
+        break;
+      default:
+        if(isalnum(getCurrentChar())) {
+          consumeNonTerminal();
+        } else {
+          throw std::runtime_error{std::string{"Invalid input char: '"} + getCurrentChar() + "\'"};
+        }
+    }
+    mCurrentToken = mExprString.substr(start, mOffset - start);
+  } else {
+    mCurrentToken = {};
+  }
+}
+
+void ExpressionTokenizer::consumeNonTerminal() {
+  while(mOffset < mExprString.size() && isalnum(getCurrentChar())) {
+    mOffset += 1;
+  }
+}
+
+void ExpressionTokenizer::consumeString(const char start, const char end) {
+  assert(getCurrentChar() == start);
+  mOffset += 1;
+  bool escapingChar = false;
+  while(true) {
+    if(mOffset >= mExprString.size()) {
+      throw std::runtime_error{"Unterminated string in expression!"};
+    }
+    if(getCurrentChar() == '\\' && !escapingChar) {
+      escapingChar = true;
+    } else {
+      if(!escapingChar && getCurrentChar() == end) {
+        mOffset += 1;
+        return;
+      }
+      escapingChar = false;
+    }
+    mOffset += 1;
+  }
+}
+
+char ExpressionTokenizer::getCurrentChar() {
+  return mExprString.at(mOffset);
+}
+
+bool ExpressionTokenizer::skipWhitespaces() {
+  const static std::string WHITESPACE_CHARS{"\t \n"};
+  bool didSkip = false;
+  while(mExprString.size() > mOffset && WHITESPACE_CHARS.find(mExprString.at(mOffset)) != std::string::npos) {
+    didSkip = true;
+    mOffset += 1;
+  }
+  return didSkip;
+}
+
 }
