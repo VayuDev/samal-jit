@@ -5,6 +5,7 @@
 #include <optional>
 #include <any>
 #include <map>
+#include <cassert>
 #include "peg_parser/PegUtil.hpp"
 #include "peg_parser/PegForward.hpp"
 
@@ -14,11 +15,59 @@ struct ParsingState {
   size_t tokenizerState = 0;
 };
 
+class Any final {
+ public:
+  Any() = default;
+  template<typename T, std::enable_if_t<!std::is_same<T, Any>::value, bool> = true>
+  inline Any(T&& ele) {
+    data = new T{std::forward<T>(ele)};
+    destructor = [](void *d) {
+      delete (T*)d;
+    };
+  }
+  inline ~Any() {
+    if(destructor)
+      destructor(data);
+  }
+  Any(const Any& other) = delete;
+  Any& operator=(const Any& other) = delete;
+  inline Any(Any&& other) {
+    data = other.data;
+    destructor = other.destructor;
+    other.data = nullptr;
+    other.destructor = {};
+  }
+  inline Any& operator=(Any&& other) {
+    data = other.data;
+    destructor = other.destructor;
+    other.data = nullptr;
+    other.destructor = {};
+    return *this;
+  }
+
+  template<typename T>
+  inline auto get() const {
+    return static_cast<T>(data);
+  }
+
+  template<typename T>
+  inline T move() {
+    auto cpy = data;
+    data = nullptr;
+    destructor = {};
+    return static_cast<T>(cpy);
+  }
+ private:
+  void* data = nullptr;
+  std::function<void(void*d)> destructor;
+};
+
+
 struct MatchInfo {
   const char* start = nullptr;
   const char* end = nullptr;
   std::optional<size_t> choice;
-  void *result = nullptr;
+  Any result;
   std::vector<MatchInfo> subs;
 
   [[nodiscard]] inline const char* startTrimmed() const {
@@ -38,9 +87,11 @@ struct MatchInfo {
   inline const MatchInfo& operator[](size_t index) const {
     return subs.at(index);
   };
+  inline MatchInfo& operator[](size_t index) {
+    return subs.at(index);
+  };
 };
-
-using RuleCallback = std::function<void*(const MatchInfo& info)>;
+using RuleCallback = std::function<Any(MatchInfo& info)>;
 
 struct Rule {
   sp<ParsingExpression> expr;

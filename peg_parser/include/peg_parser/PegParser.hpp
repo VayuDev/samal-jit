@@ -16,10 +16,12 @@
 
 namespace peg {
 
+using ParserResult = std::pair<std::variant<ExpressionSuccessInfo, ParsingFailInfo>, PegTokenizer>;
+
 class PegParser {
  public:
   void addRule(std::string nonTerminal, std::shared_ptr<ParsingExpression> rule, RuleCallback&& callback = {});
-  std::pair<std::variant<ExpressionSuccessInfo, ParsingFailInfo>, PegTokenizer> parse(const std::string_view& start, std::string code) const;
+  ParserResult parse(const std::string_view& start, std::string code) const;
   Rule& operator[](const char *non_terminal);
  private:
   RuleMap mRules;

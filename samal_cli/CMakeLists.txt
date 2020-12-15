@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
 project(samal)
-set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -fno-strict-aliasing")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -fno-strict-aliasing -D_DEBUG")
@@ -19,4 +19,4 @@ add_executable(samal ${SOURCES} ${HEADERS})
 include_directories(../peg_parser/include)
 include_directories(../samal_lib/include)
 include_directories(include)
-target_link_libraries(samal peg_parser samal_lib -lstdc++)
+target_link_libraries(samal samal_lib peg_parser -lstdc++)

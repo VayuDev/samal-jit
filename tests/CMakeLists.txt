@@ -15,7 +15,7 @@ include_directories(../third_party)
 include_directories(../peg_parser/include)
 
 add_executable(peg_parser_tests ${SOURCES} ${HEADERS})
-target_link_libraries(peg_parser_tests peg_parser)
+target_link_libraries(peg_parser_tests peg_parser -lstdc++ m)
 
 enable_testing()
 add_test("PEG_Parser_Test" peg_parser_tests)

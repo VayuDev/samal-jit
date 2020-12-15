@@ -176,13 +176,15 @@ RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rul
     auto childRet = child->match(state, rules, tokenizer);
     if(childRet.index() == 0) {
       // child matched
+      std::vector<MatchInfo> subs;
+      subs.emplace_back(std::get<0>(childRet).moveMatchInfo());
       return ExpressionSuccessInfo{
           std::get<0>(childRet).getState(),
           MatchInfo{
               .start = std::get<0>(childRet).getMatchInfo().start,
               .end = std::get<0>(childRet).getMatchInfo().end,
               .choice = i,
-              .subs = {std::get<0>(childRet).moveMatchInfo()}},
+              .subs = std::move(subs)},
           ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
     } else {
       childrenFailReasons.emplace_back(std::get<1>(childRet));
@@ -219,16 +221,19 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
     // error in child
     return ruleRetValue;
   }
-  void* callbackResult = nullptr;
+  Any callbackResult;
   if(rule.callback) {
-    callbackResult = rule.callback(std::get<0>(ruleRetValue).getMatchInfo());
+    callbackResult = rule.callback(std::get<0>(ruleRetValue).getMatchInfoMut());
   }
   auto end = tokenizer.getPtr(state);
+
+  std::vector<MatchInfo> subs;
+  subs.emplace_back(std::get<0>(ruleRetValue).moveMatchInfo());
   return ExpressionSuccessInfo{std::get<0>(ruleRetValue).getState(), MatchInfo{
     .start = start,
     .end = end,
     .result = std::move(callbackResult),
-    .subs = { std::get<0>(ruleRetValue).moveMatchInfo() }
+    .subs = std::move(subs)
   }, std::get<0>(ruleRetValue).moveFailInfo()};
 }
 std::string NonTerminalParsingExpression::dump() const {
@@ -250,10 +255,12 @@ RuleResult OptionalParsingExpression::match(ParsingState state, const RuleMap& r
   }
   // success
   state = std::get<0>(childRet).getState();
+  std::vector<MatchInfo> subs;
+  subs.emplace_back(std::get<0>(childRet).moveMatchInfo());
   return ExpressionSuccessInfo{state, MatchInfo{
         .start = start,
         .end = tokenizer.getPtr(state),
-        .subs = { std::get<0>(childRet).moveMatchInfo() }
+        .subs = std::move(subs)
   },ExpressionFailInfo{state, dump(), { std::get<0>(childRet).moveFailInfo() }}};
 
   assert(false);

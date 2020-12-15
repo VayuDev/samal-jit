@@ -1,7 +1,8 @@
 #include <iostream>
-#include "peg_parser/PegParser.hpp"
-#include "peg_parser/PegParsingExpression.hpp"
+#include "samal_lib/Parser.hpp"
+#include "samal_lib/AST.hpp"
 
 int main() {
-  std::cout << sizeof(peg::RuleResult) << "\n";
+  samal::Parser parser;
+  auto ast = parser.parse(R"(fn main(x : i32, y : i32) -> i32 { 0 })");
 }

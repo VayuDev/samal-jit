@@ -1,0 +1,28 @@
+struct Liste<T> {
+    Liste<T> *prev;
+    Liste<T> *next;
+    T data;
+}
+
+enum Shape {
+    CIRCLE(f32),
+    RECTANGLE(f32, f32)
+}
+
+fn do(a : i32) -> (i32, i32) {
+    let i = a * a;
+    (a, i)
+}
+
+fn main() -> i32 {
+    let squareTuple = do(20);
+    let square = squareTuple.1;
+    let list = new int[square];
+    for(i in 0..square) {
+        list[i] = i;
+    }
+    for(i in list) {
+        Core.print(i);
+    }
+    0
+}

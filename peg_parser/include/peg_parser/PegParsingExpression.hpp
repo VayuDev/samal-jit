@@ -82,10 +82,13 @@ class ExpressionSuccessInfo {
   [[nodiscard]] ParsingState getState() const {
     return mState;
   }
-  [[nodiscard]] MatchInfo moveMatchInfo() {
+  [[nodiscard]] MatchInfo&& moveMatchInfo() & {
     return std::move(mMatchInfo);
   }
   [[nodiscard]] const MatchInfo& getMatchInfo() const & {
+    return mMatchInfo;
+  }
+  [[nodiscard]] MatchInfo& getMatchInfoMut() {
     return mMatchInfo;
   }
   [[nodiscard]] ExpressionFailInfo moveFailInfo() {

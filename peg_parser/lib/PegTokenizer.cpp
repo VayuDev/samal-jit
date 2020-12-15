@@ -9,6 +9,7 @@ PegTokenizer::PegTokenizer(std::string code)
 
 std::optional<ParsingState> PegTokenizer::matchString(ParsingState state, const std::string_view &string) const {
   bool skippedWhiteSpaces = false;
+  static_assert(std::is_move_constructible<MatchInfo>(), "");
   for(ssize_t i = 0; i < string.size(); ++i) {
     if(state.tokenizerState + i >= mCode.size()) {
       return {};
