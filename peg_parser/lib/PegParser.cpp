@@ -31,4 +31,8 @@ void PegParser::addRule(std::string nonTerminal, std::shared_ptr<ParsingExpressi
   mRules.emplace(std::make_pair(std::move(nonTerminal), Rule{  .expr = std::move(rule), .callback = std::move(callback) }));
 }
 
+Rule &PegParser::operator[](const char *non_terminal) {
+  return mRules.emplace(non_terminal, Rule{}).first->second;
+}
+
 }

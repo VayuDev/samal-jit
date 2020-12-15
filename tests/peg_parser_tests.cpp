@@ -285,7 +285,7 @@ TEST_CASE("Calculator test", "[parser]") {
   parser.addRule("Expr", peg::stringToParsingExpression("Sum"), [](const peg::MatchInfo& i) -> std::any {
     return i.result;
   });
-  parser.addRule("Sum", peg::stringToParsingExpression("Product (('+' #Expected +# | '-' #Expected -#) Product)*"), [](const peg::MatchInfo& i) -> std::any {
+  parser["Sum"] << "Product (('+' #Expected +# | '-' #Expected -#) Product)*" >> [](const peg::MatchInfo& i) -> std::any {
     int res = std::any_cast<int>(i[0].result);
     for(auto& child: i[1].subs) {
       auto val = std::any_cast<int>(child[1].result);
@@ -296,8 +296,8 @@ TEST_CASE("Calculator test", "[parser]") {
       }
     }
     return res;
-  });
-  parser.addRule("Product", peg::stringToParsingExpression("Value (('*' #Expected *# | '/' #Expected /#) Value)*"), [](const peg::MatchInfo& i) -> std::any {
+  };
+  parser["Product"] << "Value (('*' #Expected *# | '/' #Expected /#) Value)*" >> [](const peg::MatchInfo& i) -> std::any {
     int res = std::any_cast<int>(i[0].result);
     for(auto& child: i[1].subs) {
       auto val = std::any_cast<int>(child[1].result);
@@ -308,7 +308,7 @@ TEST_CASE("Calculator test", "[parser]") {
       }
     }
     return res;
-  });
+  };
   parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ #Expected digit# | ('(' Expr ')') #Expected subexpression#"), [](const peg::MatchInfo& i) -> std::any {
     int val;
     if(*i.choice == 0) {

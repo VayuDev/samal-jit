@@ -4,6 +4,7 @@
 #include <vector>
 #include <optional>
 #include <any>
+#include <map>
 #include "peg_parser/PegUtil.hpp"
 #include "peg_parser/PegForward.hpp"
 
@@ -44,6 +45,9 @@ using RuleCallback = std::function<std::any(const MatchInfo& info)>;
 struct Rule {
   sp<ParsingExpression> expr;
   RuleCallback callback;
+
+  Rule& operator<<(const char* ruleString);
+  Rule& operator>>(RuleCallback&& ruleCallback);
 };
 
 using RuleMap = std::map<std::string, Rule>;
