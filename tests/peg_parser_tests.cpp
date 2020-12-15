@@ -266,65 +266,65 @@ TEST_CASE("Quantifier parser match", "[parser]") {
 TEST_CASE("Nonterminal parsing", "[parser]") {
   {
     peg::PegParser parser;
-    parser.addRule("Start", peg::stringToParsingExpression("'a' | Second"), [](const peg::MatchInfo& i) -> std::any {
+    parser.addRule("Start", peg::stringToParsingExpression("'a' | Second"), [](const peg::MatchInfo& i) -> void* {
       if(*i.choice == 0) {
-        return 1;
+        return new int{1};
       } else {
-        return 2 + std::any_cast<int>(i.subs.at(0).result);
+        return new int{2 + *(int*)i.subs.at(0).result};
       }
     });
-    parser.addRule("Second", peg::stringToParsingExpression("'b' 'c'"), [](const peg::MatchInfo&) -> std::any {
-      return 3;
+    parser.addRule("Second", peg::stringToParsingExpression("'b' 'c'"), [](const peg::MatchInfo&) {
+      return new int{3};
     });
-    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "a").first).getMatchInfo().result) == 1);
-    REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Start", "b c").first).getMatchInfo().result) == 5);
+    REQUIRE(*(int*)(std::get<0>(parser.parse("Start", "a").first).getMatchInfo().result) == 1);
+    REQUIRE(*(int*)(std::get<0>(parser.parse("Start", "b c").first).getMatchInfo().result) == 5);
   }
 }
 TEST_CASE("Calculator test", "[parser]") {
   peg::PegParser parser;
-  parser.addRule("Expr", peg::stringToParsingExpression("Sum"), [](const peg::MatchInfo& i) -> std::any {
+  parser.addRule("Expr", peg::stringToParsingExpression("Sum"), [](const peg::MatchInfo& i) -> void* {
     return i.result;
   });
-  parser["Sum"] << "Product (('+' #Expected +# | '-' #Expected -#) Product)*" >> [](const peg::MatchInfo& i) -> std::any {
-    int res = std::any_cast<int>(i[0].result);
+  parser["Sum"] << "Product (('+' #Expected +# | '-' #Expected -#) Product)*" >> [](const peg::MatchInfo& i) -> void* {
+    int *res = new int{*(int*)i[0].result};
     for(auto& child: i[1].subs) {
-      auto val = std::any_cast<int>(child[1].result);
+      auto val = *(int*)child[1].result;
       if(*child[0].choice == 0) {
-        res += val;
+        *res += val;
       } else {
-        res -= val;
+        *res -= val;
       }
     }
     return res;
   };
-  parser["Product"] << "Value (('*' #Expected *# | '/' #Expected /#) Value)*" >> [](const peg::MatchInfo& i) -> std::any {
-    int res = std::any_cast<int>(i[0].result);
+  parser["Product"] << "Value (('*' #Expected *# | '/' #Expected /#) Value)*" >> [](const peg::MatchInfo& i) -> void* {
+    int *res = new int{*(int*)i[0].result};
     for(auto& child: i[1].subs) {
-      auto val = std::any_cast<int>(child[1].result);
+      auto val = *(int*)child[1].result;
       if(*child[0].choice == 0) {
-        res *= val;
+        *res *= val;
       } else {
-        res /= val;
+        *res /= val;
       }
     }
     return res;
   };
-  parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ #Expected digit# | ('(' Expr ')') #Expected subexpression#"), [](const peg::MatchInfo& i) -> std::any {
+  parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ #Expected digit# | ('(' Expr ')') #Expected subexpression#"), [](const peg::MatchInfo& i) -> void* {
     int val;
     if(*i.choice == 0) {
       std::from_chars(i.startTrimmed(), i.endTrimmed(), val);
-      return val;
+      return new int {val};
     } else {
       return i[0][1].result;
     }
   });
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "52 + 3").first).getMatchInfo().result) == 55);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5 + 3*2").first).getMatchInfo().result) == 11);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5*2 + 3").first).getMatchInfo().result) == 13);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "4/2 + 3*5").first).getMatchInfo().result) == 17);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "5-2*3").first).getMatchInfo().result) == -1);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(5-2)*3").first).getMatchInfo().result) == 9);
-  REQUIRE(std::any_cast<int>(std::get<0>(parser.parse("Expr", "(20-2)*3").first).getMatchInfo().result) == 18*3);
+  REQUIRE(*(int*)std::get<0>(parser.parse("Expr", "52 + 3").first).getMatchInfo().result == 55);
+  REQUIRE(*(int*)(std::get<0>(parser.parse("Expr", "5 + 3*2").first).getMatchInfo().result) == 11);
+  REQUIRE(*(int*)(std::get<0>(parser.parse("Expr", "5*2 + 3").first).getMatchInfo().result) == 13);
+  REQUIRE(*(int*)(std::get<0>(parser.parse("Expr", "4/2 + 3*5").first).getMatchInfo().result) == 17);
+  REQUIRE(*(int*)(std::get<0>(parser.parse("Expr", "5-2*3").first).getMatchInfo().result) == -1);
+  REQUIRE(*(int*)(std::get<0>(parser.parse("Expr", "(5-2)*3").first).getMatchInfo().result) == 9);
+  REQUIRE(*(int*)(std::get<0>(parser.parse("Expr", "(20-2)*3").first).getMatchInfo().result) == 18*3);
   auto res = parser.parse("Expr", "3*hallo");
   std::cout << peg::errorsToString(std::get<1>(res.first), res.second) << "\n";
   //REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) == std::string{""});
