@@ -1,0 +1,3 @@
+[submodule "third_party/EasyIterator"]
+	path = third_party/EasyIterator
+	url = https://github.com/TheLartians/EasyIterator.git
