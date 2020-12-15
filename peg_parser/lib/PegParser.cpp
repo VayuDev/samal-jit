@@ -5,7 +5,7 @@
 
 namespace peg {
 
-std::pair<std::variant<ExpressionSuccessInfo, ParsingFailInfo>, PegTokenizer> PegParser::parse(const std::string_view &start, std::string code) {
+std::pair<std::variant<ExpressionSuccessInfo, ParsingFailInfo>, PegTokenizer> PegParser::parse(const std::string_view &start, std::string code) const {
   PegTokenizer tokenizer{std::move(code)};
   peg::NonTerminalParsingExpression fakeNonTerminal{std::string{start}};
   auto matchResult = fakeNonTerminal.match(ParsingState{}, mRules, tokenizer);
