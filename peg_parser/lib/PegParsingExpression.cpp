@@ -219,7 +219,7 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
     // error in child
     return ruleRetValue;
   }
-  std::any callbackResult;
+  void* callbackResult = nullptr;
   if(rule.callback) {
     callbackResult = rule.callback(std::get<0>(ruleRetValue).getMatchInfo());
   }

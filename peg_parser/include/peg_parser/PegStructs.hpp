@@ -18,7 +18,7 @@ struct MatchInfo {
   const char* start = nullptr;
   const char* end = nullptr;
   std::optional<size_t> choice;
-  std::any result;
+  void *result = nullptr;
   std::vector<MatchInfo> subs;
 
   [[nodiscard]] inline const char* startTrimmed() const {
@@ -40,7 +40,7 @@ struct MatchInfo {
   };
 };
 
-using RuleCallback = std::function<std::any(const MatchInfo& info)>;
+using RuleCallback = std::function<void*(const MatchInfo& info)>;
 
 struct Rule {
   sp<ParsingExpression> expr;
