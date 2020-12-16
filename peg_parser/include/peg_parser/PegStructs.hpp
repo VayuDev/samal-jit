@@ -57,6 +57,14 @@ class Any final {
     destructor = {};
     return static_cast<T>(cpy);
   }
+  template<typename T>
+  inline T moveValue() {
+    T movedValue = std::move(*static_cast<T*>(data));
+    delete data;
+    data = nullptr;
+    destructor = {};
+    return movedValue;
+  }
  private:
   void* data = nullptr;
   std::function<void(void*d)> destructor;
