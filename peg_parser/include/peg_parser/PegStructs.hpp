@@ -82,14 +82,14 @@ struct MatchInfo {
 
   [[nodiscard]] inline const char* startTrimmed() const {
     auto retStart = start;
-    while(*retStart == ' ' && retStart < end) {
+    while((*retStart == ' ' || *retStart == '\n' || *retStart == '\t') && retStart < end) {
       retStart += 1;
     }
     return retStart;
   }
   [[nodiscard]] inline const char* endTrimmed() const {
     auto retEnd = end;
-    while(*(retEnd-1) == ' ' && start < retEnd) {
+    while((*(retEnd-1) == ' ' || *(retEnd-1) == '\n' || *(retEnd-1)== '\t') && start < retEnd) {
       retEnd -= 1;
     }
     return retEnd;

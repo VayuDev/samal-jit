@@ -25,8 +25,56 @@ class ParameterListNode : public ASTNode {
   std::vector<Parameter> mParams;
 };
 
-class ScopeNode : public ASTNode {
+class ExpressionNode : public ASTNode {
+ public:
+  [[nodiscard]] virtual std::optional<Datatype> getDatatype() const = 0;
+  [[nodiscard]] inline const char* getClassName() const override { return "ExpressionNode"; }
+ private:
+};
 
+class BinaryExpressionNode : public ASTNode {
+ public:
+  enum class BinaryOperator {
+    PLUS,
+    MINUS,
+    MULTIPLY,
+    DIVIDE
+  };
+  BinaryExpressionNode(up<ExpressionNode> left, BinaryOperator op, up<ExpressionNode> right);
+  [[nodiscard]] virtual std::optional<Datatype> getDatatype() const;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "BinaryExpressionNode"; }
+ private:
+  up<ExpressionNode> mLeft;
+  BinaryOperator mOperator;
+  up<ExpressionNode> mRight;
+};
+
+class LiteralNode : public ExpressionNode {
+ public:
+
+  [[nodiscard]] inline const char* getClassName() const override { return "LiteralNode"; }
+ private:
+};
+
+class LiteralInt32Node : public LiteralNode {
+ public:
+  explicit LiteralInt32Node(int32_t val);
+  [[nodiscard]] virtual std::optional<Datatype> getDatatype() const;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "LiteralIntNode"; }
+ private:
+  int32_t mValue;
+};
+
+class ScopeNode : public ExpressionNode {
+ public:
+  explicit ScopeNode(std::vector<up<ExpressionNode>> expressions);
+  [[nodiscard]] virtual std::optional<Datatype> getDatatype() const;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "ScopeNode"; }
+ private:
+  std::vector<up<ExpressionNode>> mExpressions;
 };
 
 
@@ -56,27 +104,6 @@ class FunctionDeclarationNode : public DeclarationNode {
   up<ParameterListNode> mParameters;
   Datatype mReturnType;
   up<ScopeNode> mBody;
-};
-
-class ExpressionNode : public ASTNode {
- public:
-  [[nodiscard]] virtual Datatype getDatatype() const = 0;
-  [[nodiscard]] inline const char* getClassName() const override { return "ExpressionNode"; }
- private:
-};
-
-class LiteralNode : public ExpressionNode {
- public:
-
-  [[nodiscard]] inline const char* getClassName() const override { return "LiteralNode"; }
- private:
-};
-
-class LiteralIntNode : public LiteralNode {
- public:
-
-  [[nodiscard]] inline const char* getClassName() const override { return "LiteralIntNode"; }
- private:
 };
 
 }

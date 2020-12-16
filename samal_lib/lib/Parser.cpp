@@ -1,6 +1,7 @@
 #include "samal_lib/Parser.hpp"
 #include "samal_lib/AST.hpp"
 #include <iostream>
+#include <charconv>
 
 namespace samal {
 
@@ -16,12 +17,12 @@ Parser::Parser() {
   mPegParser["Declaration"] << "FunctionDeclaration" >> [] (peg::MatchInfo& res) -> peg::Any {
     return std::move(res.result);
   };
-  mPegParser["FunctionDeclaration"] << "'fn' Identifier '(' ParameterList ')' '->' Datatype Scope" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["FunctionDeclaration"] << "'fn' Identifier '(' ParameterList ')' '->' Datatype ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     return FunctionDeclarationNode(
         res.subs.at(1).result.moveValue<std::string>(),
-            up<ParameterListNode>{res.subs.at(3).result.move<ParameterListNode*>()},
-            res.subs.at(6).result.moveValue<Datatype>(),
-            nullptr);
+        up<ParameterListNode>{res.subs.at(3).result.move<ParameterListNode*>()},
+        res.subs.at(6).result.moveValue<Datatype>(),
+        up<ScopeNode>{res.subs.at(7).result.move<ScopeNode*>()});
   };
   mPegParser["ParameterList"] << "ParameterListRec?" >> [] (peg::MatchInfo& res) -> peg::Any {
     if(res.subs.empty())
@@ -51,11 +52,46 @@ Parser::Parser() {
         assert(false);
     }
   };
-  mPegParser["Scope"] << "'{' Expression* '}'" >> [] (peg::MatchInfo&) {
-    return peg::Any{};
+  mPegParser["ScopeExpression"] << "'{' (Expression ';')* '}'" >> [] (peg::MatchInfo& res) {
+    std::vector<up<ExpressionNode>> expressions;
+    for(auto& expr: res[1].subs) {
+      expressions.emplace_back(expr[0].result.move<ExpressionNode*>());
+    }
+    return ScopeNode{std::move(expressions)};
   };
-  mPegParser["Expression"] << "'0'" >> [] (peg::MatchInfo&) {
-    return peg::Any{};
+  mPegParser["Expression"] << "LineExpression | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+    return std::move(res[0].result);
+  };
+  mPegParser["LineExpression"] << "DotExpression (('+' | '-') LineExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if(res[1].subs.empty()) {
+      return std::move(res[0].result);
+    }
+    return BinaryExpressionNode{
+        up<ExpressionNode>{res[0].result.move<ExpressionNode*>()},
+        BinaryExpressionNode::BinaryOperator::PLUS,
+        up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode*>()}};
+  };
+
+  mPegParser["DotExpression"] << "LiteralExpression (('*' | '/') DotExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if (res[1].subs.empty()) {
+      return std::move(res[0].result);
+    }
+    return BinaryExpressionNode{
+        up<ExpressionNode>{res[0].result.move<ExpressionNode *>()},
+        BinaryExpressionNode::BinaryOperator::MULTIPLY,
+        up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
+  };
+  mPegParser["LiteralExpression"] << "[\\d]+ | '(' Expression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+    int32_t val;
+    if(*res.choice == 0) {
+      std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
+      return LiteralInt32Node{val};
+    } else if(*res.choice == 1) {
+      return std::move(res[0][1].result);
+    } else {
+      return std::move(res[0].result);
+    }
+    assert(false);
   };
 }
 

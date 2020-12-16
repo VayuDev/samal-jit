@@ -7,7 +7,7 @@ int main() {
   samal::Parser parser;
   auto ast = parser.parse(R"(
 fn main(x : i32, y : i32) -> i32 {
-
+  5 + {3 - 2;} * 4;
 }
 fn fib(n : i32) -> i32 {
 
