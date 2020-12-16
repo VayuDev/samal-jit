@@ -8,8 +8,27 @@ class ASTNode {
  public:
   virtual ~ASTNode() = default;
   [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
+  [[nodiscard]] virtual std::string dump(unsigned indent) const;
  private:
 };
+
+class ParameterListNode : public ASTNode {
+ public:
+  struct Parameter {
+    std::string name;
+    Datatype type;
+  };
+  explicit ParameterListNode(std::vector<Parameter> params);
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "ParameterListNode"; }
+ private:
+  std::vector<Parameter> mParams;
+};
+
+class ScopeNode : public ASTNode {
+
+};
+
 
 class DeclarationNode : public ASTNode {
  public:
@@ -21,6 +40,7 @@ class DeclarationNode : public ASTNode {
 class ModuleRootNode : public ASTNode {
  public:
   explicit ModuleRootNode(std::vector<up<DeclarationNode>>&& declarations);
+  [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "ModuleRootNode"; }
  private:
   std::vector<up<DeclarationNode>> mDeclarations;
@@ -28,14 +48,14 @@ class ModuleRootNode : public ASTNode {
 
 class FunctionDeclarationNode : public DeclarationNode {
  public:
-  struct Parameter {
-    Datatype type;
-    std::string name;
-  };
+  FunctionDeclarationNode(std::string name, up<ParameterListNode> params, Datatype returnType, up<ScopeNode> body);
+  [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "FunctionDeclarationNode"; }
  private:
+  std::string mName;
+  up<ParameterListNode> mParameters;
   Datatype mReturnType;
-  std::vector<Parameter> mParameters;
+  up<ScopeNode> mBody;
 };
 
 class ExpressionNode : public ASTNode {

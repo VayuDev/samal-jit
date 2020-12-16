@@ -11,6 +11,7 @@ enum class DatatypeCategory {
   f64,
   f32,
   char_,
+  undetermined_identifier,
   string,
   struct_,
   enum_,
@@ -19,6 +20,8 @@ enum class DatatypeCategory {
 
 class Datatype {
  public:
+  explicit Datatype(DatatypeCategory category);
+  [[nodiscard]] std::string toString() const;
  private:
   DatatypeCategory mCategory;
   std::variant<
