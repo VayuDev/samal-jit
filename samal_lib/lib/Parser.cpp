@@ -5,6 +5,7 @@
 namespace samal {
 
 Parser::Parser() {
+  Stopwatch stopwatch{"Parser construction"};
   mPegParser["Start"] << "Declaration+" >> [] (peg::MatchInfo& res) -> peg::Any {
     std::vector<up<DeclarationNode>> decls;
     for(auto& d: res.subs) {
@@ -59,6 +60,7 @@ Parser::Parser() {
 }
 
 up<ASTNode> Parser::parse(std::string code) const {
+  Stopwatch stopwatch{"Parsing the code"};
   auto ret = mPegParser.parse("Start", std::move(code));
   if(ret.first.index() == 0)
     return up<ASTNode>{std::get<0>(ret.first).moveMatchInfo().result.move<ASTNode*>()};

@@ -3,6 +3,7 @@
 #include "samal_lib/AST.hpp"
 
 int main() {
+  samal::Stopwatch stopwatch{"The main function"};
   samal::Parser parser;
   auto ast = parser.parse(R"(
 fn main(x : i32, y : i32) -> i32 {
@@ -11,6 +12,7 @@ fn main(x : i32, y : i32) -> i32 {
 fn fib(n : i32) -> i32 {
 
 })");
+  samal::Stopwatch stopwatch2{"Dumping the AST"};
   if(ast)
     std::cout << ast->dump(0) << "\n";
 }
