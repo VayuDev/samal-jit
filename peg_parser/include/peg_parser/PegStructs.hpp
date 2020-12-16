@@ -52,6 +52,7 @@ class Any final {
 
   template<typename T>
   inline T move() {
+    assert(data);
     auto cpy = data;
     data = nullptr;
     destructor = {};
@@ -59,6 +60,7 @@ class Any final {
   }
   template<typename T>
   inline T moveValue() {
+    assert(data);
     T movedValue = std::move(*static_cast<T*>(data));
     delete data;
     data = nullptr;
