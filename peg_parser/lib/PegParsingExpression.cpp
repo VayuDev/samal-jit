@@ -4,6 +4,8 @@
 
 namespace peg {
 
+const std::regex gNextStringRegex{"^[^ \n\t]*", std::regex::optimize};
+
 std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverseOrder) const {
   auto[line, column] = tokenizer.getPosition(mState);
   std::string msg;
@@ -147,8 +149,8 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
         ExpressionFailInfo{state, dump()}
     };
   } else {
-    // TODO cache regex
-    size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^ \n\t]*"})) - tokenizer.getPtr(state);
+    state = tokenizer.skipWhitespaces(state);
+    size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, gNextStringRegex)) - tokenizer.getPtr(state);
     std::string failedString{std::string_view{tokenizer.getPtr(state), len}};
     return ExpressionFailInfo{
         state,
@@ -194,7 +196,6 @@ RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rul
     }
     i++;
   }
-  // TODO return more info
   return ExpressionFailInfo {
     state,
     dump(),
@@ -343,8 +344,8 @@ RuleResult ErrorMessageInfoExpression::match(ParsingState state, const RuleMap &
   if(childRes.index() == 0) {
     return childRes;
   }
-  // TODO cache regex
-  size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^ \n\t]*"})) - tokenizer.getPtr(state);
+  state = tokenizer.skipWhitespaces(state);
+  size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, gNextStringRegex)) - tokenizer.getPtr(state);
   std::string failedString{std::string_view{tokenizer.getPtr(state), len}};
   return ExpressionFailInfo{
     state,
