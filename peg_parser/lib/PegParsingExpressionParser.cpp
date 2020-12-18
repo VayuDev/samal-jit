@@ -38,56 +38,58 @@ static sp<ParsingExpression> parseAtom(ExpressionTokenizer &tok) {
   throw std::runtime_error{std::string{"Invalid atomic token: '"} + std::string{*tok.currentToken()} + "'"};
 }
 
-static sp<ParsingExpression> parseQuantifier(ExpressionTokenizer &tok) {
-  auto atom = parseAtom(tok);
-  if(!tok.currentToken() || tok.currentToken()->empty()) {
-    return atom;
-  }
-  if(*tok.currentToken() == "?") {
-    auto expr = std::make_shared<OptionalParsingExpression>(std::move(atom));
-    tok.advance();
-    return expr;
-  } else if(*tok.currentToken() == "*") {
-    auto expr = std::make_shared<ZeroOrMoreParsingExpression>(std::move(atom));
-    tok.advance();
-    return expr;
-  } else if(*tok.currentToken() == "+") {
-    auto expr = std::make_shared<OneOrMoreParsingExpression>(std::move(atom));
-    tok.advance();
-    return expr;
-  }
-  return atom;
-}
-
 static sp<ParsingExpression> parseAttribute(ExpressionTokenizer &tok) {
   if(!tok.currentToken() || tok.currentToken()->empty()) {
     return nullptr;
   }
   if(*tok.currentToken() == "~sws~") {
     tok.advance();
-    auto quantifier = parseQuantifier(tok);
-    return std::make_shared<SkipWhitespacesExpression>(std::move(quantifier));
+    return std::make_shared<SkipWhitespacesExpression>(parseAtom(tok));
   }
   if(*tok.currentToken() == "~nws~") {
     tok.advance();
-    auto quantifier = parseQuantifier(tok);
-    return std::make_shared<DoNotSkipWhitespacesExpression>(std::move(quantifier));
+    return std::make_shared<DoNotSkipWhitespacesExpression>(parseAtom(tok));
   }
-  return std::make_shared<SkipWhitespacesExpression>(parseQuantifier(tok));
+  if(*tok.currentToken() == "~fws~") {
+    tok.advance();
+    return std::make_shared<ForceSkippingWhitespacesExpression>(parseAtom(tok));
+  }
+  return std::make_shared<SkipWhitespacesExpression>(parseAtom(tok));
 }
 
-static sp<ParsingExpression> parseErrorInfo(ExpressionTokenizer &tok) {
-  auto attribute = parseAttribute(tok);
+static sp<ParsingExpression> parseQuantifier(ExpressionTokenizer &tok) {
+  auto attrib = parseAttribute(tok);
   if(!tok.currentToken() || tok.currentToken()->empty()) {
-    return attribute;
+    return attrib;
   }
-  if (tok.currentToken()->at(0) == '#') {
-    // error-info
-    auto expr = std::make_shared<ErrorMessageInfoExpression>(std::move(attribute), std::string{tok.currentToken()->substr(1, tok.currentToken()->size() - 2)});
+  if(*tok.currentToken() == "?") {
+    auto expr = std::make_shared<OptionalParsingExpression>(std::move(attrib));
+    tok.advance();
+    return expr;
+  } else if(*tok.currentToken() == "*") {
+    auto expr = std::make_shared<ZeroOrMoreParsingExpression>(std::move(attrib));
+    tok.advance();
+    return expr;
+  } else if(*tok.currentToken() == "+") {
+    auto expr = std::make_shared<OneOrMoreParsingExpression>(std::move(attrib));
     tok.advance();
     return expr;
   }
-  return attribute;
+  return attrib;
+}
+
+static sp<ParsingExpression> parseErrorInfo(ExpressionTokenizer &tok) {
+  auto quantifier = parseQuantifier(tok);
+  if(!tok.currentToken() || tok.currentToken()->empty()) {
+    return quantifier;
+  }
+  if (tok.currentToken()->at(0) == '#') {
+    // error-info
+    auto expr = std::make_shared<ErrorMessageInfoExpression>(std::move(quantifier), std::string{tok.currentToken()->substr(1, tok.currentToken()->size() - 2)});
+    tok.advance();
+    return expr;
+  }
+  return quantifier;
 }
 
 static sp<ParsingExpression> parseSequence(ExpressionTokenizer &tok) {

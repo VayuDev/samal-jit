@@ -364,7 +364,7 @@ RuleResult SkipWhitespacesExpression::match(ParsingState state, const RuleMap &r
   return mChild->match(state, rules, tokenizer);
 }
 std::string SkipWhitespacesExpression::dump() const {
-  return "~sws~" + mChild->dump();
+  return mChild->dump();
 }
 DoNotSkipWhitespacesExpression::DoNotSkipWhitespacesExpression(sp<ParsingExpression> child)
 : mChild(std::move(child)) {
@@ -375,6 +375,22 @@ RuleResult DoNotSkipWhitespacesExpression::match(ParsingState state, const RuleM
 }
 std::string DoNotSkipWhitespacesExpression::dump() const {
   return "~nws~" + mChild->dump();
+}
+ForceSkippingWhitespacesExpression::ForceSkippingWhitespacesExpression(sp<ParsingExpression> child)
+: mChild(std::move(child)) {
+
+}
+RuleResult ForceSkippingWhitespacesExpression::match(ParsingState state,
+                                                     const RuleMap &rules,
+                                                     const PegTokenizer &tokenizer) const {
+  auto newState = tokenizer.skipWhitespaces(state);
+  if(newState == state) {
+    return ExpressionFailInfo{state, dump(), ExpressionFailReason::REQUIRED_WHITESPACES, {}};
+  }
+  return mChild->match(newState, rules, tokenizer);
+}
+std::string ForceSkippingWhitespacesExpression::dump() const {
+  return "~fws~" + mChild->dump();
 }
 
 class ErrorTree {

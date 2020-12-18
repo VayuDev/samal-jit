@@ -13,6 +13,9 @@ namespace peg {
 
 struct ParsingState {
   size_t tokenizerState = 0;
+  inline bool operator==(const ParsingState& pOther) const {
+    return tokenizerState == pOther.tokenizerState;
+  }
 };
 
 class Any final {

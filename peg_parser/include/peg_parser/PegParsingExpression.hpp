@@ -26,6 +26,7 @@ enum class ExpressionFailReason {
   CHOICE_NO_CHILD_SUCCEEDED,
   ADDITIONAL_ERROR_MESSAGE,
   REQUIRED_ONE_OR_MORE,
+  REQUIRED_WHITESPACES,
   UNMATCHED_REGEX,
   UNMATCHED_STRING,
 };
@@ -196,6 +197,15 @@ class SkipWhitespacesExpression : public ParsingExpression {
 class DoNotSkipWhitespacesExpression : public ParsingExpression {
  public:
   explicit DoNotSkipWhitespacesExpression(sp<ParsingExpression> child);
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+};
+
+class ForceSkippingWhitespacesExpression : public ParsingExpression {
+ public:
+  explicit ForceSkippingWhitespacesExpression(sp<ParsingExpression> child);
   [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
   [[nodiscard]] std::string dump() const override;
  private:

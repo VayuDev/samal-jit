@@ -13,6 +13,7 @@ TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
     auto ret = t.matchString(state, param);
     REQUIRE(ret);
     state = *ret;
+    state = t.skipWhitespaces(state);
   };
   auto shouldNotMatch = [&](const char* param) {
     auto ret = t.matchString(state, param);
@@ -45,6 +46,7 @@ TEST_CASE("Tokenizer matches regex", "[tokenizer]") {
     auto ret = t.matchRegex(state, std::regex{param});
     REQUIRE(ret);
     state = *ret;
+    state = t.skipWhitespaces(state);
   };
   auto shouldNotMatchReg = [&](const char* param) {
     auto ret = t.matchRegex(state, std::regex{param});
@@ -63,11 +65,13 @@ TEST_CASE("Tokenizer matches regex 2", "[tokenizer]") {
     auto ret = t.matchRegex(state, std::regex{param});
     REQUIRE(ret);
     state = *ret;
+    state = t.skipWhitespaces(state);
   };
   auto shouldMatch = [&](const char* param) {
     auto ret = t.matchString(state, param);
     REQUIRE(ret);
     state = *ret;
+    state = t.skipWhitespaces(state);
   };
   shouldMatchReg("^[\\d]");
   shouldMatch("+");
@@ -163,8 +167,8 @@ auto parseThenStringifyStaysSameAfter = [] (const char* str, const char* after) 
 };
 
 TEST_CASE("ParsingExpression from string simple", "[parser]") {
-  parseThenStringifyStaysSame("'a' 'b'");
-  parseThenStringifyStaysSame("'a' 'b' 'c'");
+  parseThenStringifyStaysSameAfter("'a' 'b'", "'a' 'b'");
+  parseThenStringifyStaysSameAfter("'a' 'b' 'c'", "'a' 'b' 'c'");
   parseThenStringifyStaysSameAfter("'a' 'b' 'c' | 'd'", "('a' 'b' 'c' | 'd')");
   parseThenStringifyStaysSame("'a' ('b' | 'c')");
   parseThenStringifyStaysSame("'a' ('b' | 'c') 'd'");
@@ -204,7 +208,7 @@ TEST_CASE("Simple parser match", "[parser]") {
   }
   {
     peg::PegParser parser;
-    parser.addRule("Start", peg::stringToParsingExpression("'a' ' ' 'c'"));
+    parser.addRule("Start", peg::stringToParsingExpression("'a' ~fws~ 'c'"));
     REQUIRE(parser.parse("Start", "a c").first.index() == 0);
     REQUIRE(parser.parse("Start", "a").first.index() == 1);
     REQUIRE(parser.parse("Start", "a b c").first.index() == 1);
@@ -326,8 +330,8 @@ TEST_CASE("Calculator test", "[parser]") {
   REQUIRE(*std::get<0>(parser.parse("Expr", "(5-2)*3").first).getMatchInfo().result.get<int*>() == 9);
   REQUIRE(*std::get<0>(parser.parse("Expr", "(20-2)*3").first).getMatchInfo().result.get<int*>() == 18*3);
   auto res = parser.parse("Expr", "3*hallo");
-  std::cout << peg::errorsToString(std::get<1>(res.first), res.second) << "\n";
-  //REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) == std::string{""});
+  //std::cout << peg::errorsToString(std::get<1>(res.first), res.second) << "\n";
+  REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) != std::string{""});
 }
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
 TEST_CASE("ParsingExpression matching benchmarks", "[parser]") {
