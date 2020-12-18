@@ -148,7 +148,7 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
     };
   } else {
     // TODO cache regex
-    size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^ ]*"})) - tokenizer.getPtr(state);
+    size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^ \n\t]*"})) - tokenizer.getPtr(state);
     std::string failedString{std::string_view{tokenizer.getPtr(state), len}};
     return ExpressionFailInfo{
         state,
@@ -340,7 +340,7 @@ RuleResult ErrorMessageInfoExpression::match(ParsingState state, const RuleMap &
     return childRes;
   }
   // TODO cache regex
-  size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^\\s]*"})) - tokenizer.getPtr(state);
+  size_t len = tokenizer.getPtr(*tokenizer.matchRegex(state, std::regex{"^[^ \n\t]*"})) - tokenizer.getPtr(state);
   std::string failedString{std::string_view{tokenizer.getPtr(state), len}};
   return ExpressionFailInfo{
     state,
