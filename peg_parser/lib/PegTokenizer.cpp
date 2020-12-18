@@ -25,6 +25,7 @@ std::optional<ParsingState> PegTokenizer::matchRegex(ParsingState state, const s
   if(it == std::sregex_iterator()) {
     return {};
   }
+  assert(it->prefix().length() == 0);
   state.tokenizerState += it->length();
   return state;
 }
