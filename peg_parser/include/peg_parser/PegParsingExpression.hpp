@@ -184,4 +184,22 @@ class ErrorMessageInfoExpression : public ParsingExpression {
   std::string mErrorMsg;
 };
 
+class SkipWhitespacesExpression : public ParsingExpression {
+ public:
+  explicit SkipWhitespacesExpression(sp<ParsingExpression> child);
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+};
+
+class DoNotSkipWhitespacesExpression : public ParsingExpression {
+ public:
+  explicit DoNotSkipWhitespacesExpression(sp<ParsingExpression> child);
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+};
+
 }

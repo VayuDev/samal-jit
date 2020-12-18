@@ -59,18 +59,35 @@ static sp<ParsingExpression> parseQuantifier(ExpressionTokenizer &tok) {
   return atom;
 }
 
-static sp<ParsingExpression> parseErrorInfo(ExpressionTokenizer &tok) {
-  auto quantifier = parseQuantifier(tok);
+static sp<ParsingExpression> parseAttribute(ExpressionTokenizer &tok) {
   if(!tok.currentToken() || tok.currentToken()->empty()) {
-    return quantifier;
+    return nullptr;
+  }
+  if(*tok.currentToken() == "~sws~") {
+    tok.advance();
+    auto quantifier = parseQuantifier(tok);
+    return std::make_shared<SkipWhitespacesExpression>(std::move(quantifier));
+  }
+  if(*tok.currentToken() == "~nws~") {
+    tok.advance();
+    auto quantifier = parseQuantifier(tok);
+    return std::make_shared<DoNotSkipWhitespacesExpression>(std::move(quantifier));
+  }
+  return std::make_shared<SkipWhitespacesExpression>(parseQuantifier(tok));
+}
+
+static sp<ParsingExpression> parseErrorInfo(ExpressionTokenizer &tok) {
+  auto attribute = parseAttribute(tok);
+  if(!tok.currentToken() || tok.currentToken()->empty()) {
+    return attribute;
   }
   if (tok.currentToken()->at(0) == '#') {
     // error-info
-    auto expr = std::make_shared<ErrorMessageInfoExpression>(std::move(quantifier), std::string{tok.currentToken()->substr(1, tok.currentToken()->size() - 2)});
+    auto expr = std::make_shared<ErrorMessageInfoExpression>(std::move(attribute), std::string{tok.currentToken()->substr(1, tok.currentToken()->size() - 2)});
     tok.advance();
     return expr;
   }
-  return quantifier;
+  return attribute;
 }
 
 static sp<ParsingExpression> parseSequence(ExpressionTokenizer &tok) {
@@ -131,6 +148,9 @@ void ExpressionTokenizer::genNextToken() {
         break;
       case '#':
         consumeString('#', '#');
+        break;
+      case '~':
+        consumeString('~', '~');
         break;
       case '+':
       case '*':
