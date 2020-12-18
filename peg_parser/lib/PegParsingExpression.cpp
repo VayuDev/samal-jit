@@ -177,12 +177,15 @@ RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rul
     if(childRet.index() == 0) {
       // child matched
       std::vector<MatchInfo> subs;
+      auto start = std::get<0>(childRet).getMatchInfo().start;
+      auto end = std::get<0>(childRet).getMatchInfo().end;
       subs.emplace_back(std::get<0>(childRet).moveMatchInfo());
+      childrenFailReasons.push_back(std::get<0>(childRet).moveFailInfo());
       return ExpressionSuccessInfo{
           std::get<0>(childRet).getState(),
           MatchInfo{
-              .start = std::get<0>(childRet).getMatchInfo().start,
-              .end = std::get<0>(childRet).getMatchInfo().end,
+              .start = start,
+              .end = end,
               .choice = i,
               .subs = std::move(subs)},
           ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
