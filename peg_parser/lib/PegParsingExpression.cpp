@@ -284,6 +284,7 @@ RuleResult OneOrMoreParsingExpression::match(ParsingState state, const RuleMap& 
   std::vector<MatchInfo> childrenResults;
   std::vector<ExpressionFailInfo> childrenFailReasons;
   childrenResults.emplace_back(std::get<0>(childRet).moveMatchInfo());
+  childrenFailReasons.emplace_back(std::get<0>(childRet).moveFailInfo());
   while(true) {
     childRet = mChild->match(state, rules, tokenizer);
     if(childRet.index() == 1) {
