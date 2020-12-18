@@ -39,10 +39,10 @@ Parser::Parser() {
     }
     return params;
   };
-  mPegParser["Identifier"] << "[a-z,A-Z]+" >> [] (peg::MatchInfo& r) {
+  mPegParser["Identifier"] << "[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])*" >> [] (peg::MatchInfo& r) {
     return std::string{r.startTrimmed(), r.endTrimmed()};
   };
-  mPegParser["Datatype"] << "'i32' | [a-z,A-Z]+" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["Datatype"] << "'i32' | Identifier" >> [] (peg::MatchInfo& res) -> peg::Any {
     switch(*res.choice) {
       case 0:
         return Datatype{DatatypeCategory::i32};
