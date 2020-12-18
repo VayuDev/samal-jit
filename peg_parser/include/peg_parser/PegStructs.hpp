@@ -65,7 +65,7 @@ class Any final {
   inline T moveValue() {
     assert(data);
     T movedValue = std::move(*static_cast<T*>(data));
-    delete data;
+    delete (T*)data;
     data = nullptr;
     destructor = {};
     return movedValue;
