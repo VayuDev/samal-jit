@@ -229,7 +229,7 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
   if(rule.callback) {
     callbackResult = rule.callback(std::get<0>(ruleRetValue).getMatchInfoMut());
   }
-  auto end = tokenizer.getPtr(state);
+  auto end = tokenizer.getPtr(std::get<0>(ruleRetValue).getState());
 
   std::vector<MatchInfo> subs;
   subs.emplace_back(std::get<0>(ruleRetValue).moveMatchInfo());
