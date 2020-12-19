@@ -37,9 +37,9 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
       case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
         msg += "We need to match one or more of the following, but not even one succeeded:";
         break;
-      case ExpressionFailReason::UNMATCHED_REGEX:msg += "The regex '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+      case ExpressionFailReason::UNMATCHED_REGEX:msg += "Expected regex '" + mInfo1 + "', got: '" + mInfo2 + "'";
         break;
-      case ExpressionFailReason::UNMATCHED_STRING:msg += "The string '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+      case ExpressionFailReason::UNMATCHED_STRING:msg += "Expected '" + mInfo1 + "', got: '" + mInfo2 + "'";
         break;
       case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
         msg += mInfo1 + ", got: '" + mInfo2 + "'\033[0m";
@@ -60,9 +60,9 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
       case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
         msg += "We need to match one or more of the following, but not even one succeeded:";
         break;
-      case ExpressionFailReason::UNMATCHED_REGEX:msg += "The regex '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+      case ExpressionFailReason::UNMATCHED_REGEX:msg += "Expected regex '" + mInfo1 + "', got: '" + mInfo2 + "'";
         break;
-      case ExpressionFailReason::UNMATCHED_STRING:msg += "The string '" + mInfo1 + "' didn't match '" + mInfo2 + "'";
+      case ExpressionFailReason::UNMATCHED_STRING:msg += "Expected '" + mInfo1 + "', got: '" + mInfo2 + "'";
         break;
       case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
         msg += mInfo1 + " (" + mInfo2 + ")\033[0m";
@@ -155,7 +155,7 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
     return ExpressionFailInfo{
         state,
         dump(),
-        ExpressionFailReason::UNMATCHED_STRING,
+        mRegex ? ExpressionFailReason::UNMATCHED_REGEX : ExpressionFailReason::UNMATCHED_STRING,
         mStringRepresentation,
         failedString
     };
@@ -409,6 +409,9 @@ class ErrorTree {
   [[nodiscard]] const auto& getChildren() const {
     return mChildren;
   }
+  [[nodiscard]] auto& getChildren() {
+    return mChildren;
+  }
   [[nodiscard]] auto getParent() const {
     return mParent;
   }
@@ -459,6 +462,8 @@ sp<ErrorTree> createErrorTree(const ExpressionFailInfo& info, const PegTokenizer
 }
 std::string errorsToString(const ParsingFailInfo& info, const PegTokenizer& tokenizer) {
   auto tree = createErrorTree(*info.error, tokenizer, wp<ErrorTree>{});
+
+  /*
   // walk to the last node in the tree
   sp<ErrorTree> lastNode = tree;
   while(lastNode) {
@@ -468,7 +473,7 @@ std::string errorsToString(const ParsingFailInfo& info, const PegTokenizer& toke
       lastNode = lastNode->getChildren().at(lastNode->getChildren().size() - 1);
     }
   }
-  /*size_t stepsToSuccess = 0;
+  size_t stepsToSuccess = 0;
   assert(lastNode);
   // walk up from the last node until we encounter something like Success or an additional error
   sp<ErrorTree> lastSuccessNode = lastNode;
@@ -484,6 +489,30 @@ std::string errorsToString(const ParsingFailInfo& info, const PegTokenizer& toke
     stepsToSuccess += 1;
   }
   assert(lastSuccessNode);*/
+  size_t lastLine = 0;
+  sp<ErrorTree> node = tree;
+  std::function<void(sp<ErrorTree>)> search = [&](sp<ErrorTree> node){
+    auto[line, column] = tokenizer.getPosition(node->getSourceNode().getState());
+    if(line > lastLine) {
+      lastLine = line;
+    }
+    for(auto& child: node->getChildren()) {
+      search(child);
+    }
+  };
+  search(tree);
+
+  std::function<bool(sp<ErrorTree>)> prune = [&](sp<ErrorTree> node) -> bool{
+    auto[line, column] = tokenizer.getPosition(node->getSourceNode().getState());
+    for(ssize_t i = node->getChildren().size() - 1; i >= 0; --i) {
+      if(prune(node->getChildren().at(i))) {
+        node->getChildren().erase(node->getChildren().cbegin() + i);
+      }
+    }
+    return line != lastLine && node->getChildren().empty();
+  };
+  prune(tree);
+
   std::string ret;
   if(info.eof) {
     ret += "Unexpected EOF\n";

@@ -64,6 +64,9 @@ class ExpressionFailInfo {
   [[nodiscard]] bool isAdditionalErrorMessage() const {
     return mReason == ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE;
   }
+  [[nodiscard]] auto getState() const {
+    return mState;
+  }
  private:
   ExpressionFailReason mReason { ExpressionFailReason::SUCCESS };
   ParsingState mState;
