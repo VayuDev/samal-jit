@@ -32,7 +32,7 @@ class ExpressionNode : public ASTNode {
  private:
 };
 
-class BinaryExpressionNode : public ASTNode {
+class BinaryExpressionNode : public ExpressionNode {
  public:
   enum class BinaryOperator {
     PLUS,
@@ -41,7 +41,7 @@ class BinaryExpressionNode : public ASTNode {
     DIVIDE
   };
   BinaryExpressionNode(up<ExpressionNode> left, BinaryOperator op, up<ExpressionNode> right);
-  [[nodiscard]] virtual std::optional<Datatype> getDatatype() const;
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "BinaryExpressionNode"; }
  private:
@@ -60,11 +60,21 @@ class LiteralNode : public ExpressionNode {
 class LiteralInt32Node : public LiteralNode {
  public:
   explicit LiteralInt32Node(int32_t val);
-  [[nodiscard]] virtual std::optional<Datatype> getDatatype() const;
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "LiteralIntNode"; }
  private:
   int32_t mValue;
+};
+
+class IdentifierNode : public ExpressionNode {
+ public:
+  explicit IdentifierNode(std::string name);
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "IdentifierNode"; }
+ private:
+  std::string mName;
 };
 
 class ScopeNode : public ExpressionNode {
@@ -75,6 +85,18 @@ class ScopeNode : public ExpressionNode {
   [[nodiscard]] inline const char* getClassName() const override { return "ScopeNode"; }
  private:
   std::vector<up<ExpressionNode>> mExpressions;
+};
+
+using IfExpressionChildList = std::vector<std::pair<up<ExpressionNode>, up<ScopeNode>>>;
+class IfExpressionNode : public ExpressionNode {
+ public:
+  IfExpressionNode(IfExpressionChildList children, up<ScopeNode> elseBody);
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "IfExpressionNode"; }
+ private:
+  IfExpressionChildList mChildren;
+  up<ScopeNode> mElseBody;
 };
 
 

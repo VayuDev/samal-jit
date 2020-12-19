@@ -72,6 +72,18 @@ std::optional<Datatype> LiteralInt32Node::getDatatype() const {
 std::string LiteralInt32Node::dump(unsigned int indent) const {
   return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
 }
+
+IdentifierNode::IdentifierNode(std::string name)
+: mName(std::move(name)) {
+
+}
+std::optional<Datatype> IdentifierNode::getDatatype() const {
+  return std::optional<Datatype>();
+}
+std::string IdentifierNode::dump(unsigned int indent) const {
+  return createIndent(indent) + getClassName() + ": " + mName + "\n";
+}
+
 ScopeNode::ScopeNode(std::vector<up<ExpressionNode>> expressions)
 : mExpressions(std::move(expressions)) {
 
@@ -83,6 +95,28 @@ std::string ScopeNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
   for(auto& child: mExpressions) {
     ret += child->dump(indent + 1);
+  }
+  return ret;
+}
+
+IfExpressionNode::IfExpressionNode(IfExpressionChildList children, up<ScopeNode> elseBody)
+: mChildren(std::move(children)), mElseBody(std::move(elseBody)) {
+
+}
+std::optional<Datatype> IfExpressionNode::getDatatype() const {
+  return std::optional<Datatype>();
+}
+std::string IfExpressionNode::dump(unsigned int indent) const {
+  auto ret = ASTNode::dump(indent);
+  for(auto& child: mChildren) {
+    ret += createIndent(indent + 1) + "Condition:\n" + child.first->dump(indent + 2);
+    ret += createIndent(indent + 1) + "Body:\n" + child.second->dump(indent + 2);
+  }
+  ret += createIndent(indent + 1) + "Else:\n";
+  if(mElseBody) {
+    ret += mElseBody->dump(indent + 2);
+  } else {
+    ret += createIndent(indent + 2) + "nullptr\n";
   }
   return ret;
 }

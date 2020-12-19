@@ -59,7 +59,7 @@ Parser::Parser() {
     }
     return ScopeNode{std::move(expressions)};
   };
-  mPegParser["Expression"] << "LineExpression | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["Expression"] << "(IfExpression | ScopeExpression | LineExpression) #Expected Expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
     return std::move(res[0].result);
   };
   mPegParser["LineExpression"] << "DotExpression (('+' | '-') LineExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
@@ -81,17 +81,35 @@ Parser::Parser() {
         *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::MULTIPLY : BinaryExpressionNode::BinaryOperator::DIVIDE,
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
   };
-  mPegParser["LiteralExpression"] << "[\\d]+ | '(' Expression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["LiteralExpression"] << "[\\d]+ | Identifier | '(' Expression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     int32_t val;
     if(*res.choice == 0) {
       std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
       return LiteralInt32Node{val};
     } else if(*res.choice == 1) {
-      return std::move(res[0][1].result);
+      return IdentifierNode{std::string{std::string_view{res.startTrimmed(), res.endTrimmed()}}};
+    } else if(*res.choice == 2) {
+        return std::move(res[0][1].result);
     } else {
       return std::move(res[0].result);
     }
     assert(false);
+  };
+  mPegParser["IfExpression"] << "'if' Expression ScopeExpression ('else' 'if' Expression ScopeExpression)* ('else' ScopeExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    IfExpressionChildList list;
+    list.push_back(std::make_pair(
+        up<ExpressionNode>{res[1].result.move<ExpressionNode*>()},
+        up<ScopeNode>{res[2].result.move<ScopeNode*>()}));
+    for(auto& elseIf : res[3].subs) {
+      list.push_back(std::make_pair(
+          up<ExpressionNode>{elseIf[2].result.move<ExpressionNode*>()},
+          up<ScopeNode>{elseIf[3].result.move<ScopeNode*>()}));
+    }
+    up<ScopeNode> elseBody;
+    if(!res[4].subs.empty()) {
+      elseBody.reset(res[4][0][1].result.move<ScopeNode*>());
+    }
+    return IfExpressionNode{std::move(list), std::move(elseBody)};
   };
 }
 
