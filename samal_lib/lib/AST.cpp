@@ -24,7 +24,20 @@ ParameterListNode::ParameterListNode(std::vector<Parameter> params)
 std::string ParameterListNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
   for(auto& child: mParams) {
-    ret += createIndent(indent + 1) + child.name + " : " + child.type.toString() + "\n";
+    ret += child.name->dump(indent + 1);
+    ret += createIndent(indent + 1) + "Type: " + child.type.toString() + "\n";
+  }
+  return ret;
+}
+
+ParameterListNodeWithoutDatatypes::ParameterListNodeWithoutDatatypes(std::vector<up<ExpressionNode>> params)
+: mParams(std::move(params)) {
+
+}
+std::string ParameterListNodeWithoutDatatypes::dump(unsigned int indent) const {
+  auto ret = ASTNode::dump(indent);
+  for(auto& child: mParams) {
+    ret += child->dump(indent + 1);
   }
   return ret;
 }
@@ -121,6 +134,21 @@ std::string IfExpressionNode::dump(unsigned int indent) const {
   return ret;
 }
 
+FunctionCallExpressionNode::FunctionCallExpressionNode(up<IdentifierNode> name,
+                                                       up<ParameterListNodeWithoutDatatypes> params)
+: mName(std::move(name)), mParams(std::move(params)) {
+
+}
+std::optional<Datatype> FunctionCallExpressionNode::getDatatype() const {
+  return std::optional<Datatype>();
+}
+std::string FunctionCallExpressionNode::dump(unsigned int indent) const {
+  auto ret = ASTNode::dump(indent);
+  ret += mName->dump(indent + 1);
+  ret += mParams->dump(indent + 1);
+  return ret;
+}
+
 ModuleRootNode::ModuleRootNode(std::vector<up<DeclarationNode>> &&declarations)
 : mDeclarations(std::move(declarations)) {
 }
@@ -133,13 +161,13 @@ std::string ModuleRootNode::dump(unsigned indent) const {
 }
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
   auto ret = ASTNode::dump(indent);
-  ret += createIndent(indent + 1) + "Name: " + mName + "\n";
+  ret += createIndent(indent + 1) + "Name:\n" + mName->dump(indent + 1);
   ret += createIndent(indent + 1) + "Returns: " + mReturnType.toString() + "\n";
   ret += createIndent(indent + 1) + "Params: \n" + mParameters->dump(indent + 2);
   ret += createIndent(indent + 1) + "Body: \n" + mBody->dump(indent + 2);
   return ret;
 }
-FunctionDeclarationNode::FunctionDeclarationNode(std::string name,
+FunctionDeclarationNode::FunctionDeclarationNode(up<IdentifierNode> name,
                                                  up<ParameterListNode> params,
                                                  Datatype returnType,
                                                  up<ScopeNode> body)

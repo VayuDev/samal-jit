@@ -4,6 +4,9 @@
 
 namespace samal {
 
+class IdentifierNode;
+class ExpressionNode;
+
 class ASTNode {
  public:
   virtual ~ASTNode() = default;
@@ -15,7 +18,7 @@ class ASTNode {
 class ParameterListNode : public ASTNode {
  public:
   struct Parameter {
-    std::string name;
+    up<IdentifierNode> name;
     Datatype type;
   };
   explicit ParameterListNode(std::vector<Parameter> params);
@@ -24,6 +27,16 @@ class ParameterListNode : public ASTNode {
  private:
   std::vector<Parameter> mParams;
 };
+
+class ParameterListNodeWithoutDatatypes : public ASTNode {
+ public:
+  explicit ParameterListNodeWithoutDatatypes(std::vector<up<ExpressionNode>> params);
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "ParameterListNodeWithoutDatatypes"; }
+ private:
+  std::vector<up<ExpressionNode>> mParams;
+};
+
 
 class ExpressionNode : public ASTNode {
  public:
@@ -99,6 +112,17 @@ class IfExpressionNode : public ExpressionNode {
   up<ScopeNode> mElseBody;
 };
 
+class FunctionCallExpressionNode : public ExpressionNode {
+ public:
+  FunctionCallExpressionNode(up<IdentifierNode> name, up<ParameterListNodeWithoutDatatypes> params);
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "FunctionCallExpressionNode"; }
+ private:
+  up<IdentifierNode> mName;
+  up<ParameterListNodeWithoutDatatypes> mParams;
+};
+
 
 class DeclarationNode : public ASTNode {
  public:
@@ -118,11 +142,11 @@ class ModuleRootNode : public ASTNode {
 
 class FunctionDeclarationNode : public DeclarationNode {
  public:
-  FunctionDeclarationNode(std::string name, up<ParameterListNode> params, Datatype returnType, up<ScopeNode> body);
+  FunctionDeclarationNode(up<IdentifierNode> name, up<ParameterListNode> params, Datatype returnType, up<ScopeNode> body);
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "FunctionDeclarationNode"; }
  private:
-  std::string mName;
+  up<IdentifierNode> mName;
   up<ParameterListNode> mParameters;
   Datatype mReturnType;
   up<ScopeNode> mBody;

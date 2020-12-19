@@ -19,7 +19,7 @@ Parser::Parser() {
   };
   mPegParser["FunctionDeclaration"] << "'fn' Identifier '(' ParameterList ')' '->' Datatype ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     return FunctionDeclarationNode(
-        res.subs.at(1).result.moveValue<std::string>(),
+        up<IdentifierNode>{res[1].result.move<IdentifierNode*>()},
         up<ParameterListNode>{res.subs.at(3).result.move<ParameterListNode*>()},
         res.subs.at(6).result.moveValue<Datatype>(),
         up<ScopeNode>{res.subs.at(7).result.move<ScopeNode*>()});
@@ -31,7 +31,7 @@ Parser::Parser() {
   };
   mPegParser["ParameterListRec"] << "Identifier ':' Datatype (',' ParameterListRec)?" >> [] (peg::MatchInfo& res) {
     std::vector<ParameterListNode::Parameter> params;
-    params.emplace_back(ParameterListNode::Parameter{res[0].result.moveValue<std::string>(), res[2].result.moveValue<Datatype>()});
+    params.emplace_back(ParameterListNode::Parameter{up<IdentifierNode>{res[0].result.move<IdentifierNode*>()}, res[2].result.moveValue<Datatype>()});
     // recursive child
     if(!res[3].subs.empty()) {
       auto childParams = res[3][0][1].result.moveValue<std::vector<ParameterListNode::Parameter>>();
@@ -39,8 +39,8 @@ Parser::Parser() {
     }
     return params;
   };
-  mPegParser["Identifier"] << "[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])*" >> [] (peg::MatchInfo& r) {
-    return std::string{r.startTrimmed(), r.endTrimmed()};
+  mPegParser["Identifier"] << "[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])*" >> [] (peg::MatchInfo& res) -> peg::Any {
+    return IdentifierNode{std::string{std::string_view{res.startTrimmed(), res.endTrimmed()}}};
   };
   mPegParser["Datatype"] << "'i32' | Identifier" >> [] (peg::MatchInfo& res) -> peg::Any {
     switch(*res.choice) {
@@ -59,8 +59,11 @@ Parser::Parser() {
     }
     return ScopeNode{std::move(expressions)};
   };
-  mPegParser["Expression"] << "(IfExpression | ScopeExpression | LineExpression) #Expected Expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["Expression"] << "(IfExpression | ScopeExpression | MathExpression) #Expected Expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
     return std::move(res[0].result);
+  };
+  mPegParser["MathExpression"] << "LineExpression #Expected mathematical expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
+    return std::move(res.result);
   };
   mPegParser["LineExpression"] << "DotExpression (('+' | '-') LineExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
     if(res[1].subs.empty()) {
@@ -81,15 +84,13 @@ Parser::Parser() {
         *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::MULTIPLY : BinaryExpressionNode::BinaryOperator::DIVIDE,
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
   };
-  mPegParser["LiteralExpression"] << "[\\d]+ | Identifier | '(' Expression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["LiteralExpression"] << "[\\d]+ | FunctionCallExpression | Identifier | '(' MathExpression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     int32_t val;
     if(*res.choice == 0) {
       std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
       return LiteralInt32Node{val};
-    } else if(*res.choice == 1) {
-      return IdentifierNode{std::string{std::string_view{res.startTrimmed(), res.endTrimmed()}}};
-    } else if(*res.choice == 2) {
-        return std::move(res[0][1].result);
+    } else if(*res.choice == 3) {
+      return std::move(res[0][1].result);
     } else {
       return std::move(res[0].result);
     }
@@ -110,6 +111,26 @@ Parser::Parser() {
       elseBody.reset(res[4][0][1].result.move<ScopeNode*>());
     }
     return IfExpressionNode{std::move(list), std::move(elseBody)};
+  };
+  mPegParser["FunctionCallExpression"] << "Identifier '(' ParameterListWithoutDatatype ')'" >> [] (peg::MatchInfo& res) -> peg::Any {
+    return FunctionCallExpressionNode{
+      up<IdentifierNode>{res[0].result.move<IdentifierNode*>()},
+      up<ParameterListNodeWithoutDatatypes>{res[2].result.move<ParameterListNodeWithoutDatatypes*>()}};
+  };
+  mPegParser["ParameterListWithoutDatatype"] << "ParameterListWithoutDatatypeRec?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if(res.subs.empty())
+      return ParameterListNodeWithoutDatatypes{{}};
+    return ParameterListNodeWithoutDatatypes{res[0].result.moveValue<std::vector<up<ExpressionNode>>>()};
+  };
+  mPegParser["ParameterListWithoutDatatypeRec"] << "Expression (',' ParameterListWithoutDatatypeRec)?" >> [] (peg::MatchInfo& res) {
+    std::vector<up<ExpressionNode>> params;
+    params.emplace_back(up<ExpressionNode>{res[0].result.move<ExpressionNode*>()});
+    // recursive child
+    if(!res[1].subs.empty()) {
+      auto childParams = res[1][0][1].result.moveValue<std::vector<up<ExpressionNode>>>();
+      params.insert(params.end(), std::move_iterator(childParams.begin()), std::move_iterator(childParams.end()));
+    }
+    return params;
   };
 }
 

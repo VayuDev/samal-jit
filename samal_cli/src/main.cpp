@@ -7,12 +7,10 @@ int main() {
   samal::Parser parser;
   auto ast = parser.parse(R"(
 fn fib(n : i32) -> i32 {
-  if n + 2 {
-    n - 3;
-  } else if n - 2 {
-    n - 4;
+  if n - 2 {
+    n;
   } else {
-    n * n;
+    fib(n-1) + fib(n-2);
   };
 })");
   samal::Stopwatch stopwatch2{"Dumping the AST"};
