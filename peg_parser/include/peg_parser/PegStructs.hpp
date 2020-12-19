@@ -63,6 +63,7 @@ class Any final {
   }
   template<typename T>
   inline T moveValue() {
+    static_assert(!std::is_pointer_v<T>, "If you want a pointer to the data, use move() instead");
     assert(data);
     T movedValue = std::move(*static_cast<T*>(data));
     delete (T*)data;
