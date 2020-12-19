@@ -1,3 +1,4 @@
+#include <cassert>
 #include "samal_lib/AST.hpp"
 #include "easy_iterator.h"
 
@@ -39,7 +40,24 @@ std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
 }
 std::string BinaryExpressionNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
-  ret += createIndent(indent + 1) + "Operator: " + "IDK" + "\n";
+  ret += createIndent(indent + 1) + "Operator: ";
+  switch(mOperator) {
+    case BinaryOperator::PLUS:
+      ret += "+";
+      break;
+    case BinaryOperator::MINUS:
+      ret += "-";
+      break;
+    case BinaryOperator::MULTIPLY:
+      ret += "*";
+      break;
+    case BinaryOperator::DIVIDE:
+      ret += "/";
+      break;
+    default:
+      assert(false);
+  }
+  ret += "\n";
   ret += createIndent(indent + 1) + "Left:\n" + mLeft->dump(indent + 2);
   ret += createIndent(indent + 1) + "Right:\n" + mRight->dump(indent + 2);
   return ret;

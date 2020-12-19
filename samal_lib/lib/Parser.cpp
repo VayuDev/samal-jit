@@ -68,7 +68,7 @@ Parser::Parser() {
     }
     return BinaryExpressionNode{
         up<ExpressionNode>{res[0].result.move<ExpressionNode*>()},
-        BinaryExpressionNode::BinaryOperator::PLUS,
+        *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::PLUS : BinaryExpressionNode::BinaryOperator::MINUS,
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode*>()}};
   };
 
@@ -78,7 +78,7 @@ Parser::Parser() {
     }
     return BinaryExpressionNode{
         up<ExpressionNode>{res[0].result.move<ExpressionNode *>()},
-        BinaryExpressionNode::BinaryOperator::MULTIPLY,
+        *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::MULTIPLY : BinaryExpressionNode::BinaryOperator::DIVIDE,
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
   };
   mPegParser["LiteralExpression"] << "[\\d]+ | '(' Expression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
