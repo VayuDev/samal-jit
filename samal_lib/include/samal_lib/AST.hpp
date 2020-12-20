@@ -45,6 +45,17 @@ class ExpressionNode : public ASTNode {
  private:
 };
 
+class AssignmentExpression : public ExpressionNode {
+ public:
+  AssignmentExpression(up<IdentifierNode> left, up<ExpressionNode> right);
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "AssignmentExpression"; }
+ private:
+  up<IdentifierNode> mLeft;
+  up<ExpressionNode> mRight;
+};
+
 class BinaryExpressionNode : public ExpressionNode {
  public:
   enum class BinaryOperator {

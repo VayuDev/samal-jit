@@ -42,6 +42,20 @@ std::string ParameterListNodeWithoutDatatypes::dump(unsigned int indent) const {
   return ret;
 }
 
+AssignmentExpression::AssignmentExpression(up<IdentifierNode> left, up<ExpressionNode> right)
+: mLeft(std::move(left)), mRight(std::move(right)) {
+
+}
+std::optional<Datatype> AssignmentExpression::getDatatype() const {
+  return mRight->getDatatype();
+}
+std::string AssignmentExpression::dump(unsigned int indent) const {
+  auto ret = ASTNode::dump(indent);
+  ret += createIndent(indent + 1) + "Left:\n" + mLeft->dump(indent + 2);
+  ret += createIndent(indent + 1) + "Right:\n" + mRight->dump(indent + 2);
+  return ret;
+}
+
 BinaryExpressionNode::BinaryExpressionNode(up<ExpressionNode> left,
                                             BinaryExpressionNode::BinaryOperator op,
                                             up<ExpressionNode> right)

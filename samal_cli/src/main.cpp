@@ -7,6 +7,7 @@ int main() {
   samal::Parser parser;
   auto ast = parser.parse(R"(
 fn fib(n : i32) -> i32 {
+  x = n;
   if n < 2 {
     n;
   } else {
