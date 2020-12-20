@@ -16,19 +16,22 @@ enum class DatatypeCategory {
   struct_,
   enum_,
   tuple,
+  function,
 };
 
 class Datatype {
  public:
   explicit Datatype(DatatypeCategory category);
+  Datatype(Datatype returnType, std::vector<Datatype> params);
   [[nodiscard]] std::string toString() const;
+  [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const;
  private:
   DatatypeCategory mCategory;
   std::variant<
     std::monostate,
     sp<class EnumDeclarationNode>,
     sp<class StructDeclarationNode>,
-    std::vector<Datatype>> mFurtherInfo;
+    std::pair<sp<Datatype>, std::vector<Datatype>>> mFurtherInfo;
 };
 
 }

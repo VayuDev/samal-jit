@@ -8,7 +8,7 @@ namespace samal {
 class Parser {
  public:
   Parser();
-  [[nodiscard]] up<ASTNode> parse(std::string code) const;
+  [[nodiscard]] up<ModuleRootNode> parse(std::string code) const;
  private:
   peg::PegParser mPegParser;
 };

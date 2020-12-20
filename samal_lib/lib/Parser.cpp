@@ -186,11 +186,11 @@ Parser::Parser() {
   };
 }
 
-up<ASTNode> Parser::parse(std::string code) const {
+up<ModuleRootNode> Parser::parse(std::string code) const {
   Stopwatch stopwatch{"Parsing the code"};
   auto ret = mPegParser.parse("Start", std::move(code));
   if(ret.first.index() == 0)
-    return up<ASTNode>{std::get<0>(ret.first).moveMatchInfo().result.move<ASTNode*>()};
+    return up<ModuleRootNode>{std::get<0>(ret.first).moveMatchInfo().result.move<ModuleRootNode*>()};
 
   std::cerr << peg::errorsToString(std::get<1>(ret.first), ret.second);
   return nullptr;
