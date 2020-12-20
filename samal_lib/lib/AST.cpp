@@ -67,6 +67,31 @@ std::string BinaryExpressionNode::dump(unsigned int indent) const {
     case BinaryOperator::DIVIDE:
       ret += "/";
       break;
+
+    case BinaryOperator::LOGICAL_AND:
+      ret += "&&";
+      break;
+    case BinaryOperator::LOGICAL_OR:
+      ret += "||";
+      break;
+    case BinaryOperator::LOGICAL_EQUALS:
+      ret += "==";
+      break;
+    case BinaryOperator::LOGICAL_NOT_EQUALS:
+      ret += "!=";
+      break;
+    case BinaryOperator::COMPARISON_LESS_THAN:
+      ret += "<";
+      break;
+    case BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
+      ret += "<=";
+      break;
+    case BinaryOperator::COMPARISON_MORE_THAN:
+      ret += ">";
+      break;
+    case BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
+      ret += ">=";
+      break;
     default:
       assert(false);
   }

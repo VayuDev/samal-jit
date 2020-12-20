@@ -62,8 +62,52 @@ Parser::Parser() {
   mPegParser["Expression"] << "(IfExpression | ScopeExpression | MathExpression) #Expected Expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
     return std::move(res[0].result);
   };
-  mPegParser["MathExpression"] << "LineExpression #Expected mathematical expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["MathExpression"] << "LogicalCombinationExpression #Expected mathematical expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
     return std::move(res.result);
+  };
+  mPegParser["LogicalCombinationExpression"] << "LogicalEqualExpression (('&&' | '||') LogicalCombinationExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if(res[1].subs.empty()) {
+      return std::move(res[0].result);
+    }
+    return BinaryExpressionNode{
+        up<ExpressionNode>{res[0].result.move<ExpressionNode*>()},
+        *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::LOGICAL_AND : BinaryExpressionNode::BinaryOperator::LOGICAL_OR,
+        up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode*>()}};
+  };
+  mPegParser["LogicalEqualExpression"] << "LogicalComparisonExpression (('==' | '!=') LogicalEqualExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if(res[1].subs.empty()) {
+      return std::move(res[0].result);
+    }
+    return BinaryExpressionNode{
+        up<ExpressionNode>{res[0].result.move<ExpressionNode*>()},
+        *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS : BinaryExpressionNode::BinaryOperator::LOGICAL_NOT_EQUALS,
+        up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode*>()}};
+  };
+  mPegParser["LogicalComparisonExpression"] << "LineExpression (('<' | '<=' | '>=' | '>') LogicalComparisonExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if(res[1].subs.empty()) {
+      return std::move(res[0].result);
+    }
+    BinaryExpressionNode::BinaryOperator op;
+    switch(*res[1][0][0].choice) {
+      case 0:
+        op = BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN;
+        break;
+      case 1:
+        op = BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN;
+        break;
+      case 2:
+        op = BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN;
+        break;
+      case 3:
+        op = BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN;
+        break;
+      default:
+        assert(false);
+    }
+    return BinaryExpressionNode{
+        up<ExpressionNode>{res[0].result.move<ExpressionNode*>()},
+        op,
+        up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode*>()}};
   };
   mPegParser["LineExpression"] << "DotExpression (('+' | '-') LineExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
     if(res[1].subs.empty()) {

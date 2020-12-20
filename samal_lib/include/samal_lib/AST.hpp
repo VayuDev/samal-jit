@@ -51,7 +51,16 @@ class BinaryExpressionNode : public ExpressionNode {
     PLUS,
     MINUS,
     MULTIPLY,
-    DIVIDE
+    DIVIDE,
+    LOGICAL_AND,
+    LOGICAL_OR,
+    LOGICAL_EQUALS,
+    LOGICAL_NOT_EQUALS,
+    COMPARISON_LESS_THAN,
+    COMPARISON_LESS_EQUAL_THAN,
+    COMPARISON_MORE_THAN,
+    COMPARISON_MORE_EQUAL_THAN,
+
   };
   BinaryExpressionNode(up<ExpressionNode> left, BinaryOperator op, up<ExpressionNode> right);
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
