@@ -145,13 +145,13 @@ class IfExpressionNode : public ExpressionNode {
 
 class FunctionCallExpressionNode : public ExpressionNode {
  public:
-  FunctionCallExpressionNode(up<IdentifierNode> name, up<ParameterListNodeWithoutDatatypes> params);
+  FunctionCallExpressionNode(up<ExpressionNode> name, up<ParameterListNodeWithoutDatatypes> params);
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "FunctionCallExpressionNode"; }
  private:
-  up<IdentifierNode> mName;
+  up<ExpressionNode> mName;
   up<ParameterListNodeWithoutDatatypes> mParams;
 };
 

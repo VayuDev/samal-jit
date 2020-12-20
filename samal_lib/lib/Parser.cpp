@@ -127,7 +127,7 @@ Parser::Parser() {
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode*>()}};
   };
 
-  mPegParser["DotExpression"] << "LiteralExpression (('*' | '/') DotExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["DotExpression"] << "PostfixExpression (('*' | '/') DotExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
     if (res[1].subs.empty()) {
       return std::move(res[0].result);
     }
@@ -136,7 +136,15 @@ Parser::Parser() {
         *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::MULTIPLY : BinaryExpressionNode::BinaryOperator::DIVIDE,
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
   };
-  mPegParser["LiteralExpression"] << "[\\d]+ | FunctionCallExpression | Identifier | '(' MathExpression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["PostfixExpression"] << "LiteralExpression ('(' ParameterListWithoutDatatype ')')?" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if(res[1].subs.empty()) {
+      return std::move(res[0].result);
+    }
+    return FunctionCallExpressionNode{
+        up<ExpressionNode>{res[0].result.move<ExpressionNode*>()},
+        up<ParameterListNodeWithoutDatatypes>{res[1][0][1].result.move<ParameterListNodeWithoutDatatypes*>()}};
+  };
+  mPegParser["LiteralExpression"] << "[\\d]+ | Identifier | '(' MathExpression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     int32_t val;
     if(*res.choice == 0) {
       std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
@@ -163,11 +171,6 @@ Parser::Parser() {
       elseBody.reset(res[4][0][1].result.move<ScopeNode*>());
     }
     return IfExpressionNode{std::move(list), std::move(elseBody)};
-  };
-  mPegParser["FunctionCallExpression"] << "Identifier '(' ParameterListWithoutDatatype ')'" >> [] (peg::MatchInfo& res) -> peg::Any {
-    return FunctionCallExpressionNode{
-      up<IdentifierNode>{res[0].result.move<IdentifierNode*>()},
-      up<ParameterListNodeWithoutDatatypes>{res[2].result.move<ParameterListNodeWithoutDatatypes*>()}};
   };
   mPegParser["ParameterListWithoutDatatype"] << "ParameterListWithoutDatatypeRec?" >> [] (peg::MatchInfo& res) -> peg::Any {
     if(res.subs.empty())

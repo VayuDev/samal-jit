@@ -222,7 +222,7 @@ void IfExpressionNode::completeDatatype(DatatypeCompleter &declList) {
     mElseBody->completeDatatype(declList);
 }
 
-FunctionCallExpressionNode::FunctionCallExpressionNode(up<IdentifierNode> name,
+FunctionCallExpressionNode::FunctionCallExpressionNode(up<ExpressionNode> name,
                                                        up<ParameterListNodeWithoutDatatypes> params)
 : mName(std::move(name)), mParams(std::move(params)) {
 
@@ -274,7 +274,7 @@ void ModuleRootNode::declareShallow(DatatypeCompleter &completer) const {
 }
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
   auto ret = ASTNode::dump(indent);
-  ret += createIndent(indent + 1) + "Name:\n" + mName->dump(indent + 1);
+  ret += createIndent(indent + 1) + "Name:\n" + mName->dump(indent + 2);
   ret += createIndent(indent + 1) + "Returns: " + mReturnType.toString() + "\n";
   ret += createIndent(indent + 1) + "Params: \n" + mParameters->dump(indent + 2);
   ret += createIndent(indent + 1) + "Body: \n" + mBody->dump(indent + 2);
