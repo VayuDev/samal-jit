@@ -162,7 +162,10 @@ std::optional<Datatype> IdentifierNode::getDatatype() const {
   return mDatatype ? mDatatype->first : std::optional<Datatype>{};
 }
 std::string IdentifierNode::dump(unsigned int indent) const {
-  return createIndent(indent) + getClassName() + ": " + mName + ", type: " + (mDatatype ? mDatatype->first.toString() : "<unknown>") + "\n";
+  return
+  createIndent(indent) + getClassName() + ": " + mName
+  + ", type: " + (mDatatype ? mDatatype->first.toString() : "<unknown>")
+  + (mDatatype ? ", id: " + std::to_string(mDatatype->second) : "") + "\n";
 }
 void IdentifierNode::completeDatatype(DatatypeCompleter &declList) {
   mDatatype = declList.getVariableType(mName);
