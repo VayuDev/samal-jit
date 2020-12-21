@@ -85,7 +85,14 @@ BinaryExpressionNode::BinaryExpressionNode(up<ExpressionNode> left,
 
 }
 std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
-  return Datatype(DatatypeCategory::i32);
+  auto lhsType = mLeft->getDatatype();
+  assert(lhsType);
+  auto rhsType = mRight->getDatatype();
+  assert(rhsType);
+  if(lhsType != rhsType) {
+    throw std::runtime_error{"lhs=" + lhsType->toString() + " and rhs=" + rhsType->toString() + " don't match in binary expression"};
+  }
+  return lhsType;
 }
 std::string BinaryExpressionNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);

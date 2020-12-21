@@ -9,13 +9,16 @@ int main() {
   samal::Parser parser;
   auto ast = parser.parse(R"(
 fn fib(n : i32) -> i32 {
-  x = add(3, 2);
+  x = 3 + makeList();
   x = add(3, 2);
   if n < 2 {
     n;
   } else {
     fib(n-1) + fib(n-2);
   };
+}
+fn makeList() -> List {
+
 }
 fn add(a : i32, b : i32) -> i32 {
   a + b;

@@ -2,6 +2,7 @@
 #include <samal_lib/Util.hpp>
 #include <variant>
 #include <vector>
+#include <compare>
 
 namespace samal {
 
@@ -25,10 +26,13 @@ class Datatype {
   Datatype(Datatype returnType, std::vector<Datatype> params);
   [[nodiscard]] std::string toString() const;
   [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const;
+  bool operator==(const Datatype& other) const;
+  bool operator!=(const Datatype& other) const;
  private:
   DatatypeCategory mCategory;
   std::variant<
     std::monostate,
+    std::string,
     sp<class EnumDeclarationNode>,
     sp<class StructDeclarationNode>,
     std::pair<sp<Datatype>, std::vector<Datatype>>> mFurtherInfo;

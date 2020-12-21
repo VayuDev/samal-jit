@@ -22,3 +22,17 @@ fn a(a : i32, b : i32) -> i32 {
   modules.emplace_back(std::move(ast));
   REQUIRE_THROWS(completer.declareModules(modules));
 }
+
+TEST_CASE("Ensure that we don't mix types", "[samal_type_completer]") {
+  samal::Parser parser;
+  auto code = R"(
+fn a() -> {
+  x = 5 + a;
+})";
+  auto ast = parser.parse(code);
+  REQUIRE(ast);
+  samal::DatatypeCompleter completer;
+  std::vector<samal::up<samal::ModuleRootNode>> modules;
+  modules.emplace_back(std::move(ast));
+  REQUIRE_THROWS(completer.declareModules(modules));
+}

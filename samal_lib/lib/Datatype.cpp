@@ -37,5 +37,15 @@ const std::pair<sp<Datatype>, std::vector<Datatype>>&  Datatype::getFunctionType
   }
   return std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(mFurtherInfo);
 }
+bool Datatype::operator==(const Datatype &other) const {
+  if(mCategory != other.mCategory)
+    return false;
+  if(mFurtherInfo != other.mFurtherInfo)
+    return false;
+  return true;
+}
+bool Datatype::operator!=(const Datatype &other) const {
+  return !(*this == other);
+}
 
 }
