@@ -22,13 +22,20 @@ class DatatypeCompleter {
   void declareModules(std::vector<up<ModuleRootNode>>&);
   void complete(up<ModuleRootNode>& root);
   ScopeChecker openScope();
-  void declareVariable(std::string name, Datatype type);
+  void declareVariable(const std::string& name, Datatype type);
+  void declareVariableNonOverrideable(const std::string& name, Datatype type);
   void saveModule(std::string name);
   [[nodiscard]] std::pair<Datatype, int32_t> getVariableType(const std::string& name) const;
  private:
+  void declareVariable(const std::string& name, Datatype type, bool overrideable);
   void pushScope();
   void popScope();
-  using ScopeFrame = std::map<std::string, std::pair<Datatype, int32_t>>;
+  struct VariableDeclaration {
+    Datatype type;
+    int32_t id;
+    bool overrideable;
+  };
+  using ScopeFrame = std::map<std::string, VariableDeclaration>;
   std::map<std::string, ScopeFrame> mModules;
   std::vector<ScopeFrame> mScope;
   int32_t mIdCounter = 0;

@@ -27,22 +27,33 @@ void DatatypeCompleter::pushScope() {
 void DatatypeCompleter::popScope() {
   mScope.erase(mScope.end() - 1);
 }
-void DatatypeCompleter::declareVariable(std::string name, Datatype type) {
-  mScope.at(mScope.size() - 1).erase(name);
-  auto insertResult = mScope.at(mScope.size() - 1).emplace(std::make_pair(name, std::make_pair(std::move(type), mIdCounter++)));
+void DatatypeCompleter::declareVariable(const std::string& name, Datatype type) {
+  declareVariable(name, std::move(type), true);
+}
+void DatatypeCompleter::declareVariableNonOverrideable(const std::string& name, Datatype type) {
+  declareVariable(name, std::move(type), false);
+}
+void DatatypeCompleter::declareVariable(const std::string &name, Datatype type, bool overrideable) {
+  auto& currentScope = mScope.at(mScope.size() - 1);
+  auto varAlreadyInScope = currentScope.find(name);
+  if(varAlreadyInScope != currentScope.end() && !varAlreadyInScope->second.overrideable) {
+    throw std::runtime_error{"Overriding non-overrideable variable named '" + name + "'"};
+  }
+  currentScope.erase(varAlreadyInScope->first);
+  auto insertResult = currentScope.emplace(std::make_pair(name, VariableDeclaration{.type = std::move(type), .id = mIdCounter++, .overrideable = overrideable}));
   assert(insertResult.second);
 }
 std::pair<Datatype, int32_t> DatatypeCompleter::getVariableType(const std::string& name) const {
   for(ssize_t i = mScope.size() - 1 ; i >= 0; --i) {
     auto value = mScope.at(i).find(name);
     if(value != mScope.at(i).end()) {
-      return value->second;
+      return std::make_pair(value->second.type, value->second.id);
     }
   }
   for(auto& [_, module]: mModules) {
     auto value = module.find(name);
     if(value != module.end()) {
-      return value->second;
+      return std::make_pair(value->second.type, value->second.id);
     }
   }
   throw std::runtime_error{"Couldn't find a variable called " + name};
