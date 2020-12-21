@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(peg_parser_tests)
+project(samal_tests)
 set (CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -fno-strict-aliasing")
@@ -13,9 +13,10 @@ file(GLOB_RECURSE SOURCES
 include_directories(include)
 include_directories(../third_party)
 include_directories(../peg_parser/include)
+include_directories(../samal_lib/include)
 
-add_executable(peg_parser_tests ${SOURCES} ${HEADERS})
-target_link_libraries(peg_parser_tests peg_parser -lstdc++ m)
+add_executable(samal_tests ${SOURCES} ${HEADERS})
+target_link_libraries(samal_tests samal_lib peg_parser -lstdc++ m)
 
 enable_testing()
-add_test("PEG_Parser_Test" peg_parser_tests)
+add_test("PEG_Parser_Test" samal_tests)
