@@ -79,7 +79,8 @@ SequenceParsingExpression::SequenceParsingExpression(std::vector<sp<ParsingExpre
 
 }
 RuleResult SequenceParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
-  auto start = tokenizer.getPtr(state);
+  auto startState = state;
+  auto startPtr = tokenizer.getPtr(state);
   std::vector<MatchInfo> childrenResults;
   std::vector<ExpressionFailInfo> childrenFailReasons;
   for(auto& child: mChildren) {
@@ -96,7 +97,7 @@ RuleResult SequenceParsingExpression::match(ParsingState state, const RuleMap& r
         state,
         dump(),
         ExpressionFailReason::SEQUENCE_CHILD_FAILED,
-        std::string{std::string_view(start, tokenizer.getPtr(state) - start)},
+        std::string{std::string_view(startPtr, tokenizer.getPtr(state) - startPtr)},
         "",
         std::move(childrenFailReasons)
       };
@@ -105,8 +106,9 @@ RuleResult SequenceParsingExpression::match(ParsingState state, const RuleMap& r
   return  ExpressionSuccessInfo{
     state,
     MatchInfo{
-      .start = start,
+      .start = startPtr,
       .end = tokenizer.getPtr(state),
+      .sourcePosition = tokenizer.getPosition(startState),
       .subs = std::move(childrenResults)
     },
     ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}
@@ -132,7 +134,8 @@ TerminalParsingExpression::TerminalParsingExpression(std::string stringRep, std:
 
 }
 RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, const PegTokenizer& tokenizer) const {
-  auto start = tokenizer.getPtr(state);
+  auto startState = state;
+  auto startPtr = tokenizer.getPtr(state);
   std::optional<ParsingState> tokenizerRet;
   if(mRegex) {
     tokenizerRet = tokenizer.matchRegex(state, *mRegex);
@@ -143,8 +146,9 @@ RuleResult TerminalParsingExpression::match(ParsingState state, const RuleMap&, 
     return ExpressionSuccessInfo{
         *tokenizerRet,
         MatchInfo{
-            .start = start,
-            .end = tokenizer.getPtr(*tokenizerRet)
+            .start = startPtr,
+            .end = tokenizer.getPtr(*tokenizerRet),
+            .sourcePosition = tokenizer.getPosition(startState)
         },
         ExpressionFailInfo{state, dump()}
     };
@@ -181,6 +185,7 @@ RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rul
       std::vector<MatchInfo> subs;
       auto start = std::get<0>(childRet).getMatchInfo().start;
       auto end = std::get<0>(childRet).getMatchInfo().end;
+      auto pos = std::get<0>(childRet).getMatchInfo().sourcePosition;
       subs.emplace_back(std::get<0>(childRet).moveMatchInfo());
       childrenFailReasons.push_back(std::get<0>(childRet).moveFailInfo());
       return ExpressionSuccessInfo{
@@ -188,6 +193,7 @@ RuleResult ChoiceParsingExpression::match(ParsingState state, const RuleMap& rul
           MatchInfo{
               .start = start,
               .end = end,
+              .sourcePosition = pos,
               .choice = i,
               .subs = std::move(subs)},
           ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
@@ -218,7 +224,8 @@ NonTerminalParsingExpression::NonTerminalParsingExpression(std::string value)
 
 }
 RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
-  auto start = tokenizer.getPtr(state);
+  auto startState = state;
+  auto startPtr = tokenizer.getPtr(state);
   auto& rule = rules.at(mNonTerminal);
   auto ruleRetValue = rule.expr->match(state, rules, tokenizer);
   if(ruleRetValue.index() == 1) {
@@ -234,8 +241,9 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
   std::vector<MatchInfo> subs;
   subs.emplace_back(std::get<0>(ruleRetValue).moveMatchInfo());
   return ExpressionSuccessInfo{std::get<0>(ruleRetValue).getState(), MatchInfo{
-    .start = start,
+    .start = startPtr,
     .end = end,
+    .sourcePosition = tokenizer.getPosition(startState),
     .result = std::move(callbackResult),
     .subs = std::move(subs)
   }, std::get<0>(ruleRetValue).moveFailInfo()};
@@ -248,13 +256,14 @@ OptionalParsingExpression::OptionalParsingExpression(sp<ParsingExpression> child
 
 }
 RuleResult OptionalParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
-  auto start = tokenizer.getPtr(state);
+  auto startState = state;
   auto childRet = mChild->match(state, rules, tokenizer);
   if(childRet.index() == 1) {
     // error
     return ExpressionSuccessInfo{state, MatchInfo{
-      .start = start,
-      .end = start
+      .start = tokenizer.getPtr(startState),
+      .end = tokenizer.getPtr(startState),
+      .sourcePosition = tokenizer.getPosition(state),
     },ExpressionFailInfo{state, dump(), { std::move(std::get<1>(childRet)) }}};
   }
   // success
@@ -262,8 +271,9 @@ RuleResult OptionalParsingExpression::match(ParsingState state, const RuleMap& r
   std::vector<MatchInfo> subs;
   subs.emplace_back(std::get<0>(childRet).moveMatchInfo());
   return ExpressionSuccessInfo{state, MatchInfo{
-        .start = start,
+        .start = tokenizer.getPtr(startState),
         .end = tokenizer.getPtr(state),
+        .sourcePosition = tokenizer.getPosition(startState),
         .subs = std::move(subs)
   },ExpressionFailInfo{state, dump(), { std::get<0>(childRet).moveFailInfo() }}};
 
@@ -277,7 +287,8 @@ OneOrMoreParsingExpression::OneOrMoreParsingExpression(sp<ParsingExpression> chi
 
 }
 RuleResult OneOrMoreParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
-  auto start = tokenizer.getPtr(state);
+  auto startState = state;
+  auto startPtr = tokenizer.getPtr(state);
   auto childRet = mChild->match(state, rules, tokenizer);
   if(childRet.index() == 1) {
     // error
@@ -300,8 +311,9 @@ RuleResult OneOrMoreParsingExpression::match(ParsingState state, const RuleMap& 
     state = std::get<0>(childRet).getState();
   }
   return ExpressionSuccessInfo{state, MatchInfo{
-    .start = start,
+    .start = startPtr,
     .end = tokenizer.getPtr(state),
+    .sourcePosition = tokenizer.getPosition(startState),
     .subs = std::move(childrenResults)
   }, ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
 }
@@ -313,7 +325,8 @@ ZeroOrMoreParsingExpression::ZeroOrMoreParsingExpression(sp<ParsingExpression> c
 
 }
 RuleResult ZeroOrMoreParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
-  auto start = tokenizer.getPtr(state);
+  auto startState = state;
+  auto startPtr = tokenizer.getPtr(state);
   std::vector<MatchInfo> childrenResults;
   std::vector<ExpressionFailInfo> childrenFailReasons;
   while(true) {
@@ -327,8 +340,9 @@ RuleResult ZeroOrMoreParsingExpression::match(ParsingState state, const RuleMap&
     state = std::get<0>(childRet).getState();
   }
   return ExpressionSuccessInfo{state, MatchInfo{
-      .start = start,
+      .start = startPtr,
       .end = tokenizer.getPtr(state),
+      .sourcePosition = tokenizer.getPosition(state),
       .subs = std::move(childrenResults)
   }, ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
 }

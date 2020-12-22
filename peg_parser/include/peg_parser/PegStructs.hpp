@@ -80,6 +80,7 @@ class Any final {
 struct MatchInfo {
   const char* start = nullptr;
   const char* end = nullptr;
+  std::pair<size_t, size_t> sourcePosition;
   std::optional<size_t> choice;
   Any result;
   std::vector<MatchInfo> subs;
