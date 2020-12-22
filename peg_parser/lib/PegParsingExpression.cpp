@@ -342,7 +342,7 @@ RuleResult ZeroOrMoreParsingExpression::match(ParsingState state, const RuleMap&
   return ExpressionSuccessInfo{state, MatchInfo{
       .start = startPtr,
       .end = tokenizer.getPtr(state),
-      .sourcePosition = tokenizer.getPosition(state),
+      .sourcePosition = tokenizer.getPosition(startState),
       .subs = std::move(childrenResults)
   }, ExpressionFailInfo{state, dump(), std::move(childrenFailReasons)}};
 }

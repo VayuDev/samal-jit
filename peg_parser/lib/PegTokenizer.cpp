@@ -9,7 +9,7 @@ PegTokenizer::PegTokenizer(std::string code)
 
 std::optional<ParsingState> PegTokenizer::matchString(ParsingState state, const std::string_view &string) const {
   static_assert(std::is_move_constructible<MatchInfo>(), "");
-  for(ssize_t i = 0; i < string.size(); ++i) {
+  for(ssize_t i = 0; i < (ssize_t)string.size(); ++i) {
     if(state.tokenizerState + i >= mCode.size()) {
       return {};
     }

@@ -108,6 +108,7 @@ using RuleResult = std::variant<ExpressionSuccessInfo, ExpressionFailInfo>;
 
 class ParsingExpression {
  public:
+  virtual ~ParsingExpression() = default;
   [[nodiscard]] virtual RuleResult match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const = 0;
   [[nodiscard]] virtual std::string dump() const = 0;
  private:

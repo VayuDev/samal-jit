@@ -4,22 +4,23 @@ namespace samal {
 
 std::string Datatype::toString() const {
   switch(mCategory) {
-    case DatatypeCategory::i32:
-      return "i32";
-    case DatatypeCategory::function: {
-      auto& functionInfo = getFunctionTypeInfo();
-      auto ret = "$" + functionInfo.first->toString() + "(";
-      for(size_t i = 0; i < functionInfo.second.size(); ++i) {
-        ret += functionInfo.second.at(i).toString();
-        if(i < functionInfo.second.size() - 1) {
-          ret += ",";
-        }
+  case DatatypeCategory::i32:
+    return "i32";
+  case DatatypeCategory::function: {
+    auto& functionInfo = getFunctionTypeInfo();
+    auto ret = "$" + functionInfo.first->toString() + "(";
+    for(size_t i = 0; i < functionInfo.second.size(); ++i) {
+      ret += functionInfo.second.at(i).toString();
+      if(i < functionInfo.second.size() - 1) {
+        ret += ",";
       }
-      ret += ")";
-      return ret;
     }
+    ret += ")";
+    return ret;
   }
-  return "DATATYPE";
+  default:
+    return "DATATYPE";
+  }
 }
 Datatype::Datatype(DatatypeCategory category)
 : mCategory(category) {

@@ -15,7 +15,7 @@ class ASTNode {
  public:
   explicit ASTNode(SourceCodeRef source);
   virtual ~ASTNode() = default;
-  virtual void completeDatatype(DatatypeCompleter &declList) {};
+  virtual void completeDatatype(DatatypeCompleter &) {};
   [[nodiscard]] virtual std::string dump(unsigned indent) const;
   [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
  protected:
@@ -134,7 +134,7 @@ class ScopeNode : public ExpressionNode {
  public:
   explicit ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions);
   void completeDatatype(DatatypeCompleter &declList) override;
-  [[nodiscard]] virtual std::optional<Datatype> getDatatype() const;
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "ScopeNode"; }
  private:
@@ -191,7 +191,7 @@ class FunctionDeclarationNode : public DeclarationNode {
  public:
   FunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, up<ParameterListNode> params, Datatype returnType, up<ScopeNode> body);
   void completeDatatype(DatatypeCompleter &declList) override;
-  void declareShallow(DatatypeCompleter& completer) const;
+  void declareShallow(DatatypeCompleter& completer) const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "FunctionDeclarationNode"; }
  private:

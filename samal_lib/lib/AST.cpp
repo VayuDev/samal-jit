@@ -9,7 +9,7 @@ namespace samal {
 
 static std::string createIndent(unsigned indent) {
   std::string ret;
-  for(auto i: range(indent)) {
+  for(auto _: range(indent)) {
     ret += ' ';
   }
   return ret;
@@ -181,7 +181,7 @@ std::optional<Datatype> LiteralInt32Node::getDatatype() const {
 std::string LiteralInt32Node::dump(unsigned int indent) const {
   return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
 }
-void LiteralInt32Node::completeDatatype(DatatypeCompleter &declList) {
+void LiteralInt32Node::completeDatatype(DatatypeCompleter &) {
 
 }
 
