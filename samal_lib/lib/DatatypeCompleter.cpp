@@ -36,10 +36,13 @@ void DatatypeCompleter::declareVariableNonOverrideable(const std::string& name, 
 void DatatypeCompleter::declareVariable(const std::string &name, Datatype type, bool overrideable) {
   auto& currentScope = mScope.at(mScope.size() - 1);
   auto varAlreadyInScope = currentScope.find(name);
-  if(varAlreadyInScope != currentScope.end() && !varAlreadyInScope->second.overrideable) {
-    throw std::runtime_error{"Overriding non-overrideable variable named '" + name + "'"};
+  if(varAlreadyInScope != currentScope.end()) {
+    if(!varAlreadyInScope->second.overrideable) {
+      throw std::runtime_error{"Overriding non-overrideable variable named '" + name + "'"};
+    }
+    currentScope.erase(varAlreadyInScope->first);
   }
-  currentScope.erase(varAlreadyInScope->first);
+
   auto insertResult = currentScope.emplace(std::make_pair(name, VariableDeclaration{.type = std::move(type), .id = mIdCounter++, .overrideable = overrideable}));
   assert(insertResult.second);
 }
