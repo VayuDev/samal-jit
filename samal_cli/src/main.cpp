@@ -23,17 +23,17 @@ fn makeList() -> List {
 fn add(a : i32, b : i32) -> i32 {
   a + b;
 })");
-  if(!ast)
+  if(!ast.first)
     return 1;
   {
     samal::Stopwatch stopwatch2{"Dumping the AST"};
-    std::cout << ast->dump(0) << "\n";
+    std::cout << ast.first->dump(0) << "\n";
   }
   {
     samal::Stopwatch stopwatch2{"Datatype completion + dump"};
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
-    modules.push_back(std::move(ast));
+    modules.push_back(std::move(ast.first));
     completer.declareModules(modules);
     completer.complete(modules.at(0));
     std::cout << modules.at(0)->dump(0) << "\n";

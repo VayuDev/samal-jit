@@ -34,4 +34,17 @@ class Stopwatch final {
   std::chrono::high_resolution_clock::time_point mStart;
 };
 
+class DatatypeCompletionException : public std::exception {
+public:
+  explicit DatatypeCompletionException(std::string msg)
+  : mMsg(std::move(msg)) {
+
+  }
+  [[nodiscard]] const char* what() const noexcept override {
+    return mMsg.c_str();
+  }
+private:
+  std::string mMsg;
+};
+
 }

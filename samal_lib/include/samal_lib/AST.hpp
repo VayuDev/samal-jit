@@ -5,13 +5,23 @@
 
 namespace samal {
 
+struct SourceCodeRef {
+  const char *start = nullptr;
+  const char *end = nullptr;
+  size_t line = 0, column = 0;
+};
+
 class ASTNode {
  public:
+  explicit ASTNode(SourceCodeRef source);
   virtual ~ASTNode() = default;
   virtual void completeDatatype(DatatypeCompleter &declList) {};
   [[nodiscard]] virtual std::string dump(unsigned indent) const;
   [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
+ protected:
+  void throwException(const std::string& msg) const;
  private:
+  SourceCodeRef mSourceCodeRef;
 };
 
 class ParameterListNode : public ASTNode {
@@ -20,7 +30,7 @@ class ParameterListNode : public ASTNode {
     up<IdentifierNode> name;
     Datatype type;
   };
-  explicit ParameterListNode(std::vector<Parameter> params);
+  explicit ParameterListNode(SourceCodeRef source, std::vector<Parameter> params);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] const std::vector<Parameter>& getParams();
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -31,7 +41,7 @@ class ParameterListNode : public ASTNode {
 
 class ParameterListNodeWithoutDatatypes : public ASTNode {
  public:
-  explicit ParameterListNodeWithoutDatatypes(std::vector<up<ExpressionNode>> params);
+  explicit ParameterListNodeWithoutDatatypes(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "ParameterListNodeWithoutDatatypes"; }
@@ -42,6 +52,7 @@ class ParameterListNodeWithoutDatatypes : public ASTNode {
 
 class ExpressionNode : public ASTNode {
  public:
+  explicit ExpressionNode(SourceCodeRef source);
   void completeDatatype(DatatypeCompleter &declList) override = 0;
   [[nodiscard]] virtual std::optional<Datatype> getDatatype() const = 0;
   [[nodiscard]] inline const char* getClassName() const override { return "ExpressionNode"; }
@@ -50,7 +61,7 @@ class ExpressionNode : public ASTNode {
 
 class AssignmentExpression : public ExpressionNode {
  public:
-  AssignmentExpression(up<IdentifierNode> left, up<ExpressionNode> right);
+  AssignmentExpression(SourceCodeRef source, up<IdentifierNode> left, up<ExpressionNode> right);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -77,7 +88,7 @@ class BinaryExpressionNode : public ExpressionNode {
     COMPARISON_MORE_EQUAL_THAN,
 
   };
-  BinaryExpressionNode(up<ExpressionNode> left, BinaryOperator op, up<ExpressionNode> right);
+  BinaryExpressionNode(SourceCodeRef source, up<ExpressionNode> left, BinaryOperator op, up<ExpressionNode> right);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -90,14 +101,14 @@ class BinaryExpressionNode : public ExpressionNode {
 
 class LiteralNode : public ExpressionNode {
  public:
-
+  explicit LiteralNode(SourceCodeRef source);
   [[nodiscard]] inline const char* getClassName() const override { return "LiteralNode"; }
  private:
 };
 
 class LiteralInt32Node : public LiteralNode {
  public:
-  explicit LiteralInt32Node(int32_t val);
+  explicit LiteralInt32Node(SourceCodeRef source, int32_t val);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -108,7 +119,7 @@ class LiteralInt32Node : public LiteralNode {
 
 class IdentifierNode : public ExpressionNode {
  public:
-  explicit IdentifierNode(std::string name);
+  explicit IdentifierNode(SourceCodeRef source, std::string name);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] const std::string& getName() const;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
@@ -121,7 +132,7 @@ class IdentifierNode : public ExpressionNode {
 
 class ScopeNode : public ExpressionNode {
  public:
-  explicit ScopeNode(std::vector<up<ExpressionNode>> expressions);
+  explicit ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] virtual std::optional<Datatype> getDatatype() const;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -133,7 +144,7 @@ class ScopeNode : public ExpressionNode {
 using IfExpressionChildList = std::vector<std::pair<up<ExpressionNode>, up<ScopeNode>>>;
 class IfExpressionNode : public ExpressionNode {
  public:
-  IfExpressionNode(IfExpressionChildList children, up<ScopeNode> elseBody);
+  IfExpressionNode(SourceCodeRef source, IfExpressionChildList children, up<ScopeNode> elseBody);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -145,7 +156,7 @@ class IfExpressionNode : public ExpressionNode {
 
 class FunctionCallExpressionNode : public ExpressionNode {
  public:
-  FunctionCallExpressionNode(up<ExpressionNode> name, up<ParameterListNodeWithoutDatatypes> params);
+  FunctionCallExpressionNode(SourceCodeRef source, up<ExpressionNode> name, up<ParameterListNodeWithoutDatatypes> params);
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -158,6 +169,7 @@ class FunctionCallExpressionNode : public ExpressionNode {
 
 class DeclarationNode : public ASTNode {
  public:
+  explicit DeclarationNode(SourceCodeRef source);
   virtual void declareShallow(DatatypeCompleter& completer) const = 0;
   [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
  private:
@@ -165,7 +177,7 @@ class DeclarationNode : public ASTNode {
 
 class ModuleRootNode : public ASTNode {
  public:
-  explicit ModuleRootNode(std::vector<up<DeclarationNode>>&& declarations);
+  explicit ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>>&& declarations);
   void completeDatatype(DatatypeCompleter &declList) override;
   void declareShallow(DatatypeCompleter& completer) const;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -177,7 +189,7 @@ class ModuleRootNode : public ASTNode {
 
 class FunctionDeclarationNode : public DeclarationNode {
  public:
-  FunctionDeclarationNode(up<IdentifierNode> name, up<ParameterListNode> params, Datatype returnType, up<ScopeNode> body);
+  FunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, up<ParameterListNode> params, Datatype returnType, up<ScopeNode> body);
   void completeDatatype(DatatypeCompleter &declList) override;
   void declareShallow(DatatypeCompleter& completer) const;
   [[nodiscard]] std::string dump(unsigned indent) const override;

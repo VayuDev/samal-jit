@@ -15,11 +15,24 @@ static std::string createIndent(unsigned indent) {
   return ret;
 }
 
+ASTNode::ASTNode(SourceCodeRef source)
+: mSourceCodeRef(std::move(source)) {
+
+}
 std::string ASTNode::dump(unsigned int indent) const {
   return createIndent(indent) + getClassName() + "\n";
 }
-ParameterListNode::ParameterListNode(std::vector<Parameter> params)
-    : mParams(std::move(params)) {
+void ASTNode::throwException(const std::string &msg) const {
+  throw DatatypeCompletionException(
+      std::string{"In "}
+      + getClassName() + ": '"
+      + std::string{std::string_view{mSourceCodeRef.start, mSourceCodeRef.end}}
+      + "' (" + std::to_string(mSourceCodeRef.line) + ":" + std::to_string(mSourceCodeRef.column) + ")"
+      + ": " + msg);
+}
+
+ParameterListNode::ParameterListNode(SourceCodeRef source, std::vector<Parameter> params)
+: ASTNode(std::move(source)), mParams(std::move(params)) {
 
 }
 std::string ParameterListNode::dump(unsigned int indent) const {
@@ -40,8 +53,8 @@ const std::vector<ParameterListNode::Parameter>& ParameterListNode::getParams() 
   return mParams;
 }
 
-ParameterListNodeWithoutDatatypes::ParameterListNodeWithoutDatatypes(std::vector<up<ExpressionNode>> params)
-: mParams(std::move(params)) {
+ParameterListNodeWithoutDatatypes::ParameterListNodeWithoutDatatypes(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
+: ASTNode(std::move(source)), mParams(std::move(params)) {
 
 }
 std::string ParameterListNodeWithoutDatatypes::dump(unsigned int indent) const {
@@ -56,9 +69,13 @@ void ParameterListNodeWithoutDatatypes::completeDatatype(DatatypeCompleter &decl
     child->completeDatatype(declList);
   }
 }
+ExpressionNode::ExpressionNode(SourceCodeRef source)
+: ASTNode(source) {
 
-AssignmentExpression::AssignmentExpression(up<IdentifierNode> left, up<ExpressionNode> right)
-: mLeft(std::move(left)), mRight(std::move(right)) {
+}
+
+AssignmentExpression::AssignmentExpression(SourceCodeRef source, up<IdentifierNode> left, up<ExpressionNode> right)
+: ExpressionNode(std::move(source)), mLeft(std::move(left)), mRight(std::move(right)) {
 
 }
 std::optional<Datatype> AssignmentExpression::getDatatype() const {
@@ -78,10 +95,11 @@ void AssignmentExpression::completeDatatype(DatatypeCompleter &declList) {
   mLeft->completeDatatype(declList);
 }
 
-BinaryExpressionNode::BinaryExpressionNode(up<ExpressionNode> left,
-                                            BinaryExpressionNode::BinaryOperator op,
-                                            up<ExpressionNode> right)
-: mLeft(std::move(left)), mOperator(op), mRight(std::move(right)) {
+BinaryExpressionNode::BinaryExpressionNode(SourceCodeRef source,
+                                           up<ExpressionNode> left,
+                                           BinaryExpressionNode::BinaryOperator op,
+                                           up<ExpressionNode> right)
+: ExpressionNode(std::move(source)), mLeft(std::move(left)), mOperator(op), mRight(std::move(right)) {
 
 }
 std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
@@ -90,7 +108,7 @@ std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
   auto rhsType = mRight->getDatatype();
   assert(rhsType);
   if(lhsType != rhsType) {
-    throw std::runtime_error{"lhs=" + lhsType->toString() + " and rhs=" + rhsType->toString() + " don't match in binary expression"};
+    throwException("lhs=" + lhsType->toString() + " and rhs=" + rhsType->toString() + " don't match");
   }
   return lhsType;
 }
@@ -147,8 +165,14 @@ void BinaryExpressionNode::completeDatatype(DatatypeCompleter &declList) {
   mLeft->completeDatatype(declList);
   mRight->completeDatatype(declList);
 }
-LiteralInt32Node::LiteralInt32Node(int32_t val)
-: mValue(val) {
+
+LiteralNode::LiteralNode(SourceCodeRef source)
+    : ExpressionNode(source) {
+
+}
+
+LiteralInt32Node::LiteralInt32Node(SourceCodeRef source, int32_t val)
+: LiteralNode(std::move(source)), mValue(val) {
 
 }
 std::optional<Datatype> LiteralInt32Node::getDatatype() const {
@@ -161,8 +185,8 @@ void LiteralInt32Node::completeDatatype(DatatypeCompleter &declList) {
 
 }
 
-IdentifierNode::IdentifierNode(std::string name)
-: mName(std::move(name)) {
+IdentifierNode::IdentifierNode(SourceCodeRef source, std::string name)
+: ExpressionNode(std::move(source)), mName(std::move(name)) {
 
 }
 std::optional<Datatype> IdentifierNode::getDatatype() const {
@@ -181,8 +205,8 @@ const std::string &IdentifierNode::getName() const {
   return mName;
 }
 
-ScopeNode::ScopeNode(std::vector<up<ExpressionNode>> expressions)
-: mExpressions(std::move(expressions)) {
+ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions)
+: ExpressionNode(std::move(source)), mExpressions(std::move(expressions)) {
 
 }
 std::optional<Datatype> ScopeNode::getDatatype() const {
@@ -202,8 +226,8 @@ void ScopeNode::completeDatatype(DatatypeCompleter &declList) {
   }
 }
 
-IfExpressionNode::IfExpressionNode(IfExpressionChildList children, up<ScopeNode> elseBody)
-: mChildren(std::move(children)), mElseBody(std::move(elseBody)) {
+IfExpressionNode::IfExpressionNode(SourceCodeRef source, IfExpressionChildList children, up<ScopeNode> elseBody)
+: ExpressionNode(std::move(source)), mChildren(std::move(children)), mElseBody(std::move(elseBody)) {
 
 }
 std::optional<Datatype> IfExpressionNode::getDatatype() const {
@@ -232,9 +256,10 @@ void IfExpressionNode::completeDatatype(DatatypeCompleter &declList) {
     mElseBody->completeDatatype(declList);
 }
 
-FunctionCallExpressionNode::FunctionCallExpressionNode(up<ExpressionNode> name,
+FunctionCallExpressionNode::FunctionCallExpressionNode(SourceCodeRef source,
+                                                       up<ExpressionNode> name,
                                                        up<ParameterListNodeWithoutDatatypes> params)
-: mName(std::move(name)), mParams(std::move(params)) {
+: ExpressionNode(std::move(source)), mName(std::move(name)), mParams(std::move(params)) {
 
 }
 std::optional<Datatype> FunctionCallExpressionNode::getDatatype() const {
@@ -251,8 +276,13 @@ void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter &declList) {
   mParams->completeDatatype(declList);
 }
 
-ModuleRootNode::ModuleRootNode(std::vector<up<DeclarationNode>> &&declarations)
-: mDeclarations(std::move(declarations)) {
+DeclarationNode::DeclarationNode(SourceCodeRef source)
+: ASTNode(std::move(source)) {
+
+}
+
+ModuleRootNode::ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>> &&declarations)
+: ASTNode(std::move(source)), mDeclarations(std::move(declarations)) {
 }
 std::string ModuleRootNode::dump(unsigned indent) const {
   auto ret = ASTNode::dump(indent);
@@ -290,11 +320,12 @@ std::string FunctionDeclarationNode::dump(unsigned indent) const {
   ret += createIndent(indent + 1) + "Body: \n" + mBody->dump(indent + 2);
   return ret;
 }
-FunctionDeclarationNode::FunctionDeclarationNode(up<IdentifierNode> name,
+FunctionDeclarationNode::FunctionDeclarationNode(SourceCodeRef source,
+                                                 up<IdentifierNode> name,
                                                  up<ParameterListNode> params,
                                                  Datatype returnType,
                                                  up<ScopeNode> body)
-: mName(std::move(name)), mParameters(std::move(params)), mReturnType(std::move(returnType)), mBody(std::move(body)) {
+: DeclarationNode(std::move(source)), mName(std::move(name)), mParameters(std::move(params)), mReturnType(std::move(returnType)), mBody(std::move(body)) {
 
 }
 void FunctionDeclarationNode::completeDatatype(DatatypeCompleter &declList) {
@@ -311,5 +342,4 @@ void FunctionDeclarationNode::declareShallow(DatatypeCompleter &completer) const
   }
   completer.declareVariableNonOverrideable(mName->getName(), Datatype{mReturnType, std::move(paramTypes)});
 }
-
 }
