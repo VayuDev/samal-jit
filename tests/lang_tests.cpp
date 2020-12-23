@@ -16,11 +16,11 @@ fn a(a : i32, b : i32) -> i32 {
   a + b;
 })";
   auto ast = parser.parse(code);
-  REQUIRE(ast);
+  REQUIRE(ast.first);
   samal::DatatypeCompleter completer;
   std::vector<samal::up<samal::ModuleRootNode>> modules;
-  modules.emplace_back(std::move(ast));
-  REQUIRE_THROWS(completer.declareModules(modules));
+  modules.emplace_back(std::move(ast.first));
+  REQUIRE_THROWS_AS(completer.declareModules(modules), samal::DatatypeCompletionException);
 }
 
 TEST_CASE("Ensure that we don't mix types", "[samal_type_completer]") {
@@ -30,9 +30,9 @@ fn a() -> {
   x = 5 + a;
 })";
   auto ast = parser.parse(code);
-  REQUIRE(ast);
+  REQUIRE(ast.first);
   samal::DatatypeCompleter completer;
   std::vector<samal::up<samal::ModuleRootNode>> modules;
-  modules.emplace_back(std::move(ast));
-  REQUIRE_THROWS(completer.declareModules(modules));
+  modules.emplace_back(std::move(ast.first));
+  REQUIRE_THROWS_AS(completer.declareModules(modules), samal::DatatypeCompletionException);
 }
