@@ -24,6 +24,7 @@ class Datatype {
  public:
   explicit Datatype(DatatypeCategory category);
   Datatype(Datatype returnType, std::vector<Datatype> params);
+  explicit Datatype(std::string identifierName);
   [[nodiscard]] std::string toString() const;
   [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const;
   bool operator==(const Datatype& other) const;

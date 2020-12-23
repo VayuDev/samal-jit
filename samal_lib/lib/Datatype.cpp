@@ -7,17 +7,19 @@ std::string Datatype::toString() const {
   case DatatypeCategory::i32:
     return "i32";
   case DatatypeCategory::function: {
-    auto& functionInfo = getFunctionTypeInfo();
+    auto &functionInfo = getFunctionTypeInfo();
     auto ret = "$" + functionInfo.first->toString() + "(";
-    for(size_t i = 0; i < functionInfo.second.size(); ++i) {
+    for (size_t i = 0; i < functionInfo.second.size(); ++i) {
       ret += functionInfo.second.at(i).toString();
-      if(i < functionInfo.second.size() - 1) {
+      if (i < functionInfo.second.size() - 1) {
         ret += ",";
       }
     }
     ret += ")";
     return ret;
   }
+  case DatatypeCategory::undetermined_identifier:
+    return "<undetermined identifier '" + std::get<std::string>(mFurtherInfo) + "'>";
   default:
     return "DATATYPE";
   }
@@ -31,6 +33,10 @@ Datatype::Datatype(Datatype returnType, std::vector<Datatype> params) {
       std::make_shared<Datatype>(std::move(returnType)),
       std::move(params));
   mCategory = DatatypeCategory::function;
+}
+Datatype::Datatype(std::string identifierName)
+: mFurtherInfo(std::move(identifierName)), mCategory(DatatypeCategory::undetermined_identifier) {
+
 }
 const std::pair<sp<Datatype>, std::vector<Datatype>>&  Datatype::getFunctionTypeInfo() const {
   if(mCategory != DatatypeCategory::function) {

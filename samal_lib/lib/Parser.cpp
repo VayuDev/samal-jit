@@ -57,7 +57,7 @@ Parser::Parser() {
       case 0:
         return Datatype{DatatypeCategory::i32};
       case 1:
-        return Datatype{DatatypeCategory::undetermined_identifier};
+        return Datatype{std::string{std::string_view(res.startTrimmed(), res.endTrimmed())}};
       default:
         assert(false);
     }
