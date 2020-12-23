@@ -43,6 +43,7 @@ class ParameterListNodeWithoutDatatypes : public ASTNode {
  public:
   explicit ParameterListNodeWithoutDatatypes(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
   void completeDatatype(DatatypeCompleter &declList) override;
+  [[nodiscard]] const std::vector<up<ExpressionNode>>& getParams() const;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "ParameterListNodeWithoutDatatypes"; }
  private:

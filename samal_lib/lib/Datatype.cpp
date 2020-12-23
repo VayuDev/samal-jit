@@ -54,5 +54,8 @@ bool Datatype::operator==(const Datatype &other) const {
 bool Datatype::operator!=(const Datatype &other) const {
   return !(*this == other);
 }
+DatatypeCategory Datatype::getCategory() const {
+  return mCategory;
+}
 
 }

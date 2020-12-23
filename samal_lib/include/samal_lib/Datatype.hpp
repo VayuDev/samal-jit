@@ -29,6 +29,7 @@ class Datatype {
   [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const;
   bool operator==(const Datatype& other) const;
   bool operator!=(const Datatype& other) const;
+  [[nodiscard]] DatatypeCategory getCategory() const;
  private:
   DatatypeCategory mCategory;
   std::variant<

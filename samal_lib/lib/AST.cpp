@@ -69,6 +69,9 @@ void ParameterListNodeWithoutDatatypes::completeDatatype(DatatypeCompleter &decl
     child->completeDatatype(declList);
   }
 }
+const std::vector<up<ExpressionNode>> &ParameterListNodeWithoutDatatypes::getParams() const {
+  return mParams;
+}
 ExpressionNode::ExpressionNode(SourceCodeRef source)
 : ASTNode(source) {
 
@@ -274,6 +277,26 @@ std::string FunctionCallExpressionNode::dump(unsigned int indent) const {
 void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter &declList) {
   mName->completeDatatype(declList);
   mParams->completeDatatype(declList);
+  auto identifierType = mName->getDatatype();
+  assert(identifierType);
+  if(identifierType->getCategory() != DatatypeCategory::function) {
+    throwException("Calling non-function type '" + identifierType->toString() + "'");
+  }
+  auto& functionType = identifierType->getFunctionTypeInfo();
+  if(functionType.second.size() != mParams->getParams().size()) {
+    throwException("Function " + identifierType->toString() + " expects " + std::to_string(functionType.second.size())
+      + " arguments, but " + std::to_string(mParams->getParams().size()) + " have been passed");
+  }
+  size_t i = 0;
+  for(size_t i = 0; i < functionType.second.size(); ++i) {
+    auto passedType = mParams->getParams().at(i)->getDatatype();
+    assert(passedType);
+    auto& expectedType = functionType.second.at(i);
+    if(expectedType != passedType) {
+      throwException("Function " + identifierType->toString() + " got passed invalid argument types; at position "
+        + std::to_string(i) + " we expected a '" + expectedType.toString() + "', but got passed a '" + passedType->toString() + "'");
+    }
+  }
 }
 
 DeclarationNode::DeclarationNode(SourceCodeRef source)

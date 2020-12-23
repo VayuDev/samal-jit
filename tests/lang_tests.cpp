@@ -20,13 +20,14 @@ fn a(a : i32, b : i32) -> i32 {
   samal::DatatypeCompleter completer;
   std::vector<samal::up<samal::ModuleRootNode>> modules;
   modules.emplace_back(std::move(ast.first));
-  REQUIRE_THROWS_AS(completer.declareModules(modules), samal::DatatypeCompletionException);
+  completer.declareModules(modules);
+  REQUIRE_THROWS_AS(completer.complete(modules.at(0)), samal::DatatypeCompletionException);
 }
 
 TEST_CASE("Ensure that we don't mix types", "[samal_type_completer]") {
   samal::Parser parser;
   auto code = R"(
-fn a() -> {
+fn a() -> i32 {
   x = 5 + a;
 })";
   auto ast = parser.parse(code);
@@ -34,5 +35,54 @@ fn a() -> {
   samal::DatatypeCompleter completer;
   std::vector<samal::up<samal::ModuleRootNode>> modules;
   modules.emplace_back(std::move(ast.first));
-  REQUIRE_THROWS_AS(completer.declareModules(modules), samal::DatatypeCompletionException);
+  completer.declareModules(modules);
+  REQUIRE_THROWS_AS(completer.complete(modules.at(0)), samal::DatatypeCompletionException);
+}
+
+TEST_CASE("Ensure that we check the parameters of function calls", "[samal_type_completer]") {
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(b : i32) -> i32 {
+  x = a(a);
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    REQUIRE_THROWS_AS(completer.complete(modules.at(0)), samal::DatatypeCompletionException);
+  }
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(b : i32) -> i32 {
+  x = a();
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    REQUIRE_THROWS_AS(completer.complete(modules.at(0)), samal::DatatypeCompletionException);
+  }
+}
+
+TEST_CASE("Ensure that normal cases work", "[samal_type_completer]") {
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(b : i32) -> i32 {
+  x = a(b);
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    completer.complete(modules.at(0));
+  }
 }
