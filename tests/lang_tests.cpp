@@ -86,3 +86,23 @@ fn a(b : i32) -> i32 {
     completer.complete(modules.at(0));
   }
 }
+
+TEST_CASE("Chained function calls", "[samal_type_completer]") {
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(p : i32) -> i32 {
+  x = b(5)(3);
+}
+fn b(p : i32) -> fn(i32) -> i32 {
+  a;
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    completer.complete(modules.at(0));
+  }
+}
