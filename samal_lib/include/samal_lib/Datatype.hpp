@@ -24,20 +24,23 @@ class Datatype {
  public:
   explicit Datatype(DatatypeCategory category);
   Datatype(Datatype returnType, std::vector<Datatype> params);
+  explicit Datatype(std::vector<Datatype> params);
   explicit Datatype(std::string identifierName);
   [[nodiscard]] std::string toString() const;
   [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const;
+  [[nodiscard]] const std::vector<Datatype>& getTupleInfo() const;
   bool operator==(const Datatype& other) const;
   bool operator!=(const Datatype& other) const;
   [[nodiscard]] DatatypeCategory getCategory() const;
  private:
-  DatatypeCategory mCategory;
   std::variant<
     std::monostate,
     std::string,
     sp<class EnumDeclarationNode>,
     sp<class StructDeclarationNode>,
-    std::pair<sp<Datatype>, std::vector<Datatype>>> mFurtherInfo;
+    std::pair<sp<Datatype>, std::vector<Datatype>>,
+    std::vector<Datatype>> mFurtherInfo;
+  DatatypeCategory mCategory;
 };
 
 }

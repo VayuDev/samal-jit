@@ -52,7 +52,7 @@ Parser::Parser() {
   mPegParser["Identifier"] << "[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])*" >> [] (peg::MatchInfo& res) -> peg::Any {
     return IdentifierNode{toRef(res), std::string{std::string_view{res.startTrimmed(), res.endTrimmed()}}};
   };
-  mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | 'i32' | Identifier | '(' Datatype ')'" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | 'i32' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [] (peg::MatchInfo& res) -> peg::Any {
     switch(*res.choice) {
       case 0:
         return Datatype{res[0][5].result.moveValue<Datatype>(), res[0][2].result.moveValue<std::vector<Datatype>>()};
@@ -62,6 +62,8 @@ Parser::Parser() {
         return Datatype{std::string{std::string_view(res.startTrimmed(), res.endTrimmed())}};
       case 3:
         return res[0][1].result.moveValue<Datatype>();
+      case 4:
+        return Datatype{res[0][1].result.moveValue<std::vector<Datatype>>()};
       default:
         assert(false);
     }
