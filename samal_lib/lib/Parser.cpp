@@ -185,6 +185,9 @@ Parser::Parser() {
     }
     return ret;
   };
+  // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionListWithoutDatatype
+  //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
+  //  be prevented by using packrat parsing in the peg parser :^).
   mPegParser["LiteralExpression"] << "[\\d]+ | Identifier | '(' MathExpression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     int32_t val;
     if(*res.choice == 0) {
