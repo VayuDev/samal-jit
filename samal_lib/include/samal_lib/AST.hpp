@@ -39,9 +39,9 @@ class ParameterListNode : public ASTNode {
   std::vector<Parameter> mParams;
 };
 
-class ParameterListNodeWithoutDatatypes : public ASTNode {
+class ExpressionListNodeWithoutDatatypes : public ASTNode {
  public:
-  explicit ParameterListNodeWithoutDatatypes(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
+  explicit ExpressionListNodeWithoutDatatypes(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] const std::vector<up<ExpressionNode>>& getParams() const;
   [[nodiscard]] std::string dump(unsigned indent) const override;
@@ -131,6 +131,17 @@ class IdentifierNode : public ExpressionNode {
   std::optional<std::pair<Datatype, int32_t>> mDatatype;
 };
 
+class TupleCreationNode : public ExpressionNode {
+ public:
+  explicit TupleCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params);
+  void completeDatatype(DatatypeCompleter &declList) override;
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "TupleCreationNode"; }
+ private:
+  up<ExpressionListNodeWithoutDatatypes> mParams;
+};
+
 class ScopeNode : public ExpressionNode {
  public:
   explicit ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions);
@@ -157,14 +168,14 @@ class IfExpressionNode : public ExpressionNode {
 
 class FunctionCallExpressionNode : public ExpressionNode {
  public:
-  FunctionCallExpressionNode(SourceCodeRef source, up<ExpressionNode> name, up<ParameterListNodeWithoutDatatypes> params);
+  FunctionCallExpressionNode(SourceCodeRef source, up<ExpressionNode> name, up<ExpressionListNodeWithoutDatatypes> params);
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "FunctionCallExpressionNode"; }
  private:
   up<ExpressionNode> mName;
-  up<ParameterListNodeWithoutDatatypes> mParams;
+  up<ExpressionListNodeWithoutDatatypes> mParams;
 };
 
 

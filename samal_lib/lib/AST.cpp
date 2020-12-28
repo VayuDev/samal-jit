@@ -53,23 +53,23 @@ const std::vector<ParameterListNode::Parameter>& ParameterListNode::getParams() 
   return mParams;
 }
 
-ParameterListNodeWithoutDatatypes::ParameterListNodeWithoutDatatypes(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
+ExpressionListNodeWithoutDatatypes::ExpressionListNodeWithoutDatatypes(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
 : ASTNode(std::move(source)), mParams(std::move(params)) {
 
 }
-std::string ParameterListNodeWithoutDatatypes::dump(unsigned int indent) const {
+std::string ExpressionListNodeWithoutDatatypes::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
   for(auto& child: mParams) {
     ret += child->dump(indent + 1);
   }
   return ret;
 }
-void ParameterListNodeWithoutDatatypes::completeDatatype(DatatypeCompleter &declList) {
+void ExpressionListNodeWithoutDatatypes::completeDatatype(DatatypeCompleter &declList) {
   for(auto& child: mParams) {
     child->completeDatatype(declList);
   }
 }
-const std::vector<up<ExpressionNode>> &ParameterListNodeWithoutDatatypes::getParams() const {
+const std::vector<up<ExpressionNode>> &ExpressionListNodeWithoutDatatypes::getParams() const {
   return mParams;
 }
 ExpressionNode::ExpressionNode(SourceCodeRef source)
@@ -208,6 +208,28 @@ const std::string &IdentifierNode::getName() const {
   return mName;
 }
 
+TupleCreationNode::TupleCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params)
+: ExpressionNode(std::move(source)), mParams(std::move(params)) {
+
+}
+void TupleCreationNode::completeDatatype(DatatypeCompleter &declList) {
+  mParams->completeDatatype(declList);
+}
+std::optional<Datatype> TupleCreationNode::getDatatype() const {
+  std::vector<Datatype> paramTypes;
+  for(auto& child: mParams->getParams()) {
+    auto childType = child->getDatatype();
+    if(!childType) {
+      return {};
+    }
+    paramTypes.emplace_back(std::move(*childType));
+  }
+  return Datatype{std::move(paramTypes)};
+}
+std::string TupleCreationNode::dump(unsigned int indent) const {
+  return ASTNode::dump(indent);
+}
+
 ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions)
 : ExpressionNode(std::move(source)), mExpressions(std::move(expressions)) {
 
@@ -261,7 +283,7 @@ void IfExpressionNode::completeDatatype(DatatypeCompleter &declList) {
 
 FunctionCallExpressionNode::FunctionCallExpressionNode(SourceCodeRef source,
                                                        up<ExpressionNode> name,
-                                                       up<ParameterListNodeWithoutDatatypes> params)
+                                                       up<ExpressionListNodeWithoutDatatypes> params)
 : ExpressionNode(std::move(source)), mName(std::move(name)), mParams(std::move(params)) {
 
 }

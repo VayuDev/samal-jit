@@ -174,24 +174,26 @@ Parser::Parser() {
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
   };
   // this is stupid because we don't handle left recursion correctly in the peg parser :c
-  mPegParser["PostfixExpression"] << "LiteralExpression ('(' ParameterListWithoutDatatype ')')*" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["PostfixExpression"] << "LiteralExpression ('(' ExpressionListWithoutDatatype ')')*" >> [] (peg::MatchInfo& res) -> peg::Any {
     peg::Any ret = std::move(res[0].result);
     while(!res[1].subs.empty()) {
       ret = FunctionCallExpressionNode{
           toRef(res),
           up<ExpressionNode>{ret.move<ExpressionNode*>()},
-          up<ParameterListNodeWithoutDatatypes>{res[1][0][1].result.move<ParameterListNodeWithoutDatatypes*>()}};
+          up<ExpressionListNodeWithoutDatatypes>{res[1][0][1].result.move<ExpressionListNodeWithoutDatatypes*>()}};
       res[1].subs.erase(res[1].subs.begin());
     }
     return ret;
   };
-  mPegParser["LiteralExpression"] << "[\\d]+ | Identifier | '(' MathExpression ')' | ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["LiteralExpression"] << "[\\d]+ | Identifier | '(' MathExpression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     int32_t val;
     if(*res.choice == 0) {
       std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
       return LiteralInt32Node{toRef(res), val};
-    } else if(*res.choice == 3) {
+    } else if(*res.choice == 2) {
       return std::move(res[0][1].result);
+    } else if(*res.choice == 3) {
+      return TupleCreationNode{toRef(res), up<ExpressionListNodeWithoutDatatypes>{res[0][1].result.move<ExpressionListNodeWithoutDatatypes*>()}};
     } else {
       return std::move(res[0].result);
     }
@@ -213,12 +215,12 @@ Parser::Parser() {
     }
     return IfExpressionNode{toRef(res), std::move(list), std::move(elseBody)};
   };
-  mPegParser["ParameterListWithoutDatatype"] << "ParameterListWithoutDatatypeRec?" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["ExpressionListWithoutDatatype"] << "ExpressionListWithoutDatatypeRec?" >> [] (peg::MatchInfo& res) -> peg::Any {
     if(res.subs.empty())
-      return ParameterListNodeWithoutDatatypes{toRef(res), {}};
-    return ParameterListNodeWithoutDatatypes{toRef(res), res[0].result.moveValue<std::vector<up<ExpressionNode>>>()};
+      return ExpressionListNodeWithoutDatatypes{toRef(res), {}};
+    return ExpressionListNodeWithoutDatatypes{toRef(res), res[0].result.moveValue<std::vector<up<ExpressionNode>>>()};
   };
-  mPegParser["ParameterListWithoutDatatypeRec"] << "Expression (',' ParameterListWithoutDatatypeRec)?" >> [] (peg::MatchInfo& res) {
+  mPegParser["ExpressionListWithoutDatatypeRec"] << "Expression (',' ExpressionListWithoutDatatypeRec)?" >> [] (peg::MatchInfo& res) {
     std::vector<up<ExpressionNode>> params;
     params.emplace_back(up<ExpressionNode>{res[0].result.move<ExpressionNode*>()});
     // recursive child

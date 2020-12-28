@@ -121,3 +121,42 @@ TEST_CASE("Empty code", "[samal_type_completer]") {
     REQUIRE(ast.first);
   }
 }
+
+TEST_CASE("Tuple function calls", "[samal_type_completer]") {
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(p : i32) -> i32 {
+  x = (5, 3);
+  b(x);
+}
+fn b(p : (i32, i32)) -> i32 {
+  0;
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    completer.complete(modules.at(0));
+  }
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(p : i32) -> () {
+  b((5, 3));
+  ();
+}
+fn b(p : (i32, i32)) -> i32 {
+  0;
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    completer.complete(modules.at(0));
+  }
+}
