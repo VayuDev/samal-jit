@@ -9,12 +9,16 @@ ParserResult PegParser::parse(const std::string_view &start, std::string code) c
   PegTokenizer tokenizer{std::move(code)};
   peg::NonTerminalParsingExpression fakeNonTerminal{std::string{start}};
   auto matchResult = fakeNonTerminal.match(ParsingState{}, mRules, tokenizer);
-  if(matchResult.index() == 0 && !tokenizer.isEmpty(std::get<0>(matchResult).getState())) {
-    // Characters left unconsumed
-    return std::make_pair(ParsingFailInfo{
-      .eof = true,
-      .error = std::make_unique<ExpressionFailInfo>(std::get<0>(matchResult).moveFailInfo())
-    }, std::move(tokenizer));
+  if(matchResult.index() == 0) {
+    auto state = std::get<0>(matchResult).getState();
+    state = tokenizer.skipWhitespaces(state);
+    if(!tokenizer.isEmpty(state)) {
+      // characters left unconsumed
+      return std::make_pair(ParsingFailInfo{
+          .eof = true,
+          .error = std::make_unique<ExpressionFailInfo>(std::get<0>(matchResult).moveFailInfo())
+      }, std::move(tokenizer));
+    }
   }
   if(matchResult.index() == 1) {
     return std::make_pair(ParsingFailInfo{

@@ -106,3 +106,18 @@ fn b(p : i32) -> fn(i32) -> i32 {
     completer.complete(modules.at(0));
   }
 }
+
+TEST_CASE("Empty code", "[samal_type_completer]") {
+  {
+    samal::Parser parser;
+    auto code = R"()";
+    auto ast = parser.parse(code);
+    REQUIRE(!ast.first);
+  }
+  {
+    samal::Parser parser;
+    auto code = R"(fn a(p: i32) -> i32 { 5; }  )";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+  }
+}
