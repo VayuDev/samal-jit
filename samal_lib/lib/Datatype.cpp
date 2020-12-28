@@ -8,13 +8,16 @@ std::string Datatype::toString() const {
     return "i32";
   case DatatypeCategory::function: {
     auto &functionInfo = getFunctionTypeInfo();
-    auto ret = "$" + functionInfo.first->toString() + "(";
+    std::string ret = "fn(";
     for (size_t i = 0; i < functionInfo.second.size(); ++i) {
       ret += functionInfo.second.at(i).toString();
       if (i < functionInfo.second.size() - 1) {
         ret += ",";
       }
     }
+    ret += ") -> " + functionInfo.first->toString();
+    return ret;
+  }
     ret += ")";
     return ret;
   }
