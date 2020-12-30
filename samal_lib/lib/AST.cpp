@@ -412,6 +412,10 @@ void FunctionDeclarationNode::declareShallow(DatatypeCompleter &completer) const
   for(auto& p: mParameters->getParams()) {
     paramTypes.emplace_back(p.type);
   }
-  completer.declareVariableNonOverrideable(mName->getName(), Datatype{mReturnType, std::move(paramTypes)});
+  try {
+    completer.declareVariableNonOverrideable(mName->getName(), Datatype{mReturnType, std::move(paramTypes)});
+  } catch(std::runtime_error& e) {
+    throwException(e.what());
+  }
 }
 }

@@ -20,8 +20,7 @@ fn a(a : i32, b : i32) -> i32 {
   samal::DatatypeCompleter completer;
   std::vector<samal::up<samal::ModuleRootNode>> modules;
   modules.emplace_back(std::move(ast.first));
-  completer.declareModules(modules);
-  REQUIRE_THROWS_AS(completer.complete(modules.at(0)), samal::DatatypeCompletionException);
+  REQUIRE_THROWS_AS(completer.declareModules(modules), samal::DatatypeCompletionException);
 }
 
 TEST_CASE("Ensure that we don't mix types", "[samal_type_completer]") {
