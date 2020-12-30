@@ -32,6 +32,8 @@ class Datatype {
   bool operator==(const Datatype& other) const;
   bool operator!=(const Datatype& other) const;
   [[nodiscard]] DatatypeCategory getCategory() const;
+
+  static Datatype createEmptyTuple();
  private:
   std::variant<
     std::monostate,

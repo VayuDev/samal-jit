@@ -235,7 +235,10 @@ ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expre
 
 }
 std::optional<Datatype> ScopeNode::getDatatype() const {
-  return std::optional<Datatype>();
+  if(mExpressions.empty()) {
+    return Datatype::createEmptyTuple();
+  }
+  return mExpressions.at(mExpressions.size() - 1)->getDatatype();
 }
 std::string ScopeNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
@@ -256,7 +259,7 @@ IfExpressionNode::IfExpressionNode(SourceCodeRef source, IfExpressionChildList c
 
 }
 std::optional<Datatype> IfExpressionNode::getDatatype() const {
-  return std::optional<Datatype>();
+  return mChildren.front().second->getDatatype();
 }
 std::string IfExpressionNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
@@ -273,12 +276,31 @@ std::string IfExpressionNode::dump(unsigned int indent) const {
   return ret;
 }
 void IfExpressionNode::completeDatatype(DatatypeCompleter &declList) {
+  std::optional<Datatype> type;
   for(auto& child: mChildren) {
     child.first->completeDatatype(declList);
     child.second->completeDatatype(declList);
+    // ensure that every possible branch has the same type
+    auto childType = child.second->getDatatype();
+    assert(childType);
+    if(type) {
+      if(*childType != *type) {
+        throwException("Not all branches of this if expression return the same value. "
+                       "Previous branches return " + type->toString() + ", but one returns " + childType->toString());
+      }
+    } else {
+      type = std::move(*childType);
+    }
   }
-  if(mElseBody)
+  if(mElseBody) {
     mElseBody->completeDatatype(declList);
+    auto elseBodyType = mElseBody->getDatatype();
+    assert(elseBodyType);
+    if(elseBodyType != *type) {
+      throwException("The else branch of this if expression returns a value different from the other branches. "
+                     "Previous branches return " + type->toString() + ", but the else branch returns " + elseBodyType->toString());
+    }
+  }
 }
 
 FunctionCallExpressionNode::FunctionCallExpressionNode(SourceCodeRef source,
@@ -378,6 +400,11 @@ void FunctionDeclarationNode::completeDatatype(DatatypeCompleter &declList) {
   mName->completeDatatype(declList);
   mParameters->completeDatatype(declList);
   mBody->completeDatatype(declList);
+  auto bodyType = mBody->getDatatype();
+  assert(bodyType);
+  if(bodyType != mReturnType) {
+    throwException("This function's declared return type (" + mReturnType.toString() + ") and actual return type (" + bodyType->toString() + ") don't match");
+  }
 }
 void FunctionDeclarationNode::declareShallow(DatatypeCompleter &completer) const {
   // TODO also set params etc.

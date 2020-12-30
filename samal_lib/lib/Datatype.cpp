@@ -79,5 +79,8 @@ bool Datatype::operator!=(const Datatype &other) const {
 DatatypeCategory Datatype::getCategory() const {
   return mCategory;
 }
+Datatype Datatype::createEmptyTuple() {
+  return Datatype(std::vector<Datatype>{});
+}
 
 }

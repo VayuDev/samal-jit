@@ -160,3 +160,42 @@ fn b(p : (i32, i32)) -> i32 {
     completer.complete(modules.at(0));
   }
 }
+
+TEST_CASE("Correct function return types checking", "[samal_type_completer]") {
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(p : i32) -> i32 {
+  if p > 5 {
+    p;
+  } else {
+    0;
+  };
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    completer.complete(modules.at(0));
+  }
+  {
+    samal::Parser parser;
+    auto code = R"(
+fn a(p : i32) -> i32 {
+  if p > 5 {
+    (p, 5);
+  } else {
+    0;
+  };
+})";
+    auto ast = parser.parse(code);
+    REQUIRE(ast.first);
+    samal::DatatypeCompleter completer;
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    completer.declareModules(modules);
+    REQUIRE_THROWS_AS(completer.complete(modules.at(0)), samal::DatatypeCompletionException);
+  }
+}
