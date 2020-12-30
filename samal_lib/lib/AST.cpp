@@ -230,6 +230,37 @@ std::string TupleCreationNode::dump(unsigned int indent) const {
   return ASTNode::dump(indent);
 }
 
+ListCreationNode::ListCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params)
+: ExpressionNode(std::move(source)), mParams(std::move(params)) {
+
+}
+void ListCreationNode::completeDatatype(DatatypeCompleter &declList) {
+  mParams->completeDatatype(declList);
+  std::optional<Datatype> baseType;
+  for(auto& child: mParams->getParams()) {
+    auto childType = child->getDatatype();
+    assert(childType);
+    if(baseType) {
+      if(childType != *baseType) {
+        throwException("Not all elements in the created list have the same type; previous children had the type "
+          + baseType->toString() + ", but one has the type " + childType->toString());
+      }
+    } else {
+      baseType = childType;
+    }
+  }
+}
+std::optional<Datatype> ListCreationNode::getDatatype() const {
+  if(mParams->getParams().empty())
+    return Datatype::createListType(Datatype{DatatypeCategory::undetermined_identifier});
+  return Datatype::createListType(*mParams->getParams().front()->getDatatype());
+}
+std::string ListCreationNode::dump(unsigned int indent) const {
+  auto ret = ASTNode::dump(indent);
+  ret += mParams->dump(indent + 1);
+  return ret;
+}
+
 ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions)
 : ExpressionNode(std::move(source)), mExpressions(std::move(expressions)) {
 

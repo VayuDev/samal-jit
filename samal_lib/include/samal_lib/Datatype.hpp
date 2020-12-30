@@ -18,6 +18,7 @@ enum class DatatypeCategory {
   enum_,
   tuple,
   function,
+  list,
 };
 
 class Datatype {
@@ -29,11 +30,13 @@ class Datatype {
   [[nodiscard]] std::string toString() const;
   [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const;
   [[nodiscard]] const std::vector<Datatype>& getTupleInfo() const;
+  [[nodiscard]] const Datatype& getListInfo() const;
   bool operator==(const Datatype& other) const;
   bool operator!=(const Datatype& other) const;
   [[nodiscard]] DatatypeCategory getCategory() const;
 
   static Datatype createEmptyTuple();
+  static Datatype createListType(Datatype baseType);
  private:
   std::variant<
     std::monostate,
@@ -41,7 +44,8 @@ class Datatype {
     sp<class EnumDeclarationNode>,
     sp<class StructDeclarationNode>,
     std::pair<sp<Datatype>, std::vector<Datatype>>,
-    std::vector<Datatype>> mFurtherInfo;
+    std::vector<Datatype>,
+    sp<Datatype>> mFurtherInfo;
   DatatypeCategory mCategory;
 };
 

@@ -30,6 +30,9 @@ std::string Datatype::toString() const {
     ret += ")";
     return ret;
   }
+  case DatatypeCategory::list: {
+    return "[" + getListInfo().toString() + "]";;
+  }
   case DatatypeCategory::undetermined_identifier:
     return "<undetermined identifier '" + std::get<std::string>(mFurtherInfo) + "'>";
   default:
@@ -66,6 +69,12 @@ const std::vector<Datatype> &Datatype::getTupleInfo() const {
   }
   return std::get<std::vector<Datatype>>(mFurtherInfo);
 }
+const Datatype &Datatype::getListInfo() const {
+  if(mCategory != DatatypeCategory::list) {
+    throw std::runtime_error{"This is not a list!"};
+  }
+  return *std::get<sp<Datatype>>(mFurtherInfo);
+}
 bool Datatype::operator==(const Datatype &other) const {
   if(mCategory != other.mCategory)
     return false;
@@ -100,6 +109,11 @@ DatatypeCategory Datatype::getCategory() const {
 }
 Datatype Datatype::createEmptyTuple() {
   return Datatype(std::vector<Datatype>{});
+}
+Datatype Datatype::createListType(Datatype baseType) {
+  Datatype ret{DatatypeCategory::list};
+  ret.mFurtherInfo = std::make_shared<Datatype>(std::move(baseType));
+  return ret;
 }
 
 }

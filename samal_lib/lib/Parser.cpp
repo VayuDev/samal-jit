@@ -83,7 +83,7 @@ Parser::Parser() {
     }
     return params;
   };
-  mPegParser["ScopeExpression"] << "'{' (Expression ';')* '}'" >> [] (peg::MatchInfo& res) {
+  mPegParser["ScopeExpression"] << "'{' (Expression ~snn~'\n')* '}'" >> [] (peg::MatchInfo& res) {
     std::vector<up<ExpressionNode>> expressions;
     for(auto& expr: res[1].subs) {
       expressions.emplace_back(expr[0].result.move<ExpressionNode*>());
@@ -174,7 +174,7 @@ Parser::Parser() {
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
   };
   // this is stupid because we don't handle left recursion correctly in the peg parser :c
-  mPegParser["PostfixExpression"] << "LiteralExpression ('(' ExpressionListWithoutDatatype ')')*" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["PostfixExpression"] << "LiteralExpression ~snn~(~snn~'(' ExpressionListWithoutDatatype ')')*" >> [] (peg::MatchInfo& res) -> peg::Any {
     peg::Any ret = std::move(res[0].result);
     while(!res[1].subs.empty()) {
       ret = FunctionCallExpressionNode{
@@ -188,14 +188,16 @@ Parser::Parser() {
   // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionListWithoutDatatype
   //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
   //  be prevented by using packrat parsing in the peg parser :^).
-  mPegParser["LiteralExpression"] << "[\\d]+ | Identifier | '(' MathExpression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["LiteralExpression"] << "[\\d]+ | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' MathExpression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     int32_t val;
     if(*res.choice == 0) {
       std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
       return LiteralInt32Node{toRef(res), val};
-    } else if(*res.choice == 2) {
+    } else if (*res.choice == 2) {
+      return ListCreationNode(toRef(res), up<ExpressionListNodeWithoutDatatypes>{res[0][1].result.move<ExpressionListNodeWithoutDatatypes*>()});
+    } else if(*res.choice == 4) {
       return std::move(res[0][1].result);
-    } else if(*res.choice == 3) {
+    } else if(*res.choice == 5) {
       return TupleCreationNode{toRef(res), up<ExpressionListNodeWithoutDatatypes>{res[0][1].result.move<ExpressionListNodeWithoutDatatypes*>()}};
     } else {
       return std::move(res[0].result);

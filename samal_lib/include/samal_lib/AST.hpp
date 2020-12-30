@@ -142,6 +142,17 @@ class TupleCreationNode : public ExpressionNode {
   up<ExpressionListNodeWithoutDatatypes> mParams;
 };
 
+class ListCreationNode : public ExpressionNode {
+ public:
+  explicit ListCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params);
+  void completeDatatype(DatatypeCompleter &declList) override;
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "ListCreationNode"; }
+ private:
+  up<ExpressionListNodeWithoutDatatypes> mParams;
+};
+
 class ScopeNode : public ExpressionNode {
  public:
   explicit ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions);
