@@ -10,10 +10,10 @@ TEST_CASE("Ensure that we can't define a function twice", "[samal_type_completer
   samal::Parser parser;
   auto code = R"(
 fn a(n : i32) -> i32 {
-  a;
+  a
 }
 fn a(a : i32, b : i32) -> i32 {
-  a + b;
+  a + b
 })";
   auto ast = parser.parse(code);
   REQUIRE(ast.first);
@@ -27,7 +27,7 @@ TEST_CASE("Ensure that we don't mix types", "[samal_type_completer]") {
   samal::Parser parser;
   auto code = R"(
 fn a() -> i32 {
-  x = 5 + a;
+  x = 5 + a
 })";
   auto ast = parser.parse(code);
   REQUIRE(ast.first);
@@ -43,7 +43,7 @@ TEST_CASE("Ensure that we check the parameters of function calls", "[samal_type_
     samal::Parser parser;
     auto code = R"(
 fn a(b : i32) -> i32 {
-  x = a(a);
+  x = a(a)
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
@@ -57,7 +57,7 @@ fn a(b : i32) -> i32 {
     samal::Parser parser;
     auto code = R"(
 fn a(b : i32) -> i32 {
-  x = a();
+  x = a()
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
@@ -74,7 +74,7 @@ TEST_CASE("Ensure that normal cases work", "[samal_type_completer]") {
     samal::Parser parser;
     auto code = R"(
 fn a(b : i32) -> i32 {
-  x = a(b);
+  x = a(b)
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
@@ -91,10 +91,10 @@ TEST_CASE("Chained function calls", "[samal_type_completer]") {
     samal::Parser parser;
     auto code = R"(
 fn a(p : i32) -> i32 {
-  x = b(5)(3);
+  x = b(5)(3)
 }
 fn b(p : i32) -> fn(i32) -> i32 {
-  a;
+  a
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
@@ -115,7 +115,8 @@ TEST_CASE("Empty code", "[samal_type_completer]") {
   }
   {
     samal::Parser parser;
-    auto code = R"(fn a(p: i32) -> i32 { 5; }  )";
+    auto code = R"(fn a(p: i32) -> i32 { 5
+ }  )";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
   }
@@ -126,11 +127,11 @@ TEST_CASE("Tuple function calls", "[samal_type_completer]") {
     samal::Parser parser;
     auto code = R"(
 fn a(p : i32) -> i32 {
-  x = (5, 3);
-  b(x);
+  x = (5, 3)
+  b(x)
 }
 fn b(p : (i32, i32)) -> i32 {
-  0;
+  0
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
@@ -144,11 +145,11 @@ fn b(p : (i32, i32)) -> i32 {
     samal::Parser parser;
     auto code = R"(
 fn a(p : i32) -> () {
-  b((5, 3));
-  ();
+  b((5, 3))
+  ()
 }
 fn b(p : (i32, i32)) -> i32 {
-  0;
+  0
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
@@ -166,10 +167,10 @@ TEST_CASE("Correct function return types checking", "[samal_type_completer]") {
     auto code = R"(
 fn a(p : i32) -> i32 {
   if p > 5 {
-    p;
+    p
   } else {
-    0;
-  };
+    0
+  }
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
@@ -184,10 +185,10 @@ fn a(p : i32) -> i32 {
     auto code = R"(
 fn a(p : i32) -> i32 {
   if p > 5 {
-    (p, 5);
+    (p, 5)
   } else {
-    0;
-  };
+    0
+  }
 })";
     auto ast = parser.parse(code);
     REQUIRE(ast.first);
