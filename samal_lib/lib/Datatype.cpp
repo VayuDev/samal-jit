@@ -69,8 +69,27 @@ const std::vector<Datatype> &Datatype::getTupleInfo() const {
 bool Datatype::operator==(const Datatype &other) const {
   if(mCategory != other.mCategory)
     return false;
-  if(mFurtherInfo != other.mFurtherInfo)
+  if(mFurtherInfo.index() != other.mFurtherInfo.index())
     return false;
+  try {
+    auto& selfValue = std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(mFurtherInfo);
+    auto& otherValue =  std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(other.mFurtherInfo);
+    if(selfValue.second != otherValue.second)
+      return false;
+    if(selfValue.first != otherValue.first) {
+      if(selfValue.first && otherValue.first) {
+        if(*selfValue.first != *otherValue.first) {
+          return false;
+        } else {
+          return true;
+        }
+      }
+    }
+  } catch(std::bad_variant_access&) {
+    if(mFurtherInfo != other.mFurtherInfo) {
+      return false;
+    }
+  }
   return true;
 }
 bool Datatype::operator!=(const Datatype &other) const {
