@@ -54,6 +54,10 @@ static sp<ParsingExpression> parseAttribute(ExpressionTokenizer &tok) {
     tok.advance();
     return std::make_shared<ForceSkippingWhitespacesExpression>(parseAtom(tok));
   }
+  if(*tok.currentToken() == "~snn~") {
+    tok.advance();
+    return std::make_shared<SkipWhitespacesNoNewlinesExpression>(parseAtom(tok));
+  }
   return std::make_shared<SkipWhitespacesExpression>(parseAtom(tok));
 }
 

@@ -411,6 +411,20 @@ std::string ForceSkippingWhitespacesExpression::dump() const {
   return "~fws~(" + mChild->dump() + ")";
 }
 
+SkipWhitespacesNoNewlinesExpression::SkipWhitespacesNoNewlinesExpression(sp<ParsingExpression> child)
+: mChild(std::move(child)) {
+
+}
+RuleResult SkipWhitespacesNoNewlinesExpression::match(ParsingState state,
+                                                      const RuleMap &rules,
+                                                      const PegTokenizer &tokenizer) const {
+  state = tokenizer.skipWhitespaces(state, false);
+  return mChild->match(state, rules, tokenizer);
+}
+std::string SkipWhitespacesNoNewlinesExpression::dump() const {
+  return "~snn~(" + mChild->dump() + ")";
+}
+
 class ErrorTree {
  public:
   ErrorTree(wp<ErrorTree> parent, const ExpressionFailInfo& sourceNode)

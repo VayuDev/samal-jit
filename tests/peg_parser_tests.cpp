@@ -182,6 +182,13 @@ TEST_CASE("ParsingExpression from string quantifiers", "[parser]") {
   parseThenStringifyStaysSame("Value");
 }
 
+TEST_CASE("ParsingExpression from string quantifiers attributes", "[parser]") {
+  parseThenStringifyStaysSameAfter("~sws~'a'", "'a'");
+  parseThenStringifyStaysSameAfter("~nws~'a' ~snn~'b'", "~nws~('a') ~snn~('b')");
+  parseThenStringifyStaysSameAfter("~fws~'a' ~snn~'b'", "~fws~('a') ~snn~('b')");
+}
+
+
 TEST_CASE("ParsingExpression from string regex", "[parser]") {
   parseThenStringifyStaysSameAfter("[\\d]", "[\\d]");
 }
@@ -333,6 +340,19 @@ TEST_CASE("Calculator test", "[parser]") {
   //std::cout << peg::errorsToString(std::get<1>(res.first), res.second) << "\n";
   REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) != std::string{""});
 }
+
+TEST_CASE("Attribute parser match", "[parser]") {
+  {
+    peg::PegParser parser;
+    parser["Start"] << "('a' ~snn~'\n')+";
+    REQUIRE(parser.parse("Start", "a").first.index() == 1);
+    REQUIRE(parser.parse("Start", "a\n").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a\na\n").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a  \n   a\n").first.index() == 0);
+    REQUIRE(parser.parse("Start", "a \n a   ").first.index() == 1);
+  }
+}
+
 #ifdef SAMAL_PEG_PARSER_BENCHMARKS
 TEST_CASE("ParsingExpression matching benchmarks", "[parser]") {
   peg::PegParser parser;

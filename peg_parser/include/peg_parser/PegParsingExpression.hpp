@@ -216,4 +216,13 @@ class ForceSkippingWhitespacesExpression : public ParsingExpression {
   sp<ParsingExpression> mChild;
 };
 
+class SkipWhitespacesNoNewlinesExpression : public ParsingExpression {
+ public:
+  explicit SkipWhitespacesNoNewlinesExpression(sp<ParsingExpression> child);
+  [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
+  [[nodiscard]] std::string dump() const override;
+ private:
+  sp<ParsingExpression> mChild;
+};
+
 }

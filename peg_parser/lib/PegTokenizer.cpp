@@ -30,9 +30,14 @@ std::optional<ParsingState> PegTokenizer::matchRegex(ParsingState state, const s
   return state;
 }
 
-ParsingState PegTokenizer::skipWhitespaces(ParsingState state)  const {
+ParsingState PegTokenizer::skipWhitespaces(ParsingState state, bool newLines)  const {
   const static std::string WHITESPACE_CHARS{"\t \n"};
-  while(state.tokenizerState < mCode.size() && WHITESPACE_CHARS.find(mCode.at(state.tokenizerState)) != std::string::npos) {
+  const static std::string WHITESPACE_CHARS_NO_NEWLINES{"\t "};
+  auto* usedWhitespaces = &WHITESPACE_CHARS;
+  if(!newLines) {
+    usedWhitespaces = &WHITESPACE_CHARS_NO_NEWLINES;
+  }
+  while(state.tokenizerState < mCode.size() && usedWhitespaces->find(mCode.at(state.tokenizerState)) != std::string::npos) {
     state.tokenizerState += 1;
   }
   return state;
