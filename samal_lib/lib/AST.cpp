@@ -188,7 +188,7 @@ void LiteralInt32Node::completeDatatype(DatatypeCompleter &) {
 
 }
 
-IdentifierNode::IdentifierNode(SourceCodeRef source, std::string name)
+IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name)
 : ExpressionNode(std::move(source)), mName(std::move(name)) {
 
 }
@@ -197,15 +197,15 @@ std::optional<Datatype> IdentifierNode::getDatatype() const {
 }
 std::string IdentifierNode::dump(unsigned int indent) const {
   return
-  createIndent(indent) + getClassName() + ": " + mName
+  createIndent(indent) + getClassName() + ": " + concat(mName)
   + ", type: " + (mDatatype ? mDatatype->first.toString() : "<unknown>")
   + (mDatatype ? ", id: " + std::to_string(mDatatype->second) : "") + "\n";
 }
 void IdentifierNode::completeDatatype(DatatypeCompleter &declList) {
-  mDatatype = declList.getVariableType(mName);
+  mDatatype = declList.getVariableType(concat(mName));
 }
-const std::string &IdentifierNode::getName() const {
-  return mName;
+std::string IdentifierNode::getName() const {
+  return concat(mName);
 }
 
 TupleCreationNode::TupleCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params)
@@ -425,6 +425,7 @@ ModuleRootNode::ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationN
 }
 std::string ModuleRootNode::dump(unsigned indent) const {
   auto ret = ASTNode::dump(indent);
+  ret += createIndent(indent + 1) + "Name: " + mName + "\n";
   for(auto& child: mDeclarations) {
     ret += child->dump(indent + 1);
   }
@@ -451,6 +452,10 @@ void ModuleRootNode::declareShallow(DatatypeCompleter &completer) const {
   }
   completer.saveModule("This is a placeholder for the actual module name");
 }
+void ModuleRootNode::setModuleName(std::string name) {
+  mName = std::move(name);
+}
+
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
   auto ret = ASTNode::dump(indent);
   ret += createIndent(indent + 1) + "Name:\n" + mName->dump(indent + 2);

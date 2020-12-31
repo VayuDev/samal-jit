@@ -7,21 +7,14 @@
 int main() {
   samal::Stopwatch stopwatch{"The main function"};
   samal::Parser parser;
-  auto ast = parser.parse(R"(
+  auto ast = parser.parse("Main", R"(
 fn fib(n : i32) -> i32 {
-  x = 3 + makeList();
-  x = add(3, 2);
+  f = Main.fib
   if n < 2 {
-    n;
+    n
   } else {
-    fib(n-1) + fib(n-2);
-  };
-}
-fn makeList() -> List {
-
-}
-fn add(a : i32, b : i32) -> i32 {
-  a + b;
+    fib(n-1) + fib(n-2)
+  }
 })");
   if(!ast.first)
     return 1;

@@ -15,7 +15,7 @@ fn a(n : i32) -> i32 {
 fn a(a : i32, b : i32) -> i32 {
   a + b
 })";
-  auto ast = parser.parse(code);
+  auto ast = parser.parse("Main", code);
   REQUIRE(ast.first);
   samal::DatatypeCompleter completer;
   std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -29,7 +29,7 @@ TEST_CASE("Ensure that we don't mix types", "[samal_type_completer]") {
 fn a() -> i32 {
   x = 5 + a
 })";
-  auto ast = parser.parse(code);
+  auto ast = parser.parse("Main", code);
   REQUIRE(ast.first);
   samal::DatatypeCompleter completer;
   std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -45,7 +45,7 @@ TEST_CASE("Ensure that we check the parameters of function calls", "[samal_type_
 fn a(b : i32) -> i32 {
   x = a(a)
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -59,7 +59,7 @@ fn a(b : i32) -> i32 {
 fn a(b : i32) -> i32 {
   x = a()
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -76,7 +76,7 @@ TEST_CASE("Ensure that normal cases work", "[samal_type_completer]") {
 fn a(b : i32) -> i32 {
   x = a(b)
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -96,7 +96,7 @@ fn a(p : i32) -> i32 {
 fn b(p : i32) -> fn(i32) -> i32 {
   a
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -110,14 +110,14 @@ TEST_CASE("Empty code", "[samal_type_completer]") {
   {
     samal::Parser parser;
     auto code = R"()";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(!ast.first);
   }
   {
     samal::Parser parser;
     auto code = R"(fn a(p: i32) -> i32 { 5
  }  )";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
   }
 }
@@ -133,7 +133,7 @@ fn a(p : i32) -> i32 {
 fn b(p : (i32, i32)) -> i32 {
   0
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -151,7 +151,7 @@ fn a(p : i32) -> () {
 fn b(p : (i32, i32)) -> i32 {
   0
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -172,7 +172,7 @@ fn a(p : i32) -> i32 {
     0
   }
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;
@@ -190,7 +190,7 @@ fn a(p : i32) -> i32 {
     0
   }
 })";
-    auto ast = parser.parse(code);
+    auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     samal::DatatypeCompleter completer;
     std::vector<samal::up<samal::ModuleRootNode>> modules;

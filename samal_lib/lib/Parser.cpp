@@ -49,8 +49,15 @@ Parser::Parser() {
     }
     return params;
   };
-  mPegParser["Identifier"] << "[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])*" >> [] (peg::MatchInfo& res) -> peg::Any {
-    return IdentifierNode{toRef(res), std::string{std::string_view{res.startTrimmed(), res.endTrimmed()}}};
+  mPegParser["Identifier"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+)" >> [] (peg::MatchInfo& res) -> peg::Any {
+    std::vector<std::string> parts;
+    for(auto& part: res.subs) {
+      const char* end = part.endTrimmed();
+      if(*(end-1) == '.')
+        end--;
+      parts.emplace_back(std::string_view{part.startTrimmed(), end});
+    }
+    return IdentifierNode{toRef(res), std::move(parts)};
   };
   mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [] (peg::MatchInfo& res) -> peg::Any {
     switch(*res.choice) {
@@ -251,11 +258,14 @@ Parser::Parser() {
   };
 }
 
-std::pair<up<ModuleRootNode>, peg::PegTokenizer> Parser::parse(std::string code) const {
+std::pair<up<ModuleRootNode>, peg::PegTokenizer> Parser::parse(std::string moduleName, std::string code) const {
   Stopwatch stopwatch{"Parsing the code"};
   auto ret = mPegParser.parse("Start", std::move(code));
-  if(ret.first.index() == 0)
-    return std::make_pair(up<ModuleRootNode>{std::get<0>(ret.first).moveMatchInfo().result.move<ModuleRootNode*>()}, std::move(ret.second));
+  if(ret.first.index() == 0) {
+    up<ModuleRootNode> root{std::get<0>(ret.first).moveMatchInfo().result.move<ModuleRootNode*>()};
+    root->setModuleName(std::move(moduleName));
+    return std::make_pair(std::move(root), std::move(ret.second));
+  }
 
   std::cerr << peg::errorsToString(std::get<1>(ret.first), ret.second);
   return std::make_pair(nullptr, std::move(ret.second));

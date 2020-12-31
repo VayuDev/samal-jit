@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 namespace samal {
 
@@ -46,5 +47,16 @@ public:
 private:
   std::string mMsg;
 };
+
+static inline std::string concat(const std::vector<std::string>& splitName) {
+  std::string ret;
+  for(size_t i = 0; i < splitName.size(); ++i) {
+    ret += splitName.at(i);
+    if(i < splitName.size() - 1) {
+      ret += ".";
+    }
+  }
+  return ret;
+}
 
 }

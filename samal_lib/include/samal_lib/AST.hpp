@@ -120,14 +120,14 @@ class LiteralInt32Node : public LiteralNode {
 
 class IdentifierNode : public ExpressionNode {
  public:
-  explicit IdentifierNode(SourceCodeRef source, std::string name);
+  explicit IdentifierNode(SourceCodeRef source, std::vector<std::string> name);
   void completeDatatype(DatatypeCompleter &declList) override;
-  [[nodiscard]] const std::string& getName() const;
+  [[nodiscard]] std::string getName() const;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "IdentifierNode"; }
  private:
-  std::string mName;
+  std::vector<std::string> mName;
   std::optional<std::pair<Datatype, int32_t>> mDatatype;
 };
 
@@ -218,8 +218,10 @@ class ModuleRootNode : public ASTNode {
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "ModuleRootNode"; }
   std::vector<DeclarationNode*> createDeclarationList();
+  void setModuleName(std::string name);
  private:
   std::vector<up<DeclarationNode>> mDeclarations;
+  std::string mName;
 };
 
 class FunctionDeclarationNode : public DeclarationNode {
