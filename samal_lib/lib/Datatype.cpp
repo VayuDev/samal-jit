@@ -81,6 +81,7 @@ bool Datatype::operator==(const Datatype &other) const {
   if(mFurtherInfo.index() != other.mFurtherInfo.index())
     return false;
   try {
+    // check for function type equality
     auto& selfValue = std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(mFurtherInfo);
     auto& otherValue =  std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(other.mFurtherInfo);
     if(selfValue.second != otherValue.second)
@@ -95,8 +96,24 @@ bool Datatype::operator==(const Datatype &other) const {
       }
     }
   } catch(std::bad_variant_access&) {
-    if(mFurtherInfo != other.mFurtherInfo) {
-      return false;
+    try {
+      // check for array type equality
+      auto& selfValue = std::get<sp<Datatype>>(mFurtherInfo);
+      auto& otherValue =  std::get<sp<Datatype>>(other.mFurtherInfo);
+      if(selfValue != otherValue) {
+        if(selfValue && otherValue) {
+          if(*selfValue != *otherValue) {
+            return false;
+          } else {
+            return true;
+          }
+        }
+      }
+    } catch(std::bad_variant_access&) {
+      // fall back to simple check
+      if(mFurtherInfo != other.mFurtherInfo) {
+        return false;
+      }
     }
   }
   return true;
