@@ -2,7 +2,6 @@
 #include <samal_lib/Util.hpp>
 #include <variant>
 #include <vector>
-#include <compare>
 
 namespace samal {
 

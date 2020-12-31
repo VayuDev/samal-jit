@@ -55,7 +55,7 @@ Parser::Parser() {
       const char* end = part.endTrimmed();
       if(*(end-1) == '.')
         end--;
-      parts.emplace_back(std::string_view{part.startTrimmed(), end});
+      parts.emplace_back(std::string_view{part.startTrimmed(), end - part.startTrimmed()});
     }
     return IdentifierNode{toRef(res), std::move(parts)};
   };
@@ -68,7 +68,7 @@ Parser::Parser() {
       case 2:
         return Datatype{DatatypeCategory::i32};
       case 3:
-        return Datatype{std::string{std::string_view(res.startTrimmed(), res.endTrimmed())}};
+        return Datatype{std::string{std::string_view(res.startTrimmed(), res.startTrimmed() - res.endTrimmed())}};
       case 4:
         return res[0][1].result.moveValue<Datatype>();
       case 5:

@@ -1,6 +1,7 @@
 #pragma once
 #include "Datatype.hpp"
 #include <string>
+#include <optional>
 #include "samal_lib/Forward.hpp"
 
 namespace samal {
