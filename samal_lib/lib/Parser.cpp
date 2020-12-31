@@ -195,6 +195,8 @@ Parser::Parser() {
     if(*res.choice == 0) {
       std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
       return LiteralInt32Node{toRef(res), val};
+    } else if (*res.choice == 1) {
+      return ListCreationNode(toRef(res), res[0][2].result.moveValue<Datatype>());
     } else if (*res.choice == 2) {
       return ListCreationNode(toRef(res), up<ExpressionListNodeWithoutDatatypes>{res[0][1].result.move<ExpressionListNodeWithoutDatatypes*>()});
     } else if(*res.choice == 4) {

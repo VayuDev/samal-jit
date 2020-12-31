@@ -145,11 +145,13 @@ class TupleCreationNode : public ExpressionNode {
 class ListCreationNode : public ExpressionNode {
  public:
   explicit ListCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params);
+  explicit ListCreationNode(SourceCodeRef source, Datatype baseType);
   void completeDatatype(DatatypeCompleter &declList) override;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "ListCreationNode"; }
  private:
+  std::optional<Datatype> mBaseType;
   up<ExpressionListNodeWithoutDatatypes> mParams;
 };
 

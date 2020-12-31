@@ -234,30 +234,42 @@ ListCreationNode::ListCreationNode(SourceCodeRef source, up<ExpressionListNodeWi
 : ExpressionNode(std::move(source)), mParams(std::move(params)) {
 
 }
+ListCreationNode::ListCreationNode(SourceCodeRef source, Datatype baseType)
+: ExpressionNode(std::move(source)), mBaseType(std::move(baseType)){
+
+}
 void ListCreationNode::completeDatatype(DatatypeCompleter &declList) {
-  mParams->completeDatatype(declList);
-  std::optional<Datatype> baseType;
-  for(auto& child: mParams->getParams()) {
-    auto childType = child->getDatatype();
-    assert(childType);
-    if(baseType) {
-      if(childType != *baseType) {
-        throwException("Not all elements in the created list have the same type; previous children had the type "
-          + baseType->toString() + ", but one has the type " + childType->toString());
+  if(mParams) {
+    mParams->completeDatatype(declList);
+    for(auto& child: mParams->getParams()) {
+      auto childType = child->getDatatype();
+      assert(childType);
+      if(mBaseType) {
+        if(childType != *mBaseType) {
+          throwException("Not all elements in the created list have the same type; previous children had the type "
+                             + mBaseType->toString() + ", but one has the type " + childType->toString());
+        }
+      } else {
+        mBaseType = childType;
       }
-    } else {
-      baseType = childType;
     }
+  }
+  if(!mBaseType) {
+    throwException("Can't determine the type of this list. Hint: Try something like [:i32] to create an empty list.");
   }
 }
 std::optional<Datatype> ListCreationNode::getDatatype() const {
-  if(mParams->getParams().empty())
-    return Datatype::createListType(Datatype{DatatypeCategory::undetermined_identifier});
-  return Datatype::createListType(*mParams->getParams().front()->getDatatype());
+  if(!mBaseType)
+    return {};
+  return Datatype::createListType(*mBaseType);
 }
 std::string ListCreationNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
-  ret += mParams->dump(indent + 1);
+  if(mParams) {
+    ret += mParams->dump(indent + 1);
+  } else if(mBaseType) {
+    ret += createIndent(indent + 1) + "Base type: " + mBaseType->toString() + "\n";
+  }
   return ret;
 }
 
