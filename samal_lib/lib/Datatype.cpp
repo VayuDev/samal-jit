@@ -132,5 +132,8 @@ Datatype Datatype::createListType(Datatype baseType) {
   ret.mFurtherInfo = std::make_shared<Datatype>(std::move(baseType));
   return ret;
 }
+bool Datatype::isInteger() const {
+  return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
+}
 
 }

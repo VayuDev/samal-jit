@@ -191,6 +191,16 @@ class FunctionCallExpressionNode : public ExpressionNode {
   up<ExpressionListNodeWithoutDatatypes> mParams;
 };
 
+class ListAccessExpressionNode : public ExpressionNode {
+ public:
+  ListAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, up<ExpressionNode> index);
+  [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+  void completeDatatype(DatatypeCompleter &declList) override;
+  [[nodiscard]] std::string dump(unsigned indent) const override;
+  [[nodiscard]] inline const char* getClassName() const override { return "ListAccessExpressionNode"; }
+ private:
+  up<ExpressionNode> mName, mIndex;
+};
 
 class DeclarationNode : public ASTNode {
  public:

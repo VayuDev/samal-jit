@@ -35,6 +35,8 @@ class Datatype {
   bool operator!=(const Datatype& other) const;
   [[nodiscard]] DatatypeCategory getCategory() const;
 
+  [[nodiscard]] bool isInteger() const;
+
   static Datatype createEmptyTuple();
   static Datatype createListType(Datatype baseType);
  private:

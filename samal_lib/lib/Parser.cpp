@@ -176,13 +176,23 @@ Parser::Parser() {
         up<ExpressionNode>{res[1][0][1].result.move<ExpressionNode *>()}};
   };
   // this is stupid because we don't handle left recursion correctly in the peg parser :c
-  mPegParser["PostfixExpression"] << "LiteralExpression ~snn~(~snn~'(' ExpressionListWithoutDatatype ')')*" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["PostfixExpression"] << "LiteralExpression ~nws~(~nws~(~nws~'(' ExpressionListWithoutDatatype ')') | ~nws~('[' Expression ']'))*" >> [] (peg::MatchInfo& res) -> peg::Any {
     peg::Any ret = std::move(res[0].result);
     while(!res[1].subs.empty()) {
-      ret = FunctionCallExpressionNode{
-          toRef(res),
-          up<ExpressionNode>{ret.move<ExpressionNode*>()},
-          up<ExpressionListNodeWithoutDatatypes>{res[1][0][1].result.move<ExpressionListNodeWithoutDatatypes*>()}};
+      switch(*res[1][0].choice) {
+        case 0:
+          ret = FunctionCallExpressionNode{
+              toRef(res),
+              up<ExpressionNode>{ret.move<ExpressionNode*>()},
+              up<ExpressionListNodeWithoutDatatypes>{res[1][0][0][1].result.move<ExpressionListNodeWithoutDatatypes*>()}};
+          break;
+        case 1:
+          ret = ListAccessExpressionNode{
+              toRef(res),
+              up<ExpressionNode>{ret.move<ExpressionNode*>()},
+              up<ExpressionNode>{res[1][0][0][1].result.move<ExpressionNode*>()}};
+          break;
+      }
       res[1].subs.erase(res[1].subs.begin());
     }
     return ret;

@@ -386,6 +386,35 @@ void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter &declList) {
   }
 }
 
+ListAccessExpressionNode::ListAccessExpressionNode(SourceCodeRef source,
+                                                   up<ExpressionNode> name,
+                                                   up<ExpressionNode> index)
+: ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(std::move(index)) {
+
+}
+std::optional<Datatype> ListAccessExpressionNode::getDatatype() const {
+  if(!mName->getDatatype())
+    return {};
+  return mName->getDatatype()->getListInfo();
+}
+void ListAccessExpressionNode::completeDatatype(DatatypeCompleter &declList) {
+  mName->completeDatatype(declList);
+  mIndex->completeDatatype(declList);
+  auto indexType = mIndex->getDatatype();
+  assert(indexType);
+  if(!indexType->isInteger()) {
+    throwException("List access index must be numeric, e.g. i32; index type is " + indexType->toString());
+  }
+}
+std::string ListAccessExpressionNode::dump(unsigned int indent) const {
+  auto ret = ASTNode::dump(indent);
+  ret += createIndent(indent + 1) + "Name:\n";
+  ret += mName->dump(indent + 2);
+  ret += createIndent(indent + 1) + "Index:\n";
+  ret += mIndex->dump(indent + 2);
+  return ret;
+}
+
 DeclarationNode::DeclarationNode(SourceCodeRef source)
 : ASTNode(std::move(source)) {
 
