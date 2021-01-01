@@ -8,7 +8,7 @@ namespace samal {
 
 struct SourceCodeRef {
   const char *start = nullptr;
-  const char *end = nullptr;
+  size_t len = 0;
   size_t line = 0, column = 0;
 };
 

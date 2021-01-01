@@ -79,7 +79,7 @@ class Any final {
 
 struct MatchInfo {
   const char* start = nullptr;
-  const char* end = nullptr;
+  size_t len = 0;
   std::pair<size_t, size_t> sourcePosition;
   std::optional<size_t> choice;
   Any result;
@@ -87,13 +87,13 @@ struct MatchInfo {
 
   [[nodiscard]] inline const char* startTrimmed() const {
     auto retStart = start;
-    while((*retStart == ' ' || *retStart == '\n' || *retStart == '\t') && retStart < end) {
+    while((*retStart == ' ' || *retStart == '\n' || *retStart == '\t') && retStart < (start + len)) {
       retStart += 1;
     }
     return retStart;
   }
   [[nodiscard]] inline const char* endTrimmed() const {
-    auto retEnd = end;
+    auto retEnd = start + len;
     while((*(retEnd-1) == ' ' || *(retEnd-1) == '\n' || *(retEnd-1)== '\t') && start < retEnd) {
       retEnd -= 1;
     }

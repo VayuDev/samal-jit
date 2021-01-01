@@ -26,7 +26,7 @@ void ASTNode::throwException(const std::string &msg) const {
   throw DatatypeCompletionException(
       std::string{"In "}
       + getClassName() + ": '"
-      + std::string{std::string_view{mSourceCodeRef.start, mSourceCodeRef.end - mSourceCodeRef.start}}
+      + std::string{std::string_view{mSourceCodeRef.start, mSourceCodeRef.len}}
       + "' (" + std::to_string(mSourceCodeRef.line) + ":" + std::to_string(mSourceCodeRef.column) + ")"
       + ": " + msg);
 }

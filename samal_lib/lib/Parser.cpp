@@ -8,7 +8,7 @@ namespace samal {
 static SourceCodeRef toRef(const peg::MatchInfo& res) {
   return SourceCodeRef{
     .start = res.startTrimmed(),
-    .end = res.endTrimmed(),
+    .len = res.len,
     .line = res.sourcePosition.first,
     .column = res.sourcePosition.second
   };
@@ -53,9 +53,12 @@ Parser::Parser() {
     std::vector<std::string> parts;
     for(auto& part: res.subs) {
       const char* end = part.endTrimmed();
-      if(*(end-1) == '.')
+      size_t whiteSpacesToCut = 0;
+      if(*(end-1) == '.') {
         end--;
-      parts.emplace_back(std::string_view{part.startTrimmed(), end - part.startTrimmed()});
+        whiteSpacesToCut += 1;
+      }
+      parts.emplace_back(std::string_view{part.startTrimmed(), part.len - whiteSpacesToCut});
     }
     return IdentifierNode{toRef(res), std::move(parts)};
   };
