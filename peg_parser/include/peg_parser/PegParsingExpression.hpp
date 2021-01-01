@@ -23,6 +23,7 @@ enum class ExpressionFailReason {
   // to always return an ExpressionFailReason, even if it succeeds.
   SUCCESS,
   SEQUENCE_CHILD_FAILED,
+  CALLBACK_THREW_EXCEPTION,
   CHOICE_NO_CHILD_SUCCEEDED,
   ADDITIONAL_ERROR_MESSAGE,
   REQUIRED_ONE_OR_MORE,
@@ -35,6 +36,10 @@ class ExpressionFailInfo {
  public:
   explicit ExpressionFailInfo(ParsingState state, std::string selfDump)
   : mState(state), mSelfDump(std::move(selfDump)) {
+
+  }
+  explicit ExpressionFailInfo(ParsingState state, std::string selfDump, ExpressionFailReason reason, std::string info1)
+  : mReason(reason), mState(state), mSelfDump(std::move(selfDump)), mInfo1(std::move(info1)) {
 
   }
   explicit ExpressionFailInfo(ParsingState state, std::string selfDump, ExpressionFailReason reason, std::string info1, std::string info2)

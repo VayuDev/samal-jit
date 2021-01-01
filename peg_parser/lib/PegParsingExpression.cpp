@@ -44,6 +44,9 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
       case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
         msg += mInfo1 + ", got: '" + mInfo2 + "'\033[0m";
         break;
+      case ExpressionFailReason::CALLBACK_THREW_EXCEPTION:
+        msg += "Exception in callback: " + mInfo1;
+        break;
       default:assert(false);
     }
   } else {
@@ -66,6 +69,9 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
         break;
       case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
         msg += mInfo1 + " (" + mInfo2 + ")\033[0m";
+        break;
+      case ExpressionFailReason::CALLBACK_THREW_EXCEPTION:
+        msg += "Exception in callback: " + mInfo1;
         break;
       default:assert(false);
     }
@@ -234,7 +240,15 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
   }
   Any callbackResult;
   if(rule.callback) {
-    callbackResult = rule.callback(std::get<0>(ruleRetValue).getMatchInfoMut());
+    try {
+      callbackResult = rule.callback(std::get<0>(ruleRetValue).getMatchInfoMut());
+    } catch(std::exception& e) {
+      return ExpressionFailInfo {
+          std::get<0>(ruleRetValue).getState(),
+          dump(),
+          ExpressionFailReason::CALLBACK_THREW_EXCEPTION,
+          e.what()};
+    }
   }
   auto len = static_cast<size_t>(tokenizer.getPtr(std::get<0>(ruleRetValue).getState()) - startPtr);
 
@@ -403,7 +417,7 @@ RuleResult ForceSkippingWhitespacesExpression::match(ParsingState state,
                                                      const PegTokenizer &tokenizer) const {
   auto newState = tokenizer.skipWhitespaces(state);
   if(newState == state) {
-    return ExpressionFailInfo{state, dump(), ExpressionFailReason::REQUIRED_WHITESPACES, {}};
+    return ExpressionFailInfo{state, dump(), ExpressionFailReason::REQUIRED_WHITESPACES, std::vector<ExpressionFailInfo>{}};
   }
   return mChild->match(newState, rules, tokenizer);
 }
@@ -448,10 +462,8 @@ class ErrorTree {
   }
   [[nodiscard]] std::string dump(const PegTokenizer& tok, size_t depth) const {
     std::string ret = dumpSelf(tok, depth, false);
-    if(!mSourceNode.isAdditionalErrorMessage()) {
-      for(const auto& child: mChildren) {
-        ret += child->dump(tok, depth + 1);
-      }
+    for(const auto& child: mChildren) {
+      ret += child->dump(tok, depth + 1);
     }
     return ret;
   }
