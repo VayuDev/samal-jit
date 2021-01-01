@@ -202,7 +202,7 @@ std::string IdentifierNode::dump(unsigned int indent) const {
   + (mDatatype ? ", id: " + std::to_string(mDatatype->second) : "") + "\n";
 }
 void IdentifierNode::completeDatatype(DatatypeCompleter &declList) {
-  mDatatype = declList.getVariableType(concat(mName));
+  mDatatype = declList.getVariableType(mName);
 }
 std::string IdentifierNode::getName() const {
   return concat(mName);
@@ -440,7 +440,7 @@ std::vector<DeclarationNode*> ModuleRootNode::createDeclarationList() {
   return ret;
 }
 void ModuleRootNode::completeDatatype(DatatypeCompleter &declList) {
-  auto scope = declList.openScope();
+  auto scope = declList.openScope(mName);
   for(auto& child: mDeclarations) {
     child->completeDatatype(declList);
   }
@@ -450,7 +450,7 @@ void ModuleRootNode::declareShallow(DatatypeCompleter &completer) const {
   for(auto& child: mDeclarations) {
     child->declareShallow(completer);
   }
-  completer.saveModule("This is a placeholder for the actual module name");
+  completer.saveModule(mName);
 }
 void ModuleRootNode::setModuleName(std::string name) {
   mName = std::move(name);

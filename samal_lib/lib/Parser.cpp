@@ -60,6 +60,9 @@ Parser::Parser() {
       }
       parts.emplace_back(std::string_view{part.startTrimmed(), part.len - whiteSpacesToCut});
     }
+    if(parts.size() > 2) {
+      throw std::runtime_error{"An identifier can only contain at most a single dot"};
+    }
     return IdentifierNode{toRef(res), std::move(parts)};
   };
   mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [] (peg::MatchInfo& res) -> peg::Any {

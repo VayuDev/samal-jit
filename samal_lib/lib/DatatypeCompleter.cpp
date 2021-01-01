@@ -3,9 +3,9 @@
 
 namespace samal {
 
-DatatypeCompleter::ScopeChecker::ScopeChecker(DatatypeCompleter &completer)
+DatatypeCompleter::ScopeChecker::ScopeChecker(DatatypeCompleter &completer, const std::string& moduleName)
 : mCompleter(completer) {
-  mCompleter.pushScope();
+  mCompleter.pushScope(moduleName);
 }
 DatatypeCompleter::ScopeChecker::~ScopeChecker() {
   mCompleter.popScope();
@@ -18,10 +18,13 @@ void DatatypeCompleter::declareModules(std::vector<up<ModuleRootNode>>& roots) {
 void DatatypeCompleter::complete(up<ModuleRootNode> &root) {
   root->completeDatatype(*this);
 }
-DatatypeCompleter::ScopeChecker DatatypeCompleter::openScope() {
-  return DatatypeCompleter::ScopeChecker(*this);
+DatatypeCompleter::ScopeChecker DatatypeCompleter::openScope(const std::string& moduleName) {
+  return DatatypeCompleter::ScopeChecker(*this, moduleName);
 }
-void DatatypeCompleter::pushScope() {
+void DatatypeCompleter::pushScope(const std::string& name) {
+  if(!name.empty()) {
+    mCurrentModule = name;
+  }
   mScope.emplace_back();
 }
 void DatatypeCompleter::popScope() {
@@ -34,6 +37,9 @@ void DatatypeCompleter::declareVariableNonOverrideable(const std::string& name, 
   declareVariable(name, std::move(type), false);
 }
 void DatatypeCompleter::declareVariable(const std::string &name, Datatype type, bool overrideable) {
+  if(name.find('.') != std::string::npos) {
+    throw std::runtime_error{"The '.' character is not allowed in variable declarations"};
+  }
   auto& currentScope = mScope.at(mScope.size() - 1);
   auto varAlreadyInScope = currentScope.find(name);
   if(varAlreadyInScope != currentScope.end()) {
@@ -46,20 +52,29 @@ void DatatypeCompleter::declareVariable(const std::string &name, Datatype type, 
   auto insertResult = currentScope.emplace(std::make_pair(name, VariableDeclaration{.type = std::move(type), .id = mIdCounter++, .overrideable = overrideable}));
   assert(insertResult.second);
 }
-std::pair<Datatype, int32_t> DatatypeCompleter::getVariableType(const std::string& name) const {
-  for(ssize_t i = mScope.size() - 1 ; i >= 0; --i) {
-    auto value = mScope.at(i).find(name);
-    if(value != mScope.at(i).end()) {
+std::pair<Datatype, int32_t> DatatypeCompleter::getVariableType(const std::vector<std::string>& name) const {
+  std::vector<std::string> fullPath = name;
+  assert(fullPath.size() == 1 || fullPath.size() == 2);
+  if(name.size() == 1) {
+    for(ssize_t i = mScope.size() - 1 ; i >= 0; --i) {
+      auto value = mScope.at(i).find(name.at(0));
+      if(value != mScope.at(i).end()) {
+        return std::make_pair(value->second.type, value->second.id);
+      }
+    }
+    // prepend current module name
+    fullPath = name;
+    fullPath.emplace(fullPath.begin(), mCurrentModule);
+  }
+  auto module = mModules.find(fullPath.at(0));
+  if(module != mModules.end()) {
+    auto& moduleDeclarations = module->second;
+    auto value = moduleDeclarations.find(fullPath.at(1));
+    if(value != moduleDeclarations.end()) {
       return std::make_pair(value->second.type, value->second.id);
     }
   }
-  for(auto& [_, module]: mModules) {
-    auto value = module.find(name);
-    if(value != module.end()) {
-      return std::make_pair(value->second.type, value->second.id);
-    }
-  }
-  throw std::runtime_error{"Couldn't find a variable called " + name};
+  throw std::runtime_error{"Couldn't find a variable called " + concat(name)};
 }
 void DatatypeCompleter::saveModule(std::string name) {
   assert(mScope.size() == 1);
