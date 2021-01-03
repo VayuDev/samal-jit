@@ -1,3 +1,4 @@
+#include <cassert>
 #include "samal_lib/Datatype.hpp"
 
 namespace samal {
@@ -57,7 +58,7 @@ Datatype::Datatype(std::vector<Datatype> params)
     : mFurtherInfo(std::move(params)), mCategory(DatatypeCategory::tuple) {
 
 }
-const std::pair<sp<Datatype>, std::vector<Datatype>>&  Datatype::getFunctionTypeInfo() const {
+const std::pair<sp<Datatype>, std::vector<Datatype>>&  Datatype::getFunctionTypeInfo() const & {
   if(mCategory != DatatypeCategory::function) {
     throw std::runtime_error{"Can't call this type!"};
   }
@@ -134,6 +135,16 @@ Datatype Datatype::createListType(Datatype baseType) {
 }
 bool Datatype::isInteger() const {
   return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
+}
+size_t Datatype::getSizeOnStack() const {
+  switch(mCategory) {
+    case DatatypeCategory::i32:
+      return 4;
+    case DatatypeCategory::i64:
+      return 8;
+    default:
+      assert(false);
+  }
 }
 
 }

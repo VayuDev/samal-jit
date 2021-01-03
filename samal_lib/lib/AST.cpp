@@ -2,6 +2,7 @@
 #include "samal_lib/AST.hpp"
 #include "easy_iterator.h"
 #include "samal_lib/DatatypeCompleter.hpp"
+#include "samal_lib/Compiler.hpp"
 
 using namespace easy_iterator;
 
@@ -97,6 +98,10 @@ void AssignmentExpression::completeDatatype(DatatypeCompleter &declList) {
   declList.declareVariable(mLeft->getName(), *rightType);
   mLeft->completeDatatype(declList);
 }
+void AssignmentExpression::compile(Compiler &comp) const {
+  mRight->compile(comp);
+  comp.assignToVariable(mLeft);
+}
 
 BinaryExpressionNode::BinaryExpressionNode(SourceCodeRef source,
                                            up<ExpressionNode> left,
@@ -187,6 +192,9 @@ std::string LiteralInt32Node::dump(unsigned int indent) const {
 void LiteralInt32Node::completeDatatype(DatatypeCompleter &) {
 
 }
+void LiteralInt32Node::compile(Compiler &comp) const {
+  comp.pushPrimitiveLiteral(mValue);
+}
 
 IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name)
 : ExpressionNode(std::move(source)), mName(std::move(name)) {
@@ -194,6 +202,9 @@ IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> na
 }
 std::optional<Datatype> IdentifierNode::getDatatype() const {
   return mDatatype ? mDatatype->first : std::optional<Datatype>{};
+}
+std::optional<int32_t> IdentifierNode::getId() const {
+  return mDatatype ? mDatatype->second : std::optional<int32_t>{};
 }
 std::string IdentifierNode::dump(unsigned int indent) const {
   return
@@ -294,6 +305,19 @@ void ScopeNode::completeDatatype(DatatypeCompleter &declList) {
   auto scope = declList.openScope();
   for(auto& child: mExpressions) {
     child->completeDatatype(declList);
+  }
+}
+void ScopeNode::compile(Compiler &comp) const {
+  auto duration = comp.enterScope();
+  size_t i = 0;
+  for(auto& expr: mExpressions) {
+    expr->compile(comp);
+    // Pop the values from all lines at the end except for the last line.
+    // This is because the last line is the return value.
+    if(i < mExpressions.size() - 1) {
+      comp.popUnusedValueAtEndOfScope(*expr->getDatatype());
+    }
+    i += 1;
   }
 }
 
@@ -455,6 +479,11 @@ void ModuleRootNode::declareShallow(DatatypeCompleter &completer) const {
 void ModuleRootNode::setModuleName(std::string name) {
   mName = std::move(name);
 }
+void ModuleRootNode::compile(Compiler &comp) const {
+  for(auto& decl: mDeclarations) {
+    decl->compile(comp);
+  }
+}
 
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
   auto ret = ASTNode::dump(indent);
@@ -494,5 +523,14 @@ void FunctionDeclarationNode::declareShallow(DatatypeCompleter &completer) const
   } catch(std::runtime_error& e) {
     throwException(e.what());
   }
+}
+void FunctionDeclarationNode::compile(Compiler &comp) const {
+  auto duration = comp.enterFunction(mName);
+  size_t offsetFromTop = 0;
+  for(auto& param: reverse(mParameters->getParams())) {
+    comp.setVariableLocation(param.name, offsetFromTop);
+    offsetFromTop += param.type.getSizeOnStack();
+  }
+  mBody->compile(comp);
 }
 }

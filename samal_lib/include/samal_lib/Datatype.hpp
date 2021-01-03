@@ -27,7 +27,7 @@ class Datatype {
   explicit Datatype(std::vector<Datatype> params);
   explicit Datatype(std::string identifierName);
   [[nodiscard]] std::string toString() const;
-  [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const;
+  [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const &;
   [[nodiscard]] const std::vector<Datatype>& getTupleInfo() const;
   [[nodiscard]] const Datatype& getListInfo() const;
   bool operator==(const Datatype& other) const;
@@ -35,6 +35,7 @@ class Datatype {
   [[nodiscard]] DatatypeCategory getCategory() const;
 
   [[nodiscard]] bool isInteger() const;
+  [[nodiscard]] size_t getSizeOnStack() const;
 
   static Datatype createEmptyTuple();
   static Datatype createListType(Datatype baseType);
