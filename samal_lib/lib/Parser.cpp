@@ -111,14 +111,14 @@ Parser::Parser() {
   mPegParser["MathExpression"] << "AssignmentExpression #Expected mathematical expression#" >> [] (peg::MatchInfo& res) -> peg::Any {
     return std::move(res.result);
   };
-  mPegParser["AssignmentExpression"] << "(Identifier '=')? LogicalCombinationExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
-    if(!res[0].subs.empty()) {
+  mPegParser["AssignmentExpression"] << "(Identifier '=' Expression) | LogicalCombinationExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+    if(*res.choice == 0) {
       return AssignmentExpression{
           toRef(res),
-          up<IdentifierNode>{res[0][0][0].result.move<IdentifierNode*>()},
-          up<ExpressionNode>{res[1].result.move<ExpressionNode*>()}};
+          up<IdentifierNode>{res[0][0].result.move<IdentifierNode*>()},
+          up<ExpressionNode>{res[0][2].result.move<ExpressionNode*>()}};
     }
-    return std::move(res[1].result);
+    return std::move(res[0].result);
   };
   mPegParser["LogicalCombinationExpression"] << "LogicalEqualExpression (('&&' | '||') LogicalCombinationExpression)?" >> [] (peg::MatchInfo& res) -> peg::Any {
     if(res[1].subs.empty()) {
