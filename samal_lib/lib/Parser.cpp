@@ -213,7 +213,7 @@ Parser::Parser() {
   // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionListWithoutDatatype
   //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
   //  be prevented by using packrat parsing in the peg parser :^).
-  mPegParser["LiteralExpression"] << "[\\d]+ | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' MathExpression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
+  mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+) | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' MathExpression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [] (peg::MatchInfo& res) -> peg::Any {
     int32_t val;
     if(*res.choice == 0) {
       std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
