@@ -112,12 +112,9 @@ BinaryExpressionNode::BinaryExpressionNode(SourceCodeRef source,
 }
 std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
   auto lhsType = mLeft->getDatatype();
-  assert(lhsType);
   auto rhsType = mRight->getDatatype();
-  assert(rhsType);
-  if(lhsType != rhsType) {
-    throwException("lhs=" + lhsType->toString() + " and rhs=" + rhsType->toString() + " don't match");
-  }
+  if(!lhsType || !rhsType)
+    return {};
   return lhsType;
 }
 std::string BinaryExpressionNode::dump(unsigned int indent) const {
@@ -136,7 +133,6 @@ std::string BinaryExpressionNode::dump(unsigned int indent) const {
     case BinaryOperator::DIVIDE:
       ret += "/";
       break;
-
     case BinaryOperator::LOGICAL_AND:
       ret += "&&";
       break;
@@ -172,6 +168,17 @@ std::string BinaryExpressionNode::dump(unsigned int indent) const {
 void BinaryExpressionNode::completeDatatype(DatatypeCompleter &declList) {
   mLeft->completeDatatype(declList);
   mRight->completeDatatype(declList);
+  auto lhsType = mLeft->getDatatype();
+  auto rhsType = mRight->getDatatype();
+  if(lhsType != rhsType) {
+    throwException("lhs=" + lhsType->toString() + " and rhs=" + rhsType->toString() + " don't match");
+  }
+}
+void BinaryExpressionNode::compile(Compiler &comp) const {
+  mLeft->compile(comp);
+  mRight->compile(comp);
+  auto inputsType = *mLeft->getDatatype();
+  comp.binaryOperation(inputsType, mOperator);
 }
 
 LiteralNode::LiteralNode(SourceCodeRef source)
@@ -217,6 +224,9 @@ void IdentifierNode::completeDatatype(DatatypeCompleter &declList) {
 }
 std::string IdentifierNode::getName() const {
   return concat(mName);
+}
+void IdentifierNode::compile(Compiler &comp) const {
+  comp.loadVariableToStack(*this);
 }
 
 TupleCreationNode::TupleCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params)
@@ -308,7 +318,7 @@ void ScopeNode::completeDatatype(DatatypeCompleter &declList) {
   }
 }
 void ScopeNode::compile(Compiler &comp) const {
-  auto duration = comp.enterScope();
+  auto duration = comp.enterScope(*getDatatype());
   size_t i = 0;
   for(auto& expr: mExpressions) {
     expr->compile(comp);
@@ -408,6 +418,18 @@ void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter &declList) {
         + std::to_string(i) + " we expected a '" + expectedType.toString() + "', but got passed a '" + passedType->toString() + "'");
     }
   }
+}
+void FunctionCallExpressionNode::compile(Compiler &comp) const {
+  mName->compile(comp);
+  size_t sizeOfArguments = 0;
+  auto functionType = mName->getDatatype();
+  assert(functionType);
+  auto returnType = functionType->getFunctionTypeInfo().first;
+  for(auto& param: mParams->getParams()) {
+    param->compile(comp);
+    sizeOfArguments += param->getDatatype()->getSizeOnStack();
+  }
+  comp.performFunctionCall(sizeOfArguments, returnType->getSizeOnStack());
 }
 
 ListAccessExpressionNode::ListAccessExpressionNode(SourceCodeRef source,

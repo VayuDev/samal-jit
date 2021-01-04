@@ -5,6 +5,7 @@
 #include <stack>
 #include <map>
 #include "Util.hpp"
+#include "AST.hpp"
 
 namespace samal {
 
@@ -24,10 +25,11 @@ class FunctionDuration final {
 
 class ScopeDuration final {
  public:
-  explicit ScopeDuration(Compiler& compiler);
+  explicit ScopeDuration(Compiler& compiler, const Datatype& returnType);
   ~ScopeDuration();
  private:
   Compiler& mCompiler;
+  size_t mReturnTypeSize;
 };
 
 class Compiler {
@@ -36,7 +38,7 @@ class Compiler {
   Program compile(std::vector<up<ModuleRootNode>>& modules);
   void assignToVariable(const up<IdentifierNode>& identifier);
   [[nodiscard]] FunctionDuration enterFunction(const up<IdentifierNode>& identifier);
-  [[nodiscard]] ScopeDuration enterScope();
+  [[nodiscard]] ScopeDuration enterScope(const Datatype& returnType);
   void setVariableLocation(const up<IdentifierNode>& identifier, size_t offsetFromTop);
 
   template<typename T>
@@ -48,10 +50,14 @@ class Compiler {
     addInstructions(Instruction::PUSH_4, param);
     mStackSize += 4;
   }
+  void loadVariableToStack(const IdentifierNode& identifier);
   void popUnusedValueAtEndOfScope(const Datatype& type);
+  void binaryOperation(const Datatype& inputTypes, BinaryExpressionNode::BinaryOperator op);
+  void performFunctionCall(size_t sizeOfArguments, size_t sizeOfReturnValue);
  private:
+  void addInstructions(Instruction insn);
   void addInstructions(Instruction insn, int32_t param);
-
+  void addInstructions(Instruction insn, int32_t param1, int32_t param2);
   struct VariableInfoOnStack {
     size_t offsetFromTop;
     size_t sizeOnStack;

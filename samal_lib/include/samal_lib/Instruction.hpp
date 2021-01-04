@@ -7,10 +7,12 @@ namespace samal {
 
 #define ENUMERATE_INSTRUCTIONS \
   INSTRUCTION(PUSH_4, 5)       \
-  INSTRUCTION(POP_N, 5)        \
+  INSTRUCTION(POP_N_BELOW, 9)        \
   INSTRUCTION(ADD_I32, 1)      \
   INSTRUCTION(REPUSH_N, 5)     \
-  INSTRUCTION(RETURN, 5)
+  INSTRUCTION(REPUSH_FROM_N, 9) \
+  INSTRUCTION(RETURN, 5)       \
+  INSTRUCTION(CALL, 5)
 
 enum class Instruction : uint8_t {
 #define INSTRUCTION(name, width) name,

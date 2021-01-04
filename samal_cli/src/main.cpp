@@ -9,17 +9,15 @@ int main() {
   samal::Stopwatch stopwatch{"The main function"};
   samal::Parser parser;
   auto ast = parser.parse("Main", R"(
-fn fib(n : i32) -> i32 {
-  a = 77
-  if n < 2 {
-    n
-  } else {
-    fib(n-1) + fib(n-2)
-  }
+fn main() -> i32 {
+  i = Magic.magicNumber
+  x = i(5)
+  j = i
+  5 + x
 })");
   auto ast2 = parser.parse("Magic", R"(
-fn magicNumber() -> i32 {
-  5
+fn magicNumber(p : i32) -> i32 {
+  42
 })");
   assert(ast.first);
   assert(ast2.first);
@@ -39,6 +37,7 @@ fn magicNumber() -> i32 {
     std::cout << modules.at(0)->dump(0) << "\n";
   }
   {
+    samal::Stopwatch stopwatch2{"Compilation to bytecode + dump"};
     samal::Compiler comp;
     auto program = comp.compile(modules);
     std::cout << program.disassemble() << "\n";
