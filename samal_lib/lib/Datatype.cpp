@@ -145,7 +145,7 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::i64:
       return 8;
     case DatatypeCategory::function:
-      return 4;
+      return 8;
     case DatatypeCategory::bool_:
       return 1;
     default:

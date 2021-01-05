@@ -4,20 +4,31 @@
 #include "samal_lib/DatatypeCompleter.hpp"
 #include "samal_lib/Forward.hpp"
 #include "samal_lib/Compiler.hpp"
+#include "samal_lib/VM.hpp"
 
 int main() {
   samal::Stopwatch stopwatch{"The main function"};
   samal::Parser parser;
   auto ast = parser.parse("Main", R"(
-fn main() -> i32 {
-  i = Magic.magicNumber
-  x = i(5)
-  j = i
-  5 + x
+fn fib(n : i32) -> i32 {
+  if n < 2 {
+    n
+  } else {
+    fib(n - 1) + fib(n - 2)
+  }
 })");
   auto ast2 = parser.parse("Magic", R"(
 fn magicNumber(p : i32) -> i32 {
-  42
+  x = p
+  i = if 10 < 5 {
+    3
+  } else {
+    p
+  }
+  x + i + p
+}
+fn func2(p: i32) -> i32 {
+  p + 1
 })");
   assert(ast.first);
   assert(ast2.first);
@@ -36,10 +47,16 @@ fn magicNumber(p : i32) -> i32 {
     completer.complete(modules.at(1));
     std::cout << modules.at(0)->dump(0) << "\n";
   }
+  samal::Program program;
   {
     samal::Stopwatch stopwatch2{"Compilation to bytecode + dump"};
     samal::Compiler comp;
-    auto program = comp.compile(modules);
+    program = comp.compile(modules);
     std::cout << program.disassemble() << "\n";
+  }
+  {
+    samal::VM vm{std::move(program)};
+    auto ret = vm.run("fib", {5, 0, 0, 0});
+    std::cout << "fib(5)=" << *(int32_t*)ret.data() << "\n";
   }
 }

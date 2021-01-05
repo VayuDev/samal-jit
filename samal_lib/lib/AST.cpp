@@ -401,10 +401,17 @@ void IfExpressionNode::completeDatatype(DatatypeCompleter &declList) {
 }
 void IfExpressionNode::compile(Compiler &comp) const {
   std::vector<size_t> jumpToEndLabels;
+  auto selfType = getDatatype();
+  assert(selfType);
   for(auto& child: mChildren) {
     child.first->compile(comp);
+
     auto label = comp.addLabel(5);
+    comp.changeStackSize(-1);
+
     child.second->compile(comp);
+    comp.changeStackSize(-selfType->getSizeOnStack());
+
     jumpToEndLabels.push_back(comp.addLabel(5));
     auto labelPtr = comp.getLabelPtr(label);
     *(Instruction*)labelPtr = Instruction::JUMP_IF_NOT_EQUAL;
@@ -412,12 +419,14 @@ void IfExpressionNode::compile(Compiler &comp) const {
   }
   assert(mElseBody);
   mElseBody->compile(comp);
+  comp.changeStackSize(-selfType->getSizeOnStack());
 
   for(auto& label: jumpToEndLabels) {
     auto labelPtr = comp.getLabelPtr(label);
     *(Instruction*)labelPtr = Instruction::JUMP;
     *((int32_t*)((uint8_t*)labelPtr + 1)) = comp.getCurrentLocation();
   }
+  comp.changeStackSize(selfType->getSizeOnStack());
 }
 
 FunctionCallExpressionNode::FunctionCallExpressionNode(SourceCodeRef source,
@@ -587,12 +596,7 @@ void FunctionDeclarationNode::declareShallow(DatatypeCompleter &completer) const
   }
 }
 void FunctionDeclarationNode::compile(Compiler &comp) const {
-  auto duration = comp.enterFunction(mName);
-  size_t offsetFromTop = 0;
-  for(auto& param: reverse(mParameters->getParams())) {
-    comp.setVariableLocation(param.name, offsetFromTop);
-    offsetFromTop += param.type.getSizeOnStack();
-  }
+  auto duration = comp.enterFunction(mName, mParameters);
   mBody->compile(comp);
 }
 }

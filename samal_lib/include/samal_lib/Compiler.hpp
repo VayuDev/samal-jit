@@ -6,21 +6,18 @@
 #include <map>
 #include "Util.hpp"
 #include "AST.hpp"
+#include "Program.hpp"
 
 namespace samal {
 
-struct Program {
-  std::vector<std::vector<uint8_t>> code;
-  [[nodiscard]] std::string disassemble() const;
-};
-
 class FunctionDuration final {
  public:
-  FunctionDuration(Compiler& compiler, const up<IdentifierNode>& identifier);
+  FunctionDuration(Compiler& compiler, const up<IdentifierNode>& identifier, const up<ParameterListNode>& params);
   ~FunctionDuration();
  private:
   Compiler& mCompiler;
   const up<IdentifierNode>& mIdentifier;
+  const up<ParameterListNode>& mParams;
 };
 
 class ScopeDuration final {
@@ -37,13 +34,13 @@ class Compiler {
   Compiler();
   Program compile(std::vector<up<ModuleRootNode>>& modules);
   void assignToVariable(const up<IdentifierNode>& identifier);
-  [[nodiscard]] FunctionDuration enterFunction(const up<IdentifierNode>& identifier);
+  [[nodiscard]] FunctionDuration enterFunction(const up<IdentifierNode>& identifier, const up<ParameterListNode>& params);
   [[nodiscard]] ScopeDuration enterScope(const Datatype& returnType);
-  void setVariableLocation(const up<IdentifierNode>& identifier, size_t offsetFromTop);
 
   size_t addLabel(size_t len);
   void* getLabelPtr(size_t label);
   size_t getCurrentLocation();
+  void changeStackSize(ssize_t diff);
 
   template<typename T>
   inline void pushPrimitiveLiteral(T param) {
@@ -62,6 +59,7 @@ class Compiler {
   void addInstructions(Instruction insn);
   void addInstructions(Instruction insn, int32_t param);
   void addInstructions(Instruction insn, int32_t param1, int32_t param2);
+  void setVariableLocation(const up<IdentifierNode>& identifier);
   struct VariableInfoOnStack {
     size_t offsetFromTop;
     size_t sizeOnStack;
