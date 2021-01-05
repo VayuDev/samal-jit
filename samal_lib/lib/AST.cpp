@@ -10,7 +10,7 @@ namespace samal {
 
 static std::string createIndent(unsigned indent) {
   std::string ret;
-  for(auto _: range(indent)) {
+  for([[maybe_unused]] auto _: range(indent)) {
     ret += ' ';
   }
   return ret;
@@ -131,8 +131,9 @@ std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
     case BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
     case BinaryOperator::COMPARISON_LESS_THAN:
       return Datatype{DatatypeCategory::bool_};
+    default:
+      return lhsType;
   }
-  return lhsType;
 }
 std::string BinaryExpressionNode::dump(unsigned int indent) const {
   auto ret = ASTNode::dump(indent);
@@ -480,7 +481,6 @@ void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter &declList) {
     throwException("Function " + identifierType->toString() + " expects " + std::to_string(functionType.second.size())
       + " arguments, but " + std::to_string(mParams->getParams().size()) + " have been passed");
   }
-  size_t i = 0;
   for(size_t i = 0; i < functionType.second.size(); ++i) {
     auto passedType = mParams->getParams().at(i)->getDatatype();
     assert(passedType);

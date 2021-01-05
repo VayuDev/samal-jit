@@ -117,6 +117,7 @@ std::vector<uint8_t> VM::run(const std::string &function, const std::vector<uint
     auto dump = mStack.dump();
     printf("Dump:\n%s\n", dump.c_str());
   }
+  assert(false);
 }
 void Stack::push(const std::vector<uint8_t> &data) {
   mData.insert(mData.end(), data.cbegin(), data.cend());

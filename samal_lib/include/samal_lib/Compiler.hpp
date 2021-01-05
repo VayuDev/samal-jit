@@ -43,7 +43,7 @@ class Compiler {
   void changeStackSize(ssize_t diff);
 
   template<typename T>
-  inline void pushPrimitiveLiteral(T param) {
+  inline void pushPrimitiveLiteral(T) {
     assert(false);
   }
   template<>

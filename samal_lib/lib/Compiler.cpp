@@ -158,7 +158,7 @@ FunctionDuration::FunctionDuration(Compiler &compiler, const up<IdentifierNode> 
 : mCompiler(compiler), mIdentifier(identifier), mParams(params) {
   auto functionId = mIdentifier->getId();
   assert(functionId);
-  if(*functionId >= mCompiler.mProgram->functions.size()) {
+  if(static_cast<size_t>(*functionId) >= mCompiler.mProgram->functions.size()) {
     mCompiler.mProgram->functions.resize(*functionId + 1);
     mCompiler.mProgram->functions.at(*functionId).name = identifier->getName();
   }
