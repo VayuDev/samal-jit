@@ -180,7 +180,7 @@ class IfExpressionNode : public ExpressionNode {
  public:
   IfExpressionNode(SourceCodeRef source, IfExpressionChildList children, up<ScopeNode> elseBody);
   void completeDatatype(DatatypeCompleter &declList) override;
-  //void compile(Compiler &) const override;
+  void compile(Compiler &) const override;
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "IfExpressionNode"; }

@@ -34,6 +34,8 @@ std::string Datatype::toString() const {
   case DatatypeCategory::list: {
     return "[" + getListInfo().toString() + "]";;
   }
+  case DatatypeCategory::bool_:
+    return "bool";
   case DatatypeCategory::undetermined_identifier:
     return "<undetermined identifier '" + std::get<std::string>(mFurtherInfo) + "'>";
   default:
@@ -144,6 +146,8 @@ size_t Datatype::getSizeOnStack() const {
       return 8;
     case DatatypeCategory::function:
       return 4;
+    case DatatypeCategory::bool_:
+      return 1;
     default:
       assert(false);
   }

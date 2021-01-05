@@ -62,6 +62,56 @@ void Compiler::binaryOperation(const Datatype &inputTypes, BinaryExpressionNode:
           assert(false);
       }
       break;
+    case BinaryExpressionNode::BinaryOperator::MINUS:
+      switch(inputTypes.getCategory()) {
+        case DatatypeCategory::i32:
+          addInstructions(Instruction::SUB_I32);
+          mStackSize -= 4;
+          break;
+        default:
+          assert(false);
+      }
+      break;
+    case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
+      switch(inputTypes.getCategory()) {
+        case DatatypeCategory::i32:
+          addInstructions(Instruction::COMPARE_LESS_THAN_I32);
+          mStackSize -= 8 - 1;
+          break;
+        default:
+          assert(false);
+      }
+      break;
+    case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
+      switch(inputTypes.getCategory()) {
+        case DatatypeCategory::i32:
+          addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I32);
+          mStackSize -= 8 - 1;
+          break;
+        default:
+          assert(false);
+      }
+      break;
+    case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
+      switch(inputTypes.getCategory()) {
+        case DatatypeCategory::i32:
+          addInstructions(Instruction::COMPARE_MORE_THAN_I32);
+          mStackSize -= 8 - 1;
+          break;
+        default:
+          assert(false);
+      }
+      break;
+    case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
+      switch(inputTypes.getCategory()) {
+        case DatatypeCategory::i32:
+          addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I32);
+          mStackSize -= 8 - 1;
+          break;
+        default:
+          assert(false);
+      }
+      break;
     default:
       assert(false);
   }
@@ -88,6 +138,17 @@ void Compiler::performFunctionCall(size_t sizeOfArguments, size_t sizeOfReturnVa
   addInstructions(Instruction::CALL, sizeOfArguments + 4);
   mStackSize -= sizeOfArguments + 4;
   mStackSize += sizeOfReturnValue;
+}
+size_t Compiler::addLabel(size_t len) {
+  assert(currentFunction);
+  currentFunction->resize(currentFunction->size() + len);
+  return currentFunction->size() - len;
+}
+size_t Compiler::getCurrentLocation() {
+  return currentFunction->size();
+}
+void *Compiler::getLabelPtr(size_t label) {
+  return &currentFunction->at(label);
 }
 
 FunctionDuration::FunctionDuration(Compiler &compiler, const up<IdentifierNode> &identifier)
@@ -134,6 +195,7 @@ std::string Program::disassemble() const {
     ret += "Function " + std::to_string(i) + ":\n";
     size_t offset = 0;
     while(offset < code.at(i).size()) {
+      ret += " " + std::to_string(offset) + " ";
       ret += instructionToString(static_cast<Instruction>(code.at(i).at(offset)));
       auto width = instructionToWidth(static_cast<Instruction>(code.at(i).at(offset)));
       if(width >= 5) {

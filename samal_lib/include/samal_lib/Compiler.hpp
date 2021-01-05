@@ -41,6 +41,10 @@ class Compiler {
   [[nodiscard]] ScopeDuration enterScope(const Datatype& returnType);
   void setVariableLocation(const up<IdentifierNode>& identifier, size_t offsetFromTop);
 
+  size_t addLabel(size_t len);
+  void* getLabelPtr(size_t label);
+  size_t getCurrentLocation();
+
   template<typename T>
   inline void pushPrimitiveLiteral(T param) {
     assert(false);

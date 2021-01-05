@@ -11,6 +11,7 @@ enum class DatatypeCategory {
   f64,
   f32,
   char_,
+  bool_,
   undetermined_identifier,
   string,
   struct_,

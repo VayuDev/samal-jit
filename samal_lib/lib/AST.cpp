@@ -115,6 +115,17 @@ std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
   auto rhsType = mRight->getDatatype();
   if(!lhsType || !rhsType)
     return {};
+  switch(mOperator) {
+    case BinaryOperator::LOGICAL_AND:
+    case BinaryOperator::LOGICAL_EQUALS:
+    case BinaryOperator::LOGICAL_NOT_EQUALS:
+    case BinaryOperator::LOGICAL_OR:
+    case BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
+    case BinaryOperator::COMPARISON_MORE_THAN:
+    case BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
+    case BinaryOperator::COMPARISON_LESS_THAN:
+      return Datatype{DatatypeCategory::bool_};
+  }
   return lhsType;
 }
 std::string BinaryExpressionNode::dump(unsigned int indent) const {
@@ -377,6 +388,35 @@ void IfExpressionNode::completeDatatype(DatatypeCompleter &declList) {
       throwException("The else branch of this if expression returns a value different from the other branches. "
                      "Previous branches return " + type->toString() + ", but the else branch returns " + elseBodyType->toString());
     }
+  } else {
+    if(type->getCategory() == DatatypeCategory::tuple && type->getTupleInfo().size() == 0) {
+      std::vector<up<ExpressionNode>> elseBodyExpressions;
+      elseBodyExpressions.emplace_back(std::make_unique<TupleCreationNode>(SourceCodeRef{},
+                                                                           std::make_unique<ExpressionListNodeWithoutDatatypes>(SourceCodeRef{}, std::vector<up<ExpressionNode>>{})));
+      mElseBody = std::make_unique<ScopeNode>(SourceCodeRef{}, std::move(elseBodyExpressions));
+    } else {
+      throwException("The else branch is missing, but the return type of the other branches isn't the empty tuple.");
+    }
+  }
+}
+void IfExpressionNode::compile(Compiler &comp) const {
+  std::vector<size_t> jumpToEndLabels;
+  for(auto& child: mChildren) {
+    child.first->compile(comp);
+    auto label = comp.addLabel(5);
+    child.second->compile(comp);
+    jumpToEndLabels.push_back(comp.addLabel(5));
+    auto labelPtr = comp.getLabelPtr(label);
+    *(Instruction*)labelPtr = Instruction::JUMP_IF_NOT_EQUAL;
+    *((int32_t*)((uint8_t*)labelPtr + 1)) = comp.getCurrentLocation();
+  }
+  assert(mElseBody);
+  mElseBody->compile(comp);
+
+  for(auto& label: jumpToEndLabels) {
+    auto labelPtr = comp.getLabelPtr(label);
+    *(Instruction*)labelPtr = Instruction::JUMP;
+    *((int32_t*)((uint8_t*)labelPtr + 1)) = comp.getCurrentLocation();
   }
 }
 
