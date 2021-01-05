@@ -66,6 +66,8 @@ class AssignmentExpression : public ExpressionNode {
   AssignmentExpression(SourceCodeRef source, up<IdentifierNode> left, up<ExpressionNode> right);
   void completeDatatype(DatatypeCompleter &declList) override;
   void compile(Compiler &) const override;
+  const up<IdentifierNode>& getLeft();
+  const up<ExpressionNode>& getRight();
   [[nodiscard]] std::optional<Datatype> getDatatype() const override;
   [[nodiscard]] std::string dump(unsigned indent) const override;
   [[nodiscard]] inline const char* getClassName() const override { return "AssignmentExpression"; }

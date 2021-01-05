@@ -19,11 +19,12 @@ fn fib(n : i32) -> i32 {
 })");
   auto ast2 = parser.parse("Magic", R"(
 fn magicNumber(p : i32) -> i32 {
-  x = p
+  x = p + 1
   i = if 10 < 5 {
     3
   } else {
-    p
+    x = 3
+    p + x
   }
   x + i + p
 }
@@ -54,9 +55,13 @@ fn func2(p: i32) -> i32 {
     program = comp.compile(modules);
     std::cout << program.disassemble() << "\n";
   }
-  {
+  /*{
     samal::VM vm{std::move(program)};
     auto ret = vm.run("fib", {5, 0, 0, 0});
     std::cout << "fib(5)=" << *(int32_t*)ret.data() << "\n";
+  }*/
+  {
+    samal::VM vm{std::move(program)};
+    auto ret = vm.run("magicNumber", {5, 0, 0, 0});
   }
 }

@@ -55,11 +55,11 @@ class Compiler {
   void popUnusedValueAtEndOfScope(const Datatype& type);
   void binaryOperation(const Datatype& inputTypes, BinaryExpressionNode::BinaryOperator op);
   void performFunctionCall(size_t sizeOfArguments, size_t sizeOfReturnValue);
+  void setVariableLocation(const up<IdentifierNode>& identifier);
  private:
   void addInstructions(Instruction insn);
   void addInstructions(Instruction insn, int32_t param);
   void addInstructions(Instruction insn, int32_t param1, int32_t param2);
-  void setVariableLocation(const up<IdentifierNode>& identifier);
   struct VariableInfoOnStack {
     size_t offsetFromTop;
     size_t sizeOnStack;

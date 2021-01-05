@@ -102,6 +102,12 @@ void AssignmentExpression::compile(Compiler &comp) const {
   mRight->compile(comp);
   comp.assignToVariable(mLeft);
 }
+const up<IdentifierNode> &AssignmentExpression::getLeft() {
+  return mLeft;
+}
+const up<ExpressionNode> &AssignmentExpression::getRight() {
+  return mRight;
+}
 
 BinaryExpressionNode::BinaryExpressionNode(SourceCodeRef source,
                                            up<ExpressionNode> left,
@@ -332,11 +338,28 @@ void ScopeNode::compile(Compiler &comp) const {
   auto duration = comp.enterScope(*getDatatype());
   size_t i = 0;
   for(auto& expr: mExpressions) {
-    expr->compile(comp);
-    // Pop the values from all lines at the end except for the last line.
-    // This is because the last line is the return value.
-    if(i < mExpressions.size() - 1) {
-      comp.popUnusedValueAtEndOfScope(*expr->getDatatype());
+    auto exprAsAssignment = dynamic_cast<AssignmentExpression*>(expr.get());
+    if(exprAsAssignment && i < mExpressions.size() - 1) {
+      // Child is an assignment -> OPTIMIZE!
+      // Without this optimization, we always do the following:
+      // Evaluate rhs
+      // repush result and remember location of copy
+      // ... at some point later pop both of the stack
+      // With this optimization, we just evaluate the rhs and remember its location.
+      // This is only possible if the original value of the rhs is unused, which is only guaranteed
+      // if it's the direct child of a scope node. This is also the reason why we can't do it inside
+      // the AssignmentExpression directly.
+      // If we are on the last line, we can't do this either because every variable is popped at
+      // the end of the scope, but we can't pop this value because it is the return value.
+      exprAsAssignment->getRight()->compile(comp);
+      comp.setVariableLocation(exprAsAssignment->getLeft());
+    } else {
+      expr->compile(comp);
+      // Pop the values from all lines at the end except for the last line.
+      // This is because the last line is the return value.
+      if(i < mExpressions.size() - 1) {
+        comp.popUnusedValueAtEndOfScope(*expr->getDatatype());
+      }
     }
     i += 1;
   }
