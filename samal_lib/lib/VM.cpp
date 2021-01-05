@@ -25,7 +25,7 @@ std::vector<uint8_t> VM::run(const std::string &function, const std::vector<uint
   int functionDepth = 1;
   while(functionDepth > 0) {
     auto ins = static_cast<Instruction>(mCurrentFunction->code.at(mIp));
-    printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
+    //printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
     bool incIp = true;
     switch(ins) {
       case Instruction::PUSH_4:
@@ -114,8 +114,8 @@ std::vector<uint8_t> VM::run(const std::string &function, const std::vector<uint
         assert(false);
     }
     mIp += instructionToWidth(ins) * incIp;
-    auto dump = mStack.dump();
-    printf("Dump:\n%s\n", dump.c_str());
+    //auto dump = mStack.dump();
+    //printf("Dump:\n%s\n", dump.c_str());
   }
   assert(false);
 }
@@ -127,9 +127,9 @@ void Stack::push(const void *data, size_t len) {
   memcpy(&mData.at(mData.size() - len), data, len);
 }
 void Stack::repush(size_t offset, size_t len) {
-  char cpy[len];
-  memcpy(cpy, &mData.at(mData.size() - offset - len), len);
-  push(cpy, len);
+  mData.resize(mData.size() + len);
+  memcpy(&mData.at(mData.size() - len), &mData.at(mData.size() - offset - len * 2), len);
+
 }
 void *Stack::get(size_t offset) {
   return &mData.at(mData.size() - offset);
@@ -155,6 +155,9 @@ std::string Stack::dump() {
 }
 std::vector<uint8_t> Stack::moveData() {
   return std::move(mData);
+}
+Stack::Stack() {
+  mData.reserve(1024 * 10);
 }
 
 }

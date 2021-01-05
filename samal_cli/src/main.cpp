@@ -55,13 +55,18 @@ fn func2(p: i32) -> i32 {
     program = comp.compile(modules);
     std::cout << program.disassemble() << "\n";
   }
-  /*{
+  {
+    samal::Stopwatch stopwatch2{"Running fib(28) 5 times"};
     samal::VM vm{std::move(program)};
-    auto ret = vm.run("fib", {5, 0, 0, 0});
-    std::cout << "fib(5)=" << *(int32_t*)ret.data() << "\n";
-  }*/
+    for(size_t i = 0; i < 5; ++i) {
+      auto ret = vm.run("fib", {28, 0, 0, 0});
+      std::cout << "fib(28)=" << *(int32_t*)ret.data() << "\n";
+    }
+  }
+#if 0
   {
     samal::VM vm{std::move(program)};
     auto ret = vm.run("magicNumber", {5, 0, 0, 0});
   }
+#endif
 }
