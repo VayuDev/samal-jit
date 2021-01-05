@@ -48,7 +48,7 @@ std::vector<uint8_t> VM::run(const std::string &function, const std::vector<uint
         mStack.push(&res, 1);
         break;
       }
-      case Instruction::JUMP_IF_NOT_EQUAL: {
+      case Instruction::JUMP_IF_FALSE: {
         auto val = *(bool*)mStack.get(1);
         mStack.pop(1);
         if(!val) {

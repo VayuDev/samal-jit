@@ -414,7 +414,7 @@ void IfExpressionNode::compile(Compiler &comp) const {
 
     jumpToEndLabels.push_back(comp.addLabel(5));
     auto labelPtr = comp.getLabelPtr(label);
-    *(Instruction*)labelPtr = Instruction::JUMP_IF_NOT_EQUAL;
+    *(Instruction*)labelPtr = Instruction::JUMP_IF_FALSE;
     *((int32_t*)((uint8_t*)labelPtr + 1)) = comp.getCurrentLocation();
   }
   assert(mElseBody);
