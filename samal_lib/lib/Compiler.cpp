@@ -46,6 +46,7 @@ ScopeDuration Compiler::enterScope(const Datatype& returnType) {
 
 void Compiler::setVariableLocation(const up<IdentifierNode> &identifier, size_t offsetFromTop) {
   mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{.offsetFromTop = offsetFromTop, .sizeOnStack = identifier->getDatatype()->getSizeOnStack()});
+  mStackSize += identifier->getDatatype()->getSizeOnStack();
 }
 void Compiler::popUnusedValueAtEndOfScope(const Datatype& type) {
   mStackFrames.top().bytesToPopOnExit += type.getSizeOnStack();
