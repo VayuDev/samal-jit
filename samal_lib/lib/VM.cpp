@@ -2,6 +2,7 @@
 #include "samal_lib/VM.hpp"
 #include "samal_lib/Instruction.hpp"
 #include <cstring>
+#include <cstdlib>
 
 namespace samal {
 
@@ -120,31 +121,34 @@ std::vector<uint8_t> VM::run(const std::string &function, const std::vector<uint
   assert(false);
 }
 void Stack::push(const std::vector<uint8_t> &data) {
-  mData.insert(mData.end(), data.cbegin(), data.cend());
+  push(data.data(), data.size());
 }
 void Stack::push(const void *data, size_t len) {
-  mData.resize(mData.size() + len);
-  memcpy(&mData.at(mData.size() - len), data, len);
+  ensureSpace(len);
+  memcpy(mData + mDataLen, data, len);
+  mDataLen += len;
 }
 void Stack::repush(size_t offset, size_t len) {
-  mData.resize(mData.size() + len);
-  memcpy(&mData.at(mData.size() - len), &mData.at(mData.size() - offset - len * 2), len);
-
+  assert(mDataLen >= offset + len);
+  ensureSpace(len);
+  memcpy(mData + mDataLen, mData + mDataLen - offset - len, len);
+  mDataLen += len;
 }
 void *Stack::get(size_t offset) {
-  return &mData.at(mData.size() - offset);
+  return mData + mDataLen - offset;
 }
 void Stack::popBelow(size_t offset, size_t len) {
-  memmove(&mData.at(mData.size() - offset - len), &mData.at(mData.size() - offset), offset);
-  mData.resize(mData.size() - len);
+  assert(mDataLen >= offset + len);
+  memmove(mData + mDataLen - offset - len, mData + mDataLen - offset, offset);
+  mDataLen -= len;
 }
 void Stack::pop(size_t len) {
-  mData.resize(mData.size() - len);
+  mDataLen -= len;
 }
 std::string Stack::dump() {
   std::string ret;
-  size_t i = 0;
-  for(auto& val: mData) {
+  for(size_t i = 0; i < mDataLen; ++i) {
+    uint8_t val = mData[i];
     ret += std::to_string(val) + " ";
     ++i;
     if(i > 0 && i % 4 == 0) {
@@ -154,10 +158,25 @@ std::string Stack::dump() {
   return ret;
 }
 std::vector<uint8_t> Stack::moveData() {
-  return std::move(mData);
+  std::vector<uint8_t> ret;
+  ret.resize(mDataLen);
+  memcpy(ret.data(), mData, mDataLen);
+  return ret;
 }
 Stack::Stack() {
-  mData.reserve(1024 * 10);
+  mDataReserved = 1024 * 10;
+  mDataLen = 0;
+  mData = (uint8_t*)malloc(mDataReserved);
+}
+Stack::~Stack() {
+  free(mData);
+  mData = nullptr;
+}
+void Stack::ensureSpace(size_t additionalLen) {
+  if(mDataReserved <= mDataLen + additionalLen) {
+    mDataReserved *= 2;
+    mData = (uint8_t*)realloc(mData, mDataReserved);
+  }
 }
 
 }
