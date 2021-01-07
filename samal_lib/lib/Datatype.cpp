@@ -139,6 +139,9 @@ bool Datatype::isInteger() const {
   return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
 }
 size_t Datatype::getSizeOnStack() const {
+#ifdef x86_64_BIT_MODE
+  return 8;
+#endif
   switch(mCategory) {
     case DatatypeCategory::i32:
       return 4;

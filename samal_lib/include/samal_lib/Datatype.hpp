@@ -52,4 +52,8 @@ class Datatype {
   DatatypeCategory mCategory;
 };
 
+static inline size_t getSimpleSize(DatatypeCategory type) {
+  return Datatype{type}.getSizeOnStack();
+}
+
 }

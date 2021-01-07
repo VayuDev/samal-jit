@@ -6,6 +6,7 @@ namespace samal {
 
 Compiler::Compiler() {
 }
+
 Program Compiler::compile(std::vector<up<ModuleRootNode>>& modules) {
   mProgram.emplace();
   for(auto& module: modules) {
@@ -17,11 +18,11 @@ void Compiler::assignToVariable(const up<IdentifierNode> &identifier) {
   auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
   addInstructions(Instruction::REPUSH_N, static_cast<int32_t>(sizeOnStack));
   mStackSize += sizeOnStack;
-  mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{.offsetFromTop = mStackSize, .sizeOnStack = sizeOnStack});
+  mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{.offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack});
 }
 void Compiler::setVariableLocation(const up<IdentifierNode> &identifier) {
   auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
-  mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{.offsetFromTop = mStackSize, .sizeOnStack = sizeOnStack});
+  mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{.offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack});
 }
 void Compiler::addInstructions(Instruction insn, int32_t param) {
   assert(currentFunction);
@@ -56,7 +57,7 @@ void Compiler::binaryOperation(const Datatype &inputTypes, BinaryExpressionNode:
       switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
           addInstructions(Instruction::ADD_I32);
-          mStackSize -= 4;
+          mStackSize -= getSimpleSize(DatatypeCategory::i32);
           break;
         default:
           assert(false);
@@ -66,7 +67,7 @@ void Compiler::binaryOperation(const Datatype &inputTypes, BinaryExpressionNode:
       switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
           addInstructions(Instruction::SUB_I32);
-          mStackSize -= 4;
+          mStackSize -= getSimpleSize(DatatypeCategory::i32);
           break;
         default:
           assert(false);
@@ -76,7 +77,7 @@ void Compiler::binaryOperation(const Datatype &inputTypes, BinaryExpressionNode:
       switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
           addInstructions(Instruction::COMPARE_LESS_THAN_I32);
-          mStackSize -= 8 - 1;
+          mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
           break;
         default:
           assert(false);
@@ -86,7 +87,7 @@ void Compiler::binaryOperation(const Datatype &inputTypes, BinaryExpressionNode:
       switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
           addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I32);
-          mStackSize -= 8 - 1;
+          mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
           break;
         default:
           assert(false);
@@ -96,7 +97,7 @@ void Compiler::binaryOperation(const Datatype &inputTypes, BinaryExpressionNode:
       switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
           addInstructions(Instruction::COMPARE_MORE_THAN_I32);
-          mStackSize -= 8 - 1;
+          mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
           break;
         default:
           assert(false);
@@ -106,7 +107,7 @@ void Compiler::binaryOperation(const Datatype &inputTypes, BinaryExpressionNode:
       switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
           addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I32);
-          mStackSize -= 8 - 1;
+          mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
           break;
         default:
           assert(false);

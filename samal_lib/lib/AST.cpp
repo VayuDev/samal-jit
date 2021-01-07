@@ -431,7 +431,7 @@ void IfExpressionNode::compile(Compiler &comp) const {
     child.first->compile(comp);
 
     auto label = comp.addLabel(5);
-    comp.changeStackSize(-1);
+    comp.changeStackSize(-getSimpleSize(DatatypeCategory::bool_));
 
     child.second->compile(comp);
     comp.changeStackSize(-selfType->getSizeOnStack());

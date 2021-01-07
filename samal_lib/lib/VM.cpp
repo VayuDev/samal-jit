@@ -139,6 +139,7 @@ struct JitReturn {
 class JitCode : public Xbyak::CodeGenerator {
  public:
   JitCode(const std::vector<uint8_t>& instructions, size_t offset) {
+    // prelude
     push(rbx);
     push(rsp);
     push(rbp);
@@ -173,24 +174,17 @@ class JitCode : public Xbyak::CodeGenerator {
     sub(rsp, stackSize);
 
 
+    // Start executing some Code!
     pop(rax);
     push(rax);
     inc(rax);
     push(rax);
-/*
-    mov(dl, 27);
-    // one-byte push
-    sub(rsp, 1);
-    mov(byte[rsp], dl);*/
 
-    //inc(ip);
-    // 64-bit push
-    //push(ip);
+
 
     // calculate new stack size
-    mov(rax, r15);
-    sub(rax, rsp);
-    mov(stackSize, rax);
+    mov(stackSize, r15);
+    sub(stackSize, rsp);
 
     // copy stack out
     //    init copy

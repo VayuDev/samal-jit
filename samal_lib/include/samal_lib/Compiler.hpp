@@ -48,8 +48,13 @@ class Compiler {
   }
   template<>
   inline void pushPrimitiveLiteral(int32_t param) {
+#ifdef x86_64_BIT_MODE
+    addInstructions(Instruction::PUSH_8, 0, param);
+    mStackSize += 8;
+#else
     addInstructions(Instruction::PUSH_4, param);
     mStackSize += 4;
+#endif
   }
   void loadVariableToStack(const IdentifierNode& identifier);
   void popUnusedValueAtEndOfScope(const Datatype& type);
@@ -72,7 +77,7 @@ class Compiler {
 
   std::optional<Program> mProgram;
   std::stack<StackFrame> mStackFrames;
-  size_t mStackSize { 0 };
+  int mStackSize { 0 };
   std::vector<uint8_t> *currentFunction { nullptr };
 
   friend class FunctionDuration;
