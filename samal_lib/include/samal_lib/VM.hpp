@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Program.hpp"
+#include <xbyak/xbyak.h>
 
 namespace samal {
 
@@ -16,6 +17,9 @@ class Stack final {
   void* get(size_t offset);
   std::string dump();
   std::vector<uint8_t> moveData();
+  uint8_t* getBasePtr();
+  size_t getSize();
+  void setSize(size_t);
  private:
   void ensureSpace(size_t additionalLen);
 
@@ -29,11 +33,15 @@ class VM final {
   explicit VM(Program program);
   std::vector<uint8_t> run(const std::string& function, const std::vector<uint8_t>& initialStack);
  private:
+  __always_inline bool interpretInstruction();
+  __always_inline bool jitCompileAndRunInstruction();
+
   int32_t mCurrentFunctionId { -1 };
   Program::Function* mCurrentFunction { nullptr };
   Stack mStack;
   Program mProgram;
   uint32_t mIp;
+  int mFunctionDepth { 0 };
 };
 
 }

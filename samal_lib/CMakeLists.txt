@@ -16,5 +16,6 @@ file(GLOB_RECURSE SOURCES
 
 include_directories(include)
 include_directories(../peg_parser/include)
+include_directories(../third_party/xbyak/xbyak)
 add_library(samal_lib STATIC ${SOURCES} ${HEADERS})
-target_link_libraries(samal_lib EasyIterator peg_parser)
+target_link_libraries(samal_lib EasyIterator peg_parser xbyak)

@@ -55,6 +55,7 @@ fn func2(p: i32) -> i32 {
     program = comp.compile(modules);
     std::cout << program.disassemble() << "\n";
   }
+#if 0
   {
     samal::Stopwatch stopwatch2{"Running fib(28) 5 times"};
     samal::VM vm{std::move(program)};
@@ -63,10 +64,9 @@ fn func2(p: i32) -> i32 {
       std::cout << "fib(28)=" << *(int32_t*)ret.data() << "\n";
     }
   }
-#if 0
+#endif
   {
     samal::VM vm{std::move(program)};
-    auto ret = vm.run("magicNumber", {5, 0, 0, 0});
+    auto ret = vm.run("magicNumber", {5, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0});
   }
-#endif
 }
