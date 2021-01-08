@@ -41,7 +41,7 @@ fn fib(n : i32) -> i32 {
 fn func2(p: i32) -> i32 {
   y = 3
   x = y + 4
-  w = if p > 5 {
+  w = if p < 200 {
     x
   } else {
     64
@@ -72,7 +72,7 @@ fn func2(p: i32) -> i32 {
     program = comp.compile(modules);
     std::cout << program.disassemble() << "\n";
   }
-#if 0
+#if 1
   {
     samal::Stopwatch stopwatch2{"Running fib(28) 5 times"};
     samal::VM vm{std::move(program)};
@@ -82,7 +82,7 @@ fn func2(p: i32) -> i32 {
     }
   }
 #endif
-#if 1
+#if 0
   {
     samal::VM vm{std::move(program)};
     auto ret = vm.run("func2", {42, 42, 42, 42, 42, 42, 42, 42, 2, 0, 0, 0, 0, 0, 0, 0});

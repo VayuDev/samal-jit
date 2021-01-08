@@ -24,6 +24,7 @@ static constexpr bool isJittable(Instruction i) {
     case Instruction::REPUSH_FROM_N:
     case Instruction::JUMP:
     case Instruction::JUMP_IF_FALSE:
+    case Instruction::POP_N_BELOW:
       return true;
     default:
       return false;
@@ -70,12 +71,14 @@ class JitCode : public Xbyak::CodeGenerator {
     jmp("JumpTable");
 
     L("Code");
-    std::vector<std::pair<uint32_t, const uint8_t*>> labels;
+    std::vector<std::pair<uint32_t, Xbyak::Label>> labels;
     // Start executing some Code!
     for(size_t i = offset; i < instructions.size();) {
       auto ins = static_cast<Instruction>(instructions.at(i));
       bool shouldExit = false;
-      labels.emplace_back(std::make_pair((uint32_t)i, getCurr()));
+      Xbyak::Label here;
+      L(here);
+      auto& ele = labels.emplace_back(std::make_pair((uint32_t)i, std::move(here)));
       switch(ins) {
         case Instruction::PUSH_8:
           mov(rax, *(uint64_t*)&instructions.at(i + 1));
@@ -133,23 +136,41 @@ class JitCode : public Xbyak::CodeGenerator {
           int32_t repushLen = *(uint32_t*)&instructions.at(i + 1);
           int32_t repushOffset = *(uint32_t*)&instructions.at(i + 5);
           //    init copy
-          mov(rcx, repushLen);
+          assert(repushLen % 8 == 0);
+          mov(rcx, repushLen / 8);
           mov(rsi, rsp);
           add(rsi, repushOffset);
           sub(rsp, repushLen);
           mov(rdi, rsp);
           cld(); // up
           //    copy
-          rep();
-          movsb();
+          for(int j = 0; j < repushLen / 8; ++j) {
+            movsq();
+          }
+          break;
+        }
+        case Instruction::POP_N_BELOW: {
+          int32_t popLen = *(uint32_t*)&instructions.at(i + 1);
+          int32_t popOffset = *(uint32_t*)&instructions.at(i + 5);
+          //    init copy
+          assert(popOffset % 8 == 0);
+          mov(rcx, popOffset / 8);
+          mov(rsi, rsp);
+          mov(rdi, rsp);
+          add(rdi, popLen);
+          cld(); // up
+          //    copy
+          for(int j = 0; j < popOffset / 8; ++j) {
+            movsq();
+          }
+
+          add(rsp, popLen);
           break;
         }
         case Instruction::JUMP: {
           auto p = *(int32_t*)&instructions.at(i + 1);
           mov(ip, p);
-          shouldExit = true;
-          i += instructionToWidth(ins);
-          finalIp = i;
+          jmp("JumpTable");
           break;
         }
         case Instruction::JUMP_IF_FALSE: {
@@ -158,9 +179,7 @@ class JitCode : public Xbyak::CodeGenerator {
           mov(rbx, *(uint32_t*)&instructions.at(i + 1));
           cmp(rax, 0);
           cmove(ip, rbx);
-          shouldExit = true;
-          i += instructionToWidth(ins);
-          finalIp = i;
+          jmp("JumpTable");
           break;
         }
         default:
@@ -177,12 +196,39 @@ class JitCode : public Xbyak::CodeGenerator {
     }
 
     jmp("AfterJumpTable");
+
     L("JumpTable");
     for(auto& label: labels) {
-      cmp(ip, label.first);
+      mov(rax, label.first);
+      cmp(rax, ip);
       je(label.second);
     }
+    /*
+    mov(rax, "JumpTable");
+    jmp(ptr [rax + ip * sizeof(void*)]);
+    L("JumpTable");
+    size_t largestIp = 0;
+    for(auto & label : labels) {
+      if(label.first > largestIp) {
+        largestIp = label.first;
+      }
+    }
+    for(size_t i = 0; i < largestIp; ++i) {
+      bool labelExists = false;
+      for(auto& label: labels) {
+        if(label.first == i) {
+          labelExists = true;
+          putL(label.second);
+          break;
+        }
+      }
+      if(!labelExists) {
+        putL("AfterJumpTable");
+      }
+    }*/
     L("AfterJumpTable");
+
+    assert(!hasUndefinedLabel());
 
     // calculate new stack size
     mov(stackSize, r15);
