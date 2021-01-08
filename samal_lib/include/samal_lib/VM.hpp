@@ -47,6 +47,7 @@ class VM final {
   };
   size_t mMainFunctionReturnTypeSize = 0;
   std::vector<ProgramSegment> mSegments;
+  std::vector<ProgramSegment*> mIpToSegment;
 };
 
 }

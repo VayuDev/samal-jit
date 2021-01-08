@@ -39,7 +39,6 @@ class JitCode : public Xbyak::CodeGenerator {
     setDefaultJmpNEAR(true);
     // prelude
     push(rbx);
-    push(rsp);
     push(rbp);
     push(r12);
     push(r13);
@@ -285,8 +284,7 @@ class JitCode : public Xbyak::CodeGenerator {
     mov(rax, stackSize);
     sal(rax, 32);
     mov(rbx, ip);
-    sal(rbx, 32);
-    sar(rbx, 32);
+    mov(ebx, ebx);
     or_(rax, rbx);
 
     // restore registers & stack
@@ -296,7 +294,6 @@ class JitCode : public Xbyak::CodeGenerator {
     pop(r13);
     pop(r12);
     pop(rbp);
-    pop(rsp);
     pop(rbx);
     ret();
   }
@@ -320,19 +317,11 @@ VM::VM(Program program)
 #ifdef _DEBUG
         printf("Executing jit...\n");
 #endif
-        auto reverseStack = [&] {
-          for(int i = 0; i < mStack.getSize() / 16; ++i) {
-            auto castedPtr = (int64_t*)mStack.getBasePtr();
-            auto temp = castedPtr[i];
-            castedPtr[i] = castedPtr[mStack.getSize() / 8 - i - 1];
-            castedPtr[mStack.getSize() / 8 - i - 1] = temp;
-          }
-        };
-        reverseStack();
+        std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
         JitReturn ret = compiledCode->getCode<JitReturn(*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getBasePtr(), mStack.getSize());
         mStack.setSize(ret.stackSize);
         mIp = ret.ip;
-        reverseStack();
+        std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
         if(mIp == 0x42424242) {
           return false;
         }
@@ -369,6 +358,20 @@ VM::VM(Program program)
       i = j;
     }
   }
+  // create mIpToSegment array which is later used to find
+  // the correct segment for any given instruction
+  mIpToSegment.resize(mProgram.code.size());
+  for(size_t i = 0; i < mProgram.code.size(); ++i) {
+    bool found = false;
+    for(auto& s: mSegments) {
+      if (i >= s.startIp && i < s.startIp + s.len) {
+        mIpToSegment.at(i) = &s;
+        found = true;
+        break;
+      }
+    }
+    assert(found);
+  }
 }
 std::vector<uint8_t> VM::run(const std::string &functionName, const std::vector<uint8_t> &initialStack) {
   mStack.clear();
@@ -384,19 +387,12 @@ std::vector<uint8_t> VM::run(const std::string &functionName, const std::vector<
   printf("Dump:\n%s\n", dump.c_str());
 #endif
   while(true) {
-    bool found = false;
-    for (auto &s: mSegments) {
-      if (mIp >= s.startIp && mIp < s.startIp + s.len) {
-        if (!s.callback()) {
-          return mStack.moveData();
-        }
-        found = true;
-        break;
-      }
+    auto s = mIpToSegment.at(mIp);
+    assert(s);
+    if (!s->callback()) {
+      return mStack.moveData();
     }
-    assert(found);
   }
-  assert(false);
 }
 bool VM::interpretInstruction() {
   bool incIp = true;
