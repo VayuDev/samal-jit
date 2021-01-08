@@ -20,6 +20,7 @@ class Stack final {
   uint8_t* getBasePtr();
   size_t getSize();
   void setSize(size_t);
+  void clear();
  private:
   void ensureSpace(size_t additionalLen);
 
@@ -39,7 +40,13 @@ class VM final {
   Stack mStack;
   Program mProgram;
   uint32_t mIp;
-  int mFunctionDepth { 0 };
+  struct ProgramSegment {
+    int32_t startIp;
+    int32_t len;
+    std::function<bool()> callback;
+  };
+  size_t mMainFunctionReturnTypeSize = 0;
+  std::vector<ProgramSegment> mSegments;
 };
 
 }

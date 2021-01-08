@@ -3,39 +3,321 @@
 #include "samal_lib/Instruction.hpp"
 #include <cstring>
 #include <cstdlib>
+#include "samal_lib/Util.hpp"
 
 namespace samal {
 
+struct JitReturn {
+  int32_t ip; // lower 4 bytes
+  int32_t stackSize; // upper 4 bytes
+};
+
+static constexpr bool isJittable(Instruction i) {
+  switch(i) {
+    case Instruction::PUSH_8:
+    case Instruction::ADD_I32:
+    case Instruction::SUB_I32:
+    case Instruction::COMPARE_LESS_THAN_I32:
+    case Instruction::COMPARE_LESS_EQUAL_THAN_I32:
+    case Instruction::COMPARE_MORE_THAN_I32:
+    case Instruction::COMPARE_MORE_EQUAL_THAN_I32:
+    case Instruction::REPUSH_FROM_N:
+    case Instruction::JUMP:
+    case Instruction::JUMP_IF_FALSE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+class JitCode : public Xbyak::CodeGenerator {
+ public:
+  JitCode(const std::vector<uint8_t>& instructions, size_t offset) {
+    setDefaultJmpNEAR(true);
+    // prelude
+    push(rbx);
+    push(rsp);
+    push(rbp);
+    push(r12);
+    push(r13);
+    push(r14);
+    push(r15);
+    mov(r15, rsp);
+
+    // ip
+    const auto& ip = r11;
+    mov(ip, rdi);
+    // stack ptr
+    const auto& stackPtr = r12;
+    mov(stackPtr, rsi);
+    // stack size
+    const auto& stackSize = r13;
+    mov(stackSize, rdx);
+
+    // copy stack in
+    //    init copy
+    mov(rcx, stackSize);
+    mov(rsi, stackPtr);
+    mov(rdi, rsp);
+    sub(rdi, stackSize);
+    cld(); // up
+    //    copy
+    rep();
+    movsb();
+    //    adjust rsp
+    sub(rsp, stackSize);
+
+    jmp("JumpTable");
+
+    L("Code");
+    std::vector<std::pair<uint32_t, const uint8_t*>> labels;
+    // Start executing some Code!
+    for(size_t i = offset; i < instructions.size();) {
+      auto ins = static_cast<Instruction>(instructions.at(i));
+      bool shouldExit = false;
+      labels.emplace_back(std::make_pair((uint32_t)i, getCurr()));
+      switch(ins) {
+        case Instruction::PUSH_8:
+          mov(rax, *(uint64_t*)&instructions.at(i + 1));
+          push(rax);
+          break;
+        case Instruction::ADD_I32:
+          pop(rax);
+          pop(rbx);
+          add(rbx, rax);
+          push(rbx);
+          break;
+        case Instruction::SUB_I32:
+          pop(rax);
+          pop(rbx);
+          sub(rbx, rax);
+          push(rbx);
+          break;
+        case Instruction::COMPARE_LESS_THAN_I32:
+          pop(rax);
+          pop(rbx);
+          cmp(rbx, rax);
+          mov(rdx, 1);
+          mov(rax, 0);
+          cmovl(rax, rdx);
+          push(rax);
+          break;
+        case Instruction::COMPARE_LESS_EQUAL_THAN_I32:
+          pop(rax);
+          pop(rbx);
+          cmp(rbx, rax);
+          mov(rdx, 1);
+          mov(rax, 0);
+          cmovle(rax, rdx);
+          push(rax);
+          break;
+        case Instruction::COMPARE_MORE_THAN_I32:
+          pop(rax);
+          pop(rbx);
+          cmp(rbx, rax);
+          mov(rdx, 1);
+          mov(rax, 0);
+          cmovg(rax, rdx);
+          push(rax);
+          break;
+        case Instruction::COMPARE_MORE_EQUAL_THAN_I32:
+          pop(rax);
+          pop(rbx);
+          cmp(rbx, rax);
+          mov(rdx, 1);
+          mov(rax, 0);
+          cmovge(rax, rdx);
+          push(rax);
+          break;
+        case Instruction::REPUSH_FROM_N: {
+          int32_t repushLen = *(uint32_t*)&instructions.at(i + 1);
+          int32_t repushOffset = *(uint32_t*)&instructions.at(i + 5);
+          //    init copy
+          mov(rcx, repushLen);
+          mov(rsi, rsp);
+          add(rsi, repushOffset);
+          sub(rsp, repushLen);
+          mov(rdi, rsp);
+          cld(); // up
+          //    copy
+          rep();
+          movsb();
+          break;
+        }
+        case Instruction::JUMP: {
+          auto p = *(int32_t*)&instructions.at(i + 1);
+          mov(ip, p);
+          shouldExit = true;
+          i += instructionToWidth(ins);
+          finalIp = i;
+          break;
+        }
+        case Instruction::JUMP_IF_FALSE: {
+          pop(rax);
+          add(ip, instructionToWidth(ins));
+          mov(rbx, *(uint32_t*)&instructions.at(i + 1));
+          cmp(rax, 0);
+          cmove(ip, rbx);
+          shouldExit = true;
+          i += instructionToWidth(ins);
+          finalIp = i;
+          break;
+        }
+        default:
+          labels.erase(--labels.end());
+          finalIp = i;
+          shouldExit = true;
+          break;
+      }
+      if(shouldExit) {
+        break;
+      }
+      i += instructionToWidth(ins);
+      add(ip, instructionToWidth(ins));
+    }
+
+    jmp("AfterJumpTable");
+    L("JumpTable");
+    for(auto& label: labels) {
+      cmp(ip, label.first);
+      je(label.second);
+    }
+    L("AfterJumpTable");
+
+    // calculate new stack size
+    mov(stackSize, r15);
+    sub(stackSize, rsp);
+
+    // copy stack out
+    //    init copy
+    mov(rcx, stackSize);
+    mov(rsi, rsp);
+    mov(rdi, stackPtr);
+    cld();
+    //    copy
+    rep();
+    movsb();
+    //    adjust rsp
+    add(rsp, stackSize);
+
+    // do some magic to put but stackSize and ip in the rax register
+    mov(rax, stackSize);
+    sal(rax, 32);
+    mov(rbx, ip);
+    or_(rax, rbx);
+
+    // restore registers & stack
+    mov(rsp, r15);
+    pop(r15);
+    pop(r14);
+    pop(r13);
+    pop(r12);
+    pop(rbp);
+    pop(rsp);
+    pop(rbx);
+    ret();
+  }
+  int32_t getFinalIp() const {
+    return finalIp;
+  }
+ private:
+  int32_t finalIp = -1;
+};
+
 VM::VM(Program program)
     : mProgram(std::move(program)) {
+  for(size_t i = 0; i < mProgram.code.size();) {
+    auto startI = i;
+    sp<JitCode> compiledCode = std::make_shared<JitCode>(mProgram.code, i);
+    i = compiledCode->getFinalIp();
+    mSegments.emplace_back(ProgramSegment{
+      .startIp = static_cast<int32_t>(startI),
+      .len = static_cast<int32_t>(compiledCode->getFinalIp() - startI),
+      .callback{[this, compiledCode = std::move(compiledCode)] {
+#ifdef _DEBUG
+        printf("Executing jit...\n");
+#endif
+        auto reverseStack = [&] {
+          for(int i = 0; i < mStack.getSize() / 16; ++i) {
+            auto castedPtr = (int64_t*)mStack.getBasePtr();
+            auto temp = castedPtr[i];
+            castedPtr[i] = castedPtr[mStack.getSize() / 8 - i - 1];
+            castedPtr[mStack.getSize() / 8 - i - 1] = temp;
+          }
+        };
+        reverseStack();
+        JitReturn ret = compiledCode->getCode<JitReturn(*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getBasePtr(), mStack.getSize());
+        mStack.setSize(ret.stackSize);
+        mIp = ret.ip;
+        reverseStack();
+#ifdef _DEBUG
+        auto dump = mStack.dump();
+        printf("New ip: %u\n", mIp);
+        printf("Dump:\n%s\n", dump.c_str());
+#endif
+        return true;
+      }}
+    });
+    size_t j;
+    for(j = i; j < mProgram.code.size() && !isJittable(static_cast<Instruction>(mProgram.code.at(j))); j += instructionToWidth(static_cast<Instruction>(mProgram.code.at(j)))) {
 
+    }
+    if(j > i) {
+      mSegments.emplace_back(ProgramSegment{
+        .startIp = static_cast<int32_t>(i),
+        .len = static_cast<int32_t>(j - i),
+        .callback = [this, i, j] {
+          while(mIp >= i && mIp < j) {
+            auto ret = interpretInstruction();
+#ifdef _DEBUG
+            auto dump = mStack.dump();
+            printf("Dump:\n%s\n", dump.c_str());
+#endif
+            if(!ret) {
+              return false;
+            }
+          }
+          return true;
+        }
+      });
+      i = j;
+    }
+  }
 }
 std::vector<uint8_t> VM::run(const std::string &functionName, const std::vector<uint8_t> &initialStack) {
+  mStack.clear();
   mStack.push(initialStack);
-  int32_t id = 0;
   auto functionOrNot = mProgram.functions.find(functionName);
   if(functionOrNot == mProgram.functions.end()) {
     throw std::runtime_error{"Function " + functionName + " not found!"};
   }
   mIp = functionOrNot->second.offset;
-  mFunctionDepth = 1;
+  mMainFunctionReturnTypeSize = functionOrNot->second.returnTypeSize;
+#ifdef _DEBUG
   auto dump = mStack.dump();
   printf("Dump:\n%s\n", dump.c_str());
-  while(mFunctionDepth > 0) {
-    auto ret = interpretInstruction();
-
-    auto dump = mStack.dump();
-    printf("Dump:\n%s\n", dump.c_str());
-    if(!ret) {
-      return mStack.moveData();
+#endif
+  while(true) {
+    bool found = false;
+    for (auto &s: mSegments) {
+      if (mIp >= s.startIp && mIp < s.startIp + s.len) {
+        if (!s.callback()) {
+          return mStack.moveData();
+        }
+        found = true;
+        break;
+      }
     }
+    assert(found);
   }
   assert(false);
 }
 bool VM::interpretInstruction() {
   bool incIp = true;
   auto ins = static_cast<Instruction>(mProgram.code.at(mIp));
+#ifdef _DEBUG
   printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
+#endif
   switch(ins) {
     case Instruction::PUSH_4:
 #ifdef x86_64_BIT_MODE
@@ -134,19 +416,17 @@ bool VM::interpretInstruction() {
       // save old values to stack
       *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
       mIp = newIp;
-      mFunctionDepth += 1;
       incIp = false;
       break;
     }
     case Instruction::RETURN: {
-      if(mFunctionDepth == 1) {
-        return false;
-      }
-      mFunctionDepth -= 1;
       auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
       mIp = *(int32_t*)mStack.get(offset + 8);
       mStack.popBelow(offset, 8);
       incIp = false;
+      if(mStack.getSize() == mMainFunctionReturnTypeSize) {
+        return false;
+      }
       break;
     }
     default:
@@ -155,112 +435,6 @@ bool VM::interpretInstruction() {
   }
   mIp += instructionToWidth(ins) * incIp;
   return true;
-}
-
-struct JitReturn {
-  int32_t ip; // lower 4 bytes
-  int32_t stackSize; // upper 4 bytes
-};
-
-class JitCode : public Xbyak::CodeGenerator {
- public:
-  JitCode(const std::vector<uint8_t>& instructions, size_t offset) {
-    // prelude
-    push(rbx);
-    push(rsp);
-    push(rbp);
-    push(r12);
-    push(r13);
-    push(r14);
-    push(r15);
-    mov(r15, rsp);
-
-    // ip
-    const auto& ip = r11;
-    mov(ip, rdi);
-    // stack ptr
-    const auto& stackPtr = r12;
-    mov(stackPtr, rsi);
-    // stack size
-    const auto& stackSize = r13;
-    mov(stackSize, rdx);
-
-    // copy stack in
-    //    init copy
-    mov(rcx, stackSize);
-    mov(rsi, stackPtr);
-    mov(rdi, rsp);
-    sub(rdi, stackSize);
-    cld();
-    //    copy
-    rep();
-    movsb();
-    //    adjust rsp
-    sub(rsp, stackSize);
-
-
-    // Start executing some Code!
-    pop(rax);
-    push(rax);
-    inc(rax);
-    push(rax);
-
-
-    // calculate new stack size
-    mov(stackSize, r15);
-    sub(stackSize, rsp);
-
-    // copy stack out
-    //    init copy
-    mov(rcx, stackSize);
-    mov(rsi, rsp);
-    mov(rdi, stackPtr);
-    cld();
-    //    copy
-    rep();
-    movsb();
-    //    adjust rsp
-    add(rsp, stackSize);
-
-    // do some magic to put but stackSize and ip in the rax register
-    mov(rax, stackSize);
-    sal(rax, 32);
-    mov(rbx, ip);
-    or_(rax, rbx);
-
-    // restore registers & stack
-    mov(rsp, r15);
-    pop(r15);
-    pop(r14);
-    pop(r13);
-    pop(r12);
-    pop(rbp);
-    pop(rsp);
-    pop(rbx);
-    ret();
-  }
- private:
-};
-
-bool VM::jitCompileAndRunInstruction() {
-  JitCode code{mProgram.code, mIp};
-  static_assert(sizeof(JitReturn) == 8);
-  // reverse stack order to match the fact that the cpu stack grows downwards but ours grows upwards
-  auto reverseStack = [&] {
-    for(int i = 0; i < mStack.getSize() / 16; ++i) {
-      auto castedPtr = (int64_t*)mStack.getBasePtr();
-      auto temp = castedPtr[i];
-      castedPtr[i] = castedPtr[mStack.getSize() / 8 - i - 1];
-      castedPtr[mStack.getSize() / 8 - i - 1] = temp;
-    }
-  };
-  reverseStack();
-  JitReturn ret = code.getCode<JitReturn(*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getBasePtr(), mStack.getSize());
-  mStack.setSize(ret.stackSize);
-  mIp = ret.ip;
-  // and reset back to original
-  reverseStack();
-  return false;
 }
 void Stack::push(const std::vector<uint8_t> &data) {
   push(data.data(), data.size());
@@ -329,6 +503,9 @@ size_t Stack::getSize() {
 void Stack::setSize(size_t val) {
   assert(val <= mDataReserved);
   mDataLen = val;
+}
+void Stack::clear() {
+  mDataLen = 0;
 }
 
 }

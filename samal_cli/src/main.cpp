@@ -9,16 +9,16 @@
 int main() {
   samal::Stopwatch stopwatch{"The main function"};
   samal::Parser parser;
-  auto ast = parser.parse("Main", R"(
+  /*
+   *
 fn fib(n : i32) -> i32 {
   if n < 2 {
     n
   } else {
     fib(n - 1) + fib(n - 2)
   }
-})");
-  auto ast2 = parser.parse("Magic", R"(
-fn magicNumber(p : i32) -> i32 {
+}
+   fn magicNumber(p : i32) -> i32 {
   x = p + 1
   i = if 10 < 5 {
     3
@@ -28,8 +28,25 @@ fn magicNumber(p : i32) -> i32 {
   }
   x + i + p
 }
+   */
+  auto ast = parser.parse("Main", R"(
+fn fib(n : i32) -> i32 {
+  if n < 2 {
+    n
+  } else {
+    fib(n - 1) + fib(n - 2)
+  }
+})");
+  auto ast2 = parser.parse("Magic", R"(
 fn func2(p: i32) -> i32 {
-  p + 1
+  y = 3
+  x = y + 4
+  w = if p > 5 {
+    x
+  } else {
+    64
+  }
+  w + p
 })");
   assert(ast.first);
   assert(ast2.first);
@@ -60,13 +77,15 @@ fn func2(p: i32) -> i32 {
     samal::Stopwatch stopwatch2{"Running fib(28) 5 times"};
     samal::VM vm{std::move(program)};
     for(size_t i = 0; i < 5; ++i) {
-      auto ret = vm.run("fib", {28, 0, 0, 0});
+      auto ret = vm.run("fib", {42, 42, 42, 42, 42, 42, 42, 42, 28, 0, 0, 0, 0, 0, 0, 0});
       std::cout << "fib(28)=" << *(int32_t*)ret.data() << "\n";
     }
   }
 #endif
+#if 1
   {
     samal::VM vm{std::move(program)};
-    auto ret = vm.run("magicNumber", {5, 0, 0, 0, 0, 0, 0, 0});
+    auto ret = vm.run("func2", {42, 42, 42, 42, 42, 42, 42, 42, 2, 0, 0, 0, 0, 0, 0, 0});
   }
+#endif
 }

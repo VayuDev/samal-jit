@@ -181,9 +181,10 @@ FunctionDuration::~FunctionDuration() {
   mCompiler.addInstructions(Instruction::RETURN, returnTypeSize);
   mCompiler.mStackFrames.pop();
   mCompiler.mProgram->functions[mIdentifier->getName()].len = mCompiler.mProgram->code.size() - mCompiler.mProgram->functions[mIdentifier->getName()].offset;
+  mCompiler.mProgram->functions[mIdentifier->getName()].returnTypeSize = returnTypeSize;
 
 
-  // TODO won't work for lambdas I guess
+      // TODO won't work for lambdas I guess
   assert(mCompiler.mStackSize == returnTypeSize);
   mCompiler.mStackSize = 0;
 }
