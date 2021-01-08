@@ -49,7 +49,7 @@ class Compiler {
   template<>
   inline void pushPrimitiveLiteral(int32_t param) {
 #ifdef x86_64_BIT_MODE
-    addInstructions(Instruction::PUSH_8, 0, param);
+    addInstructions(Instruction::PUSH_8, param, 0);
     mStackSize += 8;
 #else
     addInstructions(Instruction::PUSH_4, param);
@@ -78,7 +78,7 @@ class Compiler {
   std::optional<Program> mProgram;
   std::stack<StackFrame> mStackFrames;
   int mStackSize { 0 };
-  std::vector<uint8_t> *currentFunction { nullptr };
+  std::map<int32_t, int32_t> mFunctions;
 
   friend class FunctionDuration;
   friend class ScopeDuration;

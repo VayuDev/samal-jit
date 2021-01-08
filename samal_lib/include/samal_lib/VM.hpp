@@ -31,13 +31,11 @@ class Stack final {
 class VM final {
  public:
   explicit VM(Program program);
-  std::vector<uint8_t> run(const std::string& function, const std::vector<uint8_t>& initialStack);
+  std::vector<uint8_t> run(const std::string& functionName, const std::vector<uint8_t>& initialStack);
  private:
   __always_inline bool interpretInstruction();
   __always_inline bool jitCompileAndRunInstruction();
 
-  int32_t mCurrentFunctionId { -1 };
-  Program::Function* mCurrentFunction { nullptr };
   Stack mStack;
   Program mProgram;
   uint32_t mIp;

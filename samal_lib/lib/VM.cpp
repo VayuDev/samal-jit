@@ -6,28 +6,23 @@
 
 namespace samal {
 
-VM::VM(samal::Program program)
+VM::VM(Program program)
     : mProgram(std::move(program)) {
 
 }
-std::vector<uint8_t> VM::run(const std::string &function, const std::vector<uint8_t> &initialStack) {
+std::vector<uint8_t> VM::run(const std::string &functionName, const std::vector<uint8_t> &initialStack) {
   mStack.push(initialStack);
   int32_t id = 0;
-  for(auto& func: mProgram.functions) {
-    if(func.name == function) {
-      mCurrentFunction = &func;
-      mCurrentFunctionId = id;
-      break;
-    }
-    ++id;
+  auto functionOrNot = mProgram.functions.find(functionName);
+  if(functionOrNot == mProgram.functions.end()) {
+    throw std::runtime_error{"Function " + functionName + " not found!"};
   }
-  assert(mCurrentFunction);
-  mIp = 0;
+  mIp = functionOrNot->second.offset;
   mFunctionDepth = 1;
   auto dump = mStack.dump();
   printf("Dump:\n%s\n", dump.c_str());
   while(mFunctionDepth > 0) {
-    auto ret = jitCompileAndRunInstruction();
+    auto ret = interpretInstruction();
 
     auto dump = mStack.dump();
     printf("Dump:\n%s\n", dump.c_str());
@@ -39,73 +34,106 @@ std::vector<uint8_t> VM::run(const std::string &function, const std::vector<uint
 }
 bool VM::interpretInstruction() {
   bool incIp = true;
-  auto ins = static_cast<Instruction>(mCurrentFunction->code.at(mIp));
+  auto ins = static_cast<Instruction>(mProgram.code.at(mIp));
   printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
   switch(ins) {
     case Instruction::PUSH_4:
-      mStack.push(&mCurrentFunction->code.at(mIp + 1), 4);
+#ifdef x86_64_BIT_MODE
+      assert(false);
+#endif
+      mStack.push(&mProgram.code.at(mIp + 1), 4);
       break;
     case Instruction::PUSH_8:
-      mStack.push(&mCurrentFunction->code.at(mIp + 1), 8);
+      mStack.push(&mProgram.code.at(mIp + 1), 8);
       break;
     case Instruction::REPUSH_FROM_N:
-      mStack.repush(*(int32_t*)&mCurrentFunction->code.at(mIp + 5), *(int32_t*)&mCurrentFunction->code.at(mIp + 1));
+      mStack.repush(*(int32_t*)&mProgram.code.at(mIp + 5), *(int32_t*)&mProgram.code.at(mIp + 1));
       break;
     case Instruction::REPUSH_N:
-      mStack.repush(0, *(int32_t*)&mCurrentFunction->code.at(mIp + 1));
+      mStack.repush(0, *(int32_t*)&mProgram.code.at(mIp + 1));
       break;
     case Instruction::COMPARE_LESS_THAN_I32: {
+#ifdef x86_64_BIT_MODE
+      auto lhs = *(int32_t*)mStack.get(16);
+      auto rhs = *(int32_t*)mStack.get(8);
+      mStack.pop(16);
+      int64_t res = lhs < rhs;
+      mStack.push(&res, 8);
+#else
       auto lhs = *(int32_t*)mStack.get(8);
       auto rhs = *(int32_t*)mStack.get(4);
       mStack.pop(8);
       bool res = lhs < rhs;
       mStack.push(&res, 1);
+#endif
       break;
     }
     case Instruction::JUMP_IF_FALSE: {
+#ifdef x86_64_BIT_MODE
+      auto val = *(bool*)mStack.get(8);
+      mStack.pop(8);
+      if(!val) {
+        mIp = *(int32_t*)&mProgram.code.at(mIp + 1);
+        incIp = false;
+      }
+#else
       auto val = *(bool*)mStack.get(1);
       mStack.pop(1);
       if(!val) {
-        mIp = *(int32_t*)&mCurrentFunction->code.at(mIp + 1);
+        mIp = *(int32_t*)&mProgram.code.at(mIp + 1);
         incIp = false;
       }
+#endif
       break;
     }
     case Instruction::JUMP: {
-      mIp = *(int32_t*)&mCurrentFunction->code.at(mIp + 1);
+      mIp = *(int32_t*)&mProgram.code.at(mIp + 1);
       incIp = false;
       break;
     }
     case Instruction::SUB_I32: {
+#ifdef x86_64_BIT_MODE
+      auto lhs = *(int32_t*)mStack.get(16);
+      auto rhs = *(int32_t*)mStack.get(8);
+      int64_t res = lhs - rhs;
+      mStack.pop(16);
+      mStack.push(&res, 8);
+#else
       auto lhs = *(int32_t*)mStack.get(8);
       auto rhs = *(int32_t*)mStack.get(4);
       int32_t res = lhs - rhs;
       mStack.pop(8);
       mStack.push(&res, 4);
+#endif
       break;
     }
     case Instruction::ADD_I32: {
+#ifdef x86_64_BIT_MODE
+      auto lhs = *(int32_t*)mStack.get(16);
+      auto rhs = *(int32_t*)mStack.get(8);
+      int64_t res = lhs + rhs;
+      mStack.pop(16);
+      mStack.push(&res, 8);
+#else
       auto lhs = *(int32_t*)mStack.get(8);
       auto rhs = *(int32_t*)mStack.get(4);
       int32_t res = lhs + rhs;
       mStack.pop(8);
       mStack.push(&res, 4);
+#endif
       break;
     }
     case Instruction::POP_N_BELOW: {
-      mStack.popBelow(*(int32_t *) &mCurrentFunction->code.at(mIp + 5),
-                      *(int32_t *) &mCurrentFunction->code.at(mIp + 1));
+      mStack.popBelow(*(int32_t *) &mProgram.code.at(mIp + 5),
+                      *(int32_t *) &mProgram.code.at(mIp + 1));
       break;
     }
     case Instruction::CALL: {
-      auto offset = *(int32_t*)&mCurrentFunction->code.at(mIp + 1);
-      auto functionId = *(int32_t*)mStack.get(offset + 8);
+      auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
+      auto newIp = *(int32_t*)mStack.get(offset + 8);
       // save old values to stack
       *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
-      *(int32_t*)mStack.get(offset + 4) = mCurrentFunctionId;
-      mCurrentFunction = &mProgram.functions.at(functionId);
-      mCurrentFunctionId = functionId;
-      mIp = 0;
+      mIp = newIp;
       mFunctionDepth += 1;
       incIp = false;
       break;
@@ -115,10 +143,8 @@ bool VM::interpretInstruction() {
         return false;
       }
       mFunctionDepth -= 1;
-      auto offset = *(int32_t*)&mCurrentFunction->code.at(mIp + 1);
+      auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
       mIp = *(int32_t*)mStack.get(offset + 8);
-      mCurrentFunctionId = *(int32_t*)mStack.get(offset + 4);
-      mCurrentFunction = &mProgram.functions.at(mCurrentFunctionId);
       mStack.popBelow(offset, 8);
       incIp = false;
       break;
@@ -149,16 +175,15 @@ class JitCode : public Xbyak::CodeGenerator {
     push(r15);
     mov(r15, rsp);
 
-    // stack size
-    const auto& stackSize = r13;
-    mov(stackSize, rdx);
     // ip
-    const auto& ip = rdx;
-    const auto& ip32 = edx;
+    const auto& ip = r11;
     mov(ip, rdi);
     // stack ptr
     const auto& stackPtr = r12;
     mov(stackPtr, rsi);
+    // stack size
+    const auto& stackSize = r13;
+    mov(stackSize, rdx);
 
     // copy stack in
     //    init copy
@@ -179,7 +204,6 @@ class JitCode : public Xbyak::CodeGenerator {
     push(rax);
     inc(rax);
     push(rax);
-
 
 
     // calculate new stack size
@@ -219,7 +243,7 @@ class JitCode : public Xbyak::CodeGenerator {
 };
 
 bool VM::jitCompileAndRunInstruction() {
-  JitCode code{mCurrentFunction->code, mIp};
+  JitCode code{mProgram.code, mIp};
   static_assert(sizeof(JitReturn) == 8);
   // reverse stack order to match the fact that the cpu stack grows downwards but ours grows upwards
   auto reverseStack = [&] {

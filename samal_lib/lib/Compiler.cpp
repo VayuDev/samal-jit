@@ -25,22 +25,19 @@ void Compiler::setVariableLocation(const up<IdentifierNode> &identifier) {
   mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{.offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack});
 }
 void Compiler::addInstructions(Instruction insn, int32_t param) {
-  assert(currentFunction);
-  currentFunction->resize(currentFunction->size() + 5);
-  memcpy(&currentFunction->at(currentFunction->size() - 5), &insn, 1);
-  memcpy(&currentFunction->at(currentFunction->size() - 4), &param, 4);
+  mProgram->code.resize(mProgram->code.size() + 5);
+  memcpy(&mProgram->code.at(mProgram->code.size() - 5), &insn, 1);
+  memcpy(&mProgram->code.at(mProgram->code.size() - 4), &param, 4);
 }
 void Compiler::addInstructions(Instruction ins) {
-  assert(currentFunction);
-  currentFunction->resize(currentFunction->size() + 1);
-  memcpy(&currentFunction->at(currentFunction->size() - 1), &ins, 1);
+  mProgram->code.resize(mProgram->code.size() + 1);
+  memcpy(&mProgram->code.at(mProgram->code.size() - 1), &ins, 1);
 }
 void Compiler::addInstructions(Instruction insn, int32_t param1, int32_t param2) {
-  assert(currentFunction);
-  currentFunction->resize(currentFunction->size() + 9);
-  memcpy(&currentFunction->at(currentFunction->size() - 9), &insn, 1);
-  memcpy(&currentFunction->at(currentFunction->size() - 8), &param1, 4);
-  memcpy(&currentFunction->at(currentFunction->size() - 4), &param2, 4);
+  mProgram->code.resize(mProgram->code.size() + 9);
+  memcpy(&mProgram->code.at(mProgram->code.size() - 9), &insn, 1);
+  memcpy(&mProgram->code.at(mProgram->code.size() - 8), &param1, 4);
+  memcpy(&mProgram->code.at(mProgram->code.size() - 4), &param2, 4);
 }
 FunctionDuration Compiler::enterFunction(const up<IdentifierNode> &identifier, const up<ParameterListNode>& params) {
   return FunctionDuration(*this, identifier, params);
@@ -141,15 +138,14 @@ void Compiler::performFunctionCall(size_t sizeOfArguments, size_t sizeOfReturnVa
   mStackSize += sizeOfReturnValue;
 }
 size_t Compiler::addLabel(size_t len) {
-  assert(currentFunction);
-  currentFunction->resize(currentFunction->size() + len);
-  return currentFunction->size() - len;
+  mProgram->code.resize(mProgram->code.size() + len);
+  return mProgram->code.size() - len;
 }
 size_t Compiler::getCurrentLocation() {
-  return currentFunction->size();
+  return mProgram->code.size();
 }
 void *Compiler::getLabelPtr(size_t label) {
-  return &currentFunction->at(label);
+  return &mProgram->code.at(label);
 }
 void Compiler::changeStackSize(ssize_t diff) {
   mStackSize += diff;
@@ -159,11 +155,9 @@ FunctionDuration::FunctionDuration(Compiler &compiler, const up<IdentifierNode> 
 : mCompiler(compiler), mIdentifier(identifier), mParams(params) {
   auto functionId = mIdentifier->getId();
   assert(functionId);
-  if(static_cast<size_t>(*functionId) >= mCompiler.mProgram->functions.size()) {
-    mCompiler.mProgram->functions.resize(*functionId + 1);
-    mCompiler.mProgram->functions.at(*functionId).name = identifier->getName();
-  }
-  mCompiler.currentFunction = &mCompiler.mProgram->functions.at(*functionId).code;
+  mCompiler.mFunctions.emplace(*functionId, mCompiler.getCurrentLocation());
+  mCompiler.mProgram->functions[mIdentifier->getName()].offset = static_cast<int32_t>(mCompiler.mProgram->code.size());
+  mCompiler.mProgram->functions[mIdentifier->getName()].len = -1;
   mCompiler.mStackFrames.emplace();
 
   for(auto& param : mParams->getParams()) {
@@ -186,7 +180,8 @@ FunctionDuration::~FunctionDuration() {
   }
   mCompiler.addInstructions(Instruction::RETURN, returnTypeSize);
   mCompiler.mStackFrames.pop();
-  mCompiler.currentFunction = nullptr;
+  mCompiler.mProgram->functions[mIdentifier->getName()].len = mCompiler.mProgram->code.size() - mCompiler.mProgram->functions[mIdentifier->getName()].offset;
+
 
   // TODO won't work for lambdas I guess
   assert(mCompiler.mStackSize == returnTypeSize);
@@ -213,11 +208,10 @@ ScopeDuration::~ScopeDuration() {
 
 std::string Program::disassemble() const {
   std::string ret;
-  for(size_t i = 0; i < functions.size(); ++i) {
-    ret += "Function " + functions.at(i).name + " (" + std::to_string(i) + "):\n";
-    size_t offset = 0;
-    auto& code = functions.at(i).code;
-    while(offset < code.size()) {
+  for(auto& [name, location]: functions) {
+    ret += "Function " +  name + ":\n";
+    size_t offset = location.offset;
+    while(offset < location.offset + location.len) {
       ret += " " + std::to_string(offset) + " ";
       ret += instructionToString(static_cast<Instruction>(code.at(offset)));
       auto width = instructionToWidth(static_cast<Instruction>(code.at(offset)));

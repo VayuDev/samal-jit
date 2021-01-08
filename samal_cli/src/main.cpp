@@ -67,6 +67,6 @@ fn func2(p: i32) -> i32 {
 #endif
   {
     samal::VM vm{std::move(program)};
-    auto ret = vm.run("magicNumber", {5, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0});
+    auto ret = vm.run("magicNumber", {5, 0, 0, 0, 0, 0, 0, 0});
   }
 }
