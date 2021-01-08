@@ -38,15 +38,11 @@ fn fib(n : i32) -> i32 {
   }
 })");
   auto ast2 = parser.parse("Magic", R"(
+fn func1(a: i32, b: i32) -> i32 {
+  a + Main.fib(2)
+}
 fn func2(p: i32) -> i32 {
-  y = 3
-  x = y + 4
-  w = if p < 200 {
-    x
-  } else {
-    64
-  }
-  w + p
+  func1(5, p) + p
 })");
   assert(ast.first);
   assert(ast2.first);
@@ -77,7 +73,7 @@ fn func2(p: i32) -> i32 {
     samal::Stopwatch stopwatch2{"Running fib(28) 5 times"};
     samal::VM vm{std::move(program)};
     for(size_t i = 0; i < 5; ++i) {
-      auto ret = vm.run("fib", {42, 42, 42, 42, 42, 42, 42, 42, 28, 0, 0, 0, 0, 0, 0, 0});
+      auto ret = vm.run("fib", {0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 28, 0, 0, 0, 0, 0, 0, 0});
       std::cout << "fib(28)=" << *(int32_t*)ret.data() << "\n";
     }
   }
@@ -85,7 +81,8 @@ fn func2(p: i32) -> i32 {
 #if 0
   {
     samal::VM vm{std::move(program)};
-    auto ret = vm.run("func2", {42, 42, 42, 42, 42, 42, 42, 42, 2, 0, 0, 0, 0, 0, 0, 0});
+    auto ret = vm.run("func2", {0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 2, 0, 0, 0, 0, 0, 0, 0});
+    std::cout << "func2(2)=" << *(int32_t*)ret.data() << "\n";
   }
 #endif
 }

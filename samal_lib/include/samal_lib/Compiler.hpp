@@ -78,7 +78,9 @@ class Compiler {
   std::optional<Program> mProgram;
   std::stack<StackFrame> mStackFrames;
   int mStackSize { 0 };
+  // maps function ids to their offset in the code
   std::map<int32_t, int32_t> mFunctions;
+  std::vector<size_t> mFunctionIdsInCode;
 
   friend class FunctionDuration;
   friend class ScopeDuration;

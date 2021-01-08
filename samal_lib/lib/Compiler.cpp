@@ -12,6 +12,12 @@ Program Compiler::compile(std::vector<up<ModuleRootNode>>& modules) {
   for(auto& module: modules) {
     module->compile(*this);
   }
+  for(auto& locationInCode: mFunctionIdsInCode) {
+    auto varId = *(int32_t*)&mProgram->code.at(locationInCode);
+    auto ipOffsetOrError = mFunctions.find(varId);
+    assert(ipOffsetOrError != mFunctions.end());
+    *(int32_t*)&mProgram->code.at(locationInCode) = ipOffsetOrError->second;
+  }
   return std::move(*mProgram);
 }
 void Compiler::assignToVariable(const up<IdentifierNode> &identifier) {
@@ -120,6 +126,10 @@ void Compiler::loadVariableToStack(const IdentifierNode& identifier) {
     auto varLocation = stackCpy.top().variables.find(*identifier.getId());
     if(varLocation != stackCpy.top().variables.end()) {
       addInstructions(Instruction::REPUSH_FROM_N, varLocation->second.sizeOnStack, mStackSize - varLocation->second.offsetFromTop);
+      // replace every function id with its ip at the end
+      if(identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
+        mFunctionIdsInCode.push_back(mProgram->code.size() - 8);
+      }
       mStackSize += varLocation->second.sizeOnStack;
       return;
     }
@@ -127,6 +137,7 @@ void Compiler::loadVariableToStack(const IdentifierNode& identifier) {
   }
   if(identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
     addInstructions(Instruction::PUSH_8, *identifier.getId(), 0);
+    mFunctionIdsInCode.push_back(mProgram->code.size() - 8);
     mStackSize += 8;
     return;
   }
