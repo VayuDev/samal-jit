@@ -2,6 +2,7 @@
 
 #include "Program.hpp"
 #include <xbyak/xbyak.h>
+#include "Util.hpp"
 
 namespace samal {
 
@@ -32,6 +33,7 @@ class Stack final {
 class VM final {
  public:
   explicit VM(Program program);
+  ~VM();
   std::vector<uint8_t> run(const std::string& functionName, const std::vector<uint8_t>& initialStack);
  private:
   __always_inline bool interpretInstruction();
@@ -40,14 +42,8 @@ class VM final {
   Stack mStack;
   Program mProgram;
   uint32_t mIp;
-  struct ProgramSegment {
-    int32_t startIp;
-    int32_t len;
-    std::function<bool()> callback;
-  };
   size_t mMainFunctionReturnTypeSize = 0;
-  std::vector<ProgramSegment> mSegments;
-  std::vector<ProgramSegment*> mIpToSegment;
+  up<class JitCode> mCompiledCode;
 };
 
 }

@@ -35,7 +35,7 @@ static constexpr bool isJittable(Instruction i) {
 
 class JitCode : public Xbyak::CodeGenerator {
  public:
-  JitCode(const std::vector<uint8_t>& instructions, size_t offset) {
+  JitCode(const std::vector<uint8_t>& instructions) {
     setDefaultJmpNEAR(true);
     // prelude
     push(rbx);
@@ -74,7 +74,7 @@ class JitCode : public Xbyak::CodeGenerator {
     L("Code");
     std::vector<std::pair<uint32_t, Xbyak::Label>> labels;
     // Start executing some Code!
-    for(size_t i = offset; i < instructions.size();) {
+    for(size_t i = 0; i < instructions.size();) {
       auto ins = static_cast<Instruction>(instructions.at(i));
       auto nextInstruction = [&] {
         return static_cast<Instruction>(instructions.at(i + instructionToWidth(ins)));
@@ -82,7 +82,6 @@ class JitCode : public Xbyak::CodeGenerator {
       auto nextInstructionWidth = [&] {
         return instructionToWidth(nextInstruction());
       };
-      bool shouldExit = false;
       bool shouldAutoIncrement = true;
       Xbyak::Label here;
       L(here);
@@ -240,13 +239,10 @@ class JitCode : public Xbyak::CodeGenerator {
           break;
         }
         default:
+          // we hit an instruction that we don't know, so exit the jit
           labels.erase(--labels.end());
-          finalIp = i;
-          shouldExit = true;
+          jmp("AfterJumpTable");
           break;
-      }
-      if(shouldExit) {
-        break;
       }
       if(shouldAutoIncrement) {
         i += instructionToWidth(ins);
@@ -322,81 +318,11 @@ class JitCode : public Xbyak::CodeGenerator {
     pop(rbx);
     ret();
   }
-  int32_t getFinalIp() const {
-    return finalIp;
-  }
- private:
-  int32_t finalIp = -1;
 };
 
 VM::VM(Program program)
     : mProgram(std::move(program)) {
-  for(size_t i = 0; i < mProgram.code.size();) {
-    auto startI = i;
-    sp<JitCode> compiledCode = std::make_shared<JitCode>(mProgram.code, i);
-    i = compiledCode->getFinalIp();
-    mSegments.emplace_back(ProgramSegment{
-      .startIp = static_cast<int32_t>(startI),
-      .len = static_cast<int32_t>(compiledCode->getFinalIp() - startI),
-      .callback{[this, compiledCode = std::move(compiledCode)] {
-#ifdef _DEBUG
-        printf("Executing jit...\n");
-#endif
-        std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
-        JitReturn ret = compiledCode->getCode<JitReturn(*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getBasePtr(), mStack.getSize());
-        mStack.setSize(ret.stackSize);
-        mIp = ret.ip;
-        std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
-        if(mIp == 0x42424242) {
-          return false;
-        }
-#ifdef _DEBUG
-        auto dump = mStack.dump();
-        printf("New ip: %u\n", mIp);
-        printf("Dump:\n%s\n", dump.c_str());
-#endif
-        return true;
-      }}
-    });
-    size_t j;
-    for(j = i; j < mProgram.code.size() && !isJittable(static_cast<Instruction>(mProgram.code.at(j))); j += instructionToWidth(static_cast<Instruction>(mProgram.code.at(j)))) {
-
-    }
-    if(j > i) {
-      mSegments.emplace_back(ProgramSegment{
-        .startIp = static_cast<int32_t>(i),
-        .len = static_cast<int32_t>(j - i),
-        .callback = [this, i, j] {
-          while(mIp >= i && mIp < j) {
-            auto ret = interpretInstruction();
-#ifdef _DEBUG
-            auto dump = mStack.dump();
-            printf("Dump:\n%s\n", dump.c_str());
-#endif
-            if(!ret) {
-              return false;
-            }
-          }
-          return true;
-        }
-      });
-      i = j;
-    }
-  }
-  // create mIpToSegment array which is later used to find
-  // the correct segment for any given instruction
-  mIpToSegment.resize(mProgram.code.size());
-  for(size_t i = 0; i < mProgram.code.size(); ++i) {
-    bool found = false;
-    for(auto& s: mSegments) {
-      if (i >= s.startIp && i < s.startIp + s.len) {
-        mIpToSegment.at(i) = &s;
-        found = true;
-        break;
-      }
-    }
-    assert(found);
-  }
+  mCompiledCode = std::make_unique<JitCode>(mProgram.code);
 }
 std::vector<uint8_t> VM::run(const std::string &functionName, const std::vector<uint8_t> &initialStack) {
   mStack.clear();
@@ -412,9 +338,33 @@ std::vector<uint8_t> VM::run(const std::string &functionName, const std::vector<
   printf("Dump:\n%s\n", dump.c_str());
 #endif
   while(true) {
-    auto s = mIpToSegment.at(mIp);
-    assert(s);
-    if (!s->callback()) {
+    // first try to jit as many instructions as possible
+    {
+#ifdef _DEBUG
+      printf("Executing jit...\n");
+#endif
+      std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
+      JitReturn ret = mCompiledCode->getCode<JitReturn(*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getBasePtr(), mStack.getSize());
+      mStack.setSize(ret.stackSize);
+      mIp = ret.ip;
+      std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
+      if(mIp == 0x42424242) {
+        return mStack.moveData();
+      }
+#ifdef _DEBUG
+      auto dump = mStack.dump();
+      printf("New ip: %u\n", mIp);
+      printf("Dump:\n%s\n", dump.c_str());
+#endif
+    }
+    // then run one through the interpreter
+    // TODO run multiple instructions at once if multiple instructions in a row can't be jitted
+    auto ret = interpretInstruction();
+#ifdef _DEBUG
+    auto dump = mStack.dump();
+    printf("Dump:\n%s\n", dump.c_str());
+#endif
+    if (!ret) {
       return mStack.moveData();
     }
   }
@@ -542,6 +492,9 @@ bool VM::interpretInstruction() {
   }
   mIp += instructionToWidth(ins) * incIp;
   return true;
+}
+VM::~VM() {
+
 }
 void Stack::push(const std::vector<uint8_t> &data) {
   push(data.data(), data.size());
