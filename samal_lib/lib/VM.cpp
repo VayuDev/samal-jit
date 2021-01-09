@@ -12,7 +12,7 @@ struct JitReturn {
   int32_t stackSize; // upper 4 bytes
 };
 
-static constexpr bool isJittable(Instruction i) {
+[[maybe_unused]] static constexpr bool isJittable(Instruction i) {
   switch(i) {
     case Instruction::PUSH_8:
     case Instruction::ADD_I32:
@@ -35,7 +35,7 @@ static constexpr bool isJittable(Instruction i) {
 
 class JitCode : public Xbyak::CodeGenerator {
  public:
-  JitCode(const std::vector<uint8_t>& instructions) {
+  explicit JitCode(const std::vector<uint8_t>& instructions) {
     setDefaultJmpNEAR(true);
     // prelude
     push(rbx);
@@ -83,9 +83,7 @@ class JitCode : public Xbyak::CodeGenerator {
         return instructionToWidth(nextInstruction());
       };
       bool shouldAutoIncrement = true;
-      Xbyak::Label here;
-      L(here);
-      auto& ele = labels.emplace_back(std::make_pair((uint32_t)i, std::move(here)));
+      labels.emplace_back(std::make_pair((uint32_t)i, L()));
       switch(ins) {
         case Instruction::PUSH_8:
           if(nextInstruction() == Instruction::SUB_I32) {
@@ -493,9 +491,7 @@ bool VM::interpretInstruction() {
   mIp += instructionToWidth(ins) * incIp;
   return true;
 }
-VM::~VM() {
-
-}
+VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t> &data) {
   push(data.data(), data.size());
 }
@@ -557,7 +553,7 @@ void Stack::ensureSpace(size_t additionalLen) {
 uint8_t *Stack::getBasePtr() {
   return mData;
 }
-size_t Stack::getSize() {
+size_t Stack::getSize() const {
   return mDataLen;
 }
 void Stack::setSize(size_t val) {

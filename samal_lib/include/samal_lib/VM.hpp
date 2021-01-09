@@ -19,7 +19,7 @@ class Stack final {
   std::string dump();
   std::vector<uint8_t> moveData();
   uint8_t* getBasePtr();
-  size_t getSize();
+  size_t getSize() const;
   void setSize(size_t);
   void clear();
  private:
@@ -36,12 +36,11 @@ class VM final {
   ~VM();
   std::vector<uint8_t> run(const std::string& functionName, const std::vector<uint8_t>& initialStack);
  private:
-  __always_inline bool interpretInstruction();
-  __always_inline bool jitCompileAndRunInstruction();
+  inline bool interpretInstruction();
 
   Stack mStack;
   Program mProgram;
-  uint32_t mIp;
+  uint32_t mIp = 0;
   size_t mMainFunctionReturnTypeSize = 0;
   up<class JitCode> mCompiledCode;
 };
