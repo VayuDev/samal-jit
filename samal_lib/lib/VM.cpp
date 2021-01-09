@@ -35,7 +35,8 @@ struct JitReturn {
 
 class JitCode : public Xbyak::CodeGenerator {
 public:
-    explicit JitCode(const std::vector<uint8_t>& instructions) {
+    explicit JitCode(const std::vector<uint8_t>& instructions)
+    : Xbyak::CodeGenerator(4096 * 4){
         setDefaultJmpNEAR(true);
         // prelude
         push(rbx);
@@ -231,6 +232,9 @@ public:
                         movsq();
                     }
                 }
+                // TODO replace last return address with another special value that we can integrate into the jump table
+                cmp(ip, 0x42424242);
+                jge("AfterJumpTable");
 
                 jmp("JumpTable");
                 break;
@@ -249,35 +253,31 @@ public:
 
         jmp("AfterJumpTable");
 
-        L("JumpTable");
+        /*L("JumpTable");
         for (auto& label : labels) {
             mov(rax, label.first);
             cmp(rax, ip);
             je(label.second);
-        }
+        }*/
 
-        /*    mov(rax, "JumpTable");
-    jmp(ptr [rax + ip * 8]);
-    L("JumpTable");
-    size_t largestIp = 0;
-    for(auto & label : labels) {
-      if(label.first > largestIp) {
-        largestIp = label.first;
-      }
-    }
-    for(size_t i = 0; i <= largestIp; ++i) {
-      bool labelExists = false;
-      for(auto& label: labels) {
-        if(label.first == i) {
-          labelExists = true;
-          putL(label.second);
-          break;
+        L("JumpTable");
+        Xbyak::Label tbl;
+        mov(rax, tbl);
+        jmp(ptr [rax + ip * sizeof(void*)]);
+        L(tbl);
+        for(size_t i = 0; i <= instructions.size(); ++i) {
+          bool labelExists = false;
+          for(auto& label: labels) {
+            if(label.first == i) {
+              labelExists = true;
+              putL(label.second);
+              break;
+            }
+          }
+          if(!labelExists) {
+            putL("AfterJumpTable");
+          }
         }
-      }
-      if(!labelExists) {
-        putL("AfterJumpTable");
-      }
-    }*/
         L("AfterJumpTable");
 
         assert(!hasUndefinedLabel());
