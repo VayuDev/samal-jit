@@ -56,6 +56,12 @@ public:
         const auto& stackSize = r13;
         mov(stackSize, rdx);
 
+        // always just contain a zero or a one respectively
+        const auto& oneRegister = r8;
+        const auto& zeroRegister = r9;
+        mov(r8, 1);
+        mov(r9, 0);
+
         // copy stack in
         //    init copy
         mov(rcx, stackSize);
@@ -121,36 +127,32 @@ public:
                 pop(rax);
                 pop(rbx);
                 cmp(rbx, rax);
-                mov(rdx, 1);
                 mov(rax, 0);
-                cmovl(rax, rdx);
+                cmovl(rax, oneRegister);
                 push(rax);
                 break;
             case Instruction::COMPARE_LESS_EQUAL_THAN_I32:
                 pop(rax);
                 pop(rbx);
                 cmp(rbx, rax);
-                mov(rdx, 1);
                 mov(rax, 0);
-                cmovle(rax, rdx);
+                cmovle(rax, oneRegister);
                 push(rax);
                 break;
             case Instruction::COMPARE_MORE_THAN_I32:
                 pop(rax);
                 pop(rbx);
                 cmp(rbx, rax);
-                mov(rdx, 1);
                 mov(rax, 0);
-                cmovg(rax, rdx);
+                cmovg(rax, oneRegister);
                 push(rax);
                 break;
             case Instruction::COMPARE_MORE_EQUAL_THAN_I32:
                 pop(rax);
                 pop(rbx);
                 cmp(rbx, rax);
-                mov(rdx, 1);
                 mov(rax, 0);
-                cmovge(rax, rdx);
+                cmovge(rax, oneRegister);
                 push(rax);
                 break;
             case Instruction::REPUSH_FROM_N: {
@@ -174,14 +176,12 @@ public:
                 //    init copy
                 assert(popOffset % 8 == 0);
                 mov(rsi, rsp);
+                add(rsp, popLen);
                 mov(rdi, rsp);
-                add(rdi, popLen);
                 //    copy
                 for (int j = 0; j < popOffset / 8; ++j) {
                     movsq();
                 }
-
-                add(rsp, popLen);
                 break;
             }
             case Instruction::JUMP: {
@@ -224,13 +224,12 @@ public:
                     //    init copy
                     assert(popOffset % 8 == 0);
                     mov(rsi, rsp);
+                    add(rsp, popLen);
                     mov(rdi, rsp);
-                    add(rdi, popLen);
                     //    copy
                     for (int j = 0; j < popOffset / 8; ++j) {
                         movsq();
                     }
-                    add(rsp, popLen);
                 }
 
                 jmp("JumpTable");
