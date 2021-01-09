@@ -76,14 +76,37 @@ class JitCode : public Xbyak::CodeGenerator {
     // Start executing some Code!
     for(size_t i = offset; i < instructions.size();) {
       auto ins = static_cast<Instruction>(instructions.at(i));
+      auto nextInstruction = [&] {
+        return static_cast<Instruction>(instructions.at(i + instructionToWidth(ins)));
+      };
+      auto nextInstructionWidth = [&] {
+        return instructionToWidth(nextInstruction());
+      };
       bool shouldExit = false;
+      bool shouldAutoIncrement = true;
       Xbyak::Label here;
       L(here);
       auto& ele = labels.emplace_back(std::make_pair((uint32_t)i, std::move(here)));
       switch(ins) {
         case Instruction::PUSH_8:
-          mov(rax, *(uint64_t*)&instructions.at(i + 1));
-          push(rax);
+          if(nextInstruction() == Instruction::SUB_I32) {
+            pop(rbx);
+            sub(rbx, *(uint64_t*)&instructions.at(i + 1));
+            push(rbx);
+            add(ip, instructionToWidth(ins) + nextInstructionWidth());
+            i += instructionToWidth(ins) + nextInstructionWidth();
+            shouldAutoIncrement = false;
+          } else if(nextInstruction() == Instruction::ADD_I32) {
+            pop(rbx);
+            add(rbx, *(uint64_t*)&instructions.at(i + 1));
+            push(rbx);
+            add(ip, instructionToWidth(ins) + nextInstructionWidth());
+            i += instructionToWidth(ins) + nextInstructionWidth();
+            shouldAutoIncrement = false;
+          } else {
+            mov(rax, *(uint64_t*)&instructions.at(i + 1));
+            push(rax);
+          }
           break;
         case Instruction::ADD_I32:
           pop(rax);
@@ -225,8 +248,10 @@ class JitCode : public Xbyak::CodeGenerator {
       if(shouldExit) {
         break;
       }
-      i += instructionToWidth(ins);
-      add(ip, instructionToWidth(ins));
+      if(shouldAutoIncrement) {
+        i += instructionToWidth(ins);
+        add(ip, instructionToWidth(ins));
+      }
     }
 
     jmp("AfterJumpTable");
