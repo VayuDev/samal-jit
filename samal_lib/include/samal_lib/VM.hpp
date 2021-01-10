@@ -2,7 +2,9 @@
 
 #include "Program.hpp"
 #include "Util.hpp"
+#ifdef SAMAL_ENABLE_JIT
 #include <xbyak/xbyak.h>
+#endif
 
 namespace samal {
 
@@ -44,7 +46,9 @@ private:
     Program mProgram;
     uint32_t mIp = 0;
     size_t mMainFunctionReturnTypeSize = 0;
+#ifdef SAMAL_ENABLE_JIT
     up<class JitCode> mCompiledCode;
+#endif
 };
 
 }

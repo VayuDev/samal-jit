@@ -7,6 +7,7 @@
 
 namespace samal {
 
+#ifdef SAMAL_ENABLE_JIT
 struct JitReturn {
     int32_t ip;        // lower 4 bytes
     int32_t stackSize; // upper 4 bytes
@@ -329,10 +330,13 @@ public:
         ret();
     }
 };
+#endif
 
 VM::VM(Program program)
 : mProgram(std::move(program)) {
+#ifdef SAMAL_ENABLE_JIT
     mCompiledCode = std::make_unique<JitCode>(mProgram.code);
+#endif
 }
 std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<uint8_t>& initialStack) {
     mStack.clear();
@@ -348,6 +352,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
     printf("Dump:\n%s\n", dump.c_str());
 #endif
     while (true) {
+#ifdef SAMAL_ENABLE_JIT
         // first try to jit as many instructions as possible
         {
 #ifdef _DEBUG
@@ -371,6 +376,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
             printf("Dump:\n%s\n", dump.c_str());
 #endif
         }
+#endif
         // then run one through the interpreter
         // TODO run multiple instructions at once if multiple instructions in a row can't be jitted
         auto ret = interpretInstruction();
