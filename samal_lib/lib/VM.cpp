@@ -77,6 +77,8 @@ public:
         //    adjust rsp
         sub(rsp, stackSize);
 
+
+        std();
         auto jumpWithIp = [&] {
           jmp(ptr [tableRegister + ip * sizeof(void*)]);
         };
@@ -181,12 +183,17 @@ public:
                 //    init copy
                 assert(popOffset % 8 == 0);
                 mov(rsi, rsp);
-                add(rsp, popLen);
+                add(rsi, popOffset - 8);
+
                 mov(rdi, rsp);
+                add(rdi, popOffset + popLen - 8);
+
                 //    copy
                 for (int j = 0; j < popOffset / 8; ++j) {
                     movsq();
                 }
+
+                add(rsp, popLen);
                 break;
             }
             case Instruction::JUMP: {
@@ -228,13 +235,19 @@ public:
                     int32_t popOffset = returnInfoOffset;
                     //    init copy
                     assert(popOffset % 8 == 0);
+
                     mov(rsi, rsp);
-                    add(rsp, popLen);
+                    add(rsi, popOffset - 8);
+
                     mov(rdi, rsp);
+                    add(rdi, popOffset + popLen - 8);
+
                     //    copy
                     for (int j = 0; j < popOffset / 8; ++j) {
                         movsq();
                     }
+
+                    add(rsp, popLen);
                 }
                 // TODO replace last return address with another special value that we can integrate into the jump table
                 cmp(ip, 0x42424242);
@@ -346,6 +359,10 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
             mIp = ret.ip;
             std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
             if (mIp == 0x42424242) {
+#ifdef _DEBUG
+                auto dump = mStack.dump();
+                printf("Dump:\n%s\n", dump.c_str());
+#endif
                 return mStack.moveData();
             }
 #ifdef _DEBUG
