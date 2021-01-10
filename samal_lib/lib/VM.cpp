@@ -501,7 +501,7 @@ bool VM::interpretInstruction() {
         mIp = *(int32_t*)mStack.get(offset + 8);
         mStack.popBelow(offset, 8);
         incIp = false;
-        if (mStack.getSize() == mMainFunctionReturnTypeSize) {
+        if (mIp == 0x42424242) {
             return false;
         }
         break;
