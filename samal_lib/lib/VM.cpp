@@ -59,9 +59,10 @@ public:
 
         // always just contain a zero or a one respectively
         const auto& oneRegister = r8;
-        const auto& zeroRegister = r9;
-        mov(r8, 1);
-        mov(r9, 0);
+        mov(oneRegister, 1);
+
+        const auto& tableRegister = r9;
+        mov(tableRegister, "JumpTable");
 
         // copy stack in
         //    init copy
@@ -76,7 +77,10 @@ public:
         //    adjust rsp
         sub(rsp, stackSize);
 
-        jmp("JumpTable");
+        auto jumpWithIp = [&] {
+          jmp(ptr [tableRegister + ip * sizeof(void*)]);
+        };
+        jumpWithIp();
 
         L("Code");
         std::vector<std::pair<uint32_t, Xbyak::Label>> labels;
@@ -188,7 +192,7 @@ public:
             case Instruction::JUMP: {
                 auto p = *(int32_t*)&instructions.at(i + 1);
                 mov(ip, p);
-                jmp("JumpTable");
+                jumpWithIp();
                 break;
             }
             case Instruction::JUMP_IF_FALSE: {
@@ -197,7 +201,7 @@ public:
                 mov(rbx, *(uint32_t*)&instructions.at(i + 1));
                 cmp(rax, 0);
                 cmove(ip, rbx);
-                jmp("JumpTable");
+                jumpWithIp();
                 break;
             }
             case Instruction::CALL: {
@@ -209,7 +213,7 @@ public:
                 mov(qword[rax], ip);
 
                 mov(ip, rbx);
-                jmp("JumpTable");
+                jumpWithIp();
                 break;
             }
             case Instruction::RETURN: {
@@ -236,7 +240,7 @@ public:
                 cmp(ip, 0x42424242);
                 jge("AfterJumpTable");
 
-                jmp("JumpTable");
+                jumpWithIp();
                 break;
             }
             default:
@@ -261,10 +265,6 @@ public:
         }*/
 
         L("JumpTable");
-        Xbyak::Label tbl;
-        mov(rax, tbl);
-        jmp(ptr [rax + ip * sizeof(void*)]);
-        L(tbl);
         for(size_t i = 0; i <= instructions.size(); ++i) {
           bool labelExists = false;
           for(auto& label: labels) {
