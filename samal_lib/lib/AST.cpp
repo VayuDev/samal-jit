@@ -256,6 +256,11 @@ std::optional<Datatype> TupleCreationNode::getDatatype() const {
 std::string TupleCreationNode::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
+void TupleCreationNode::compile(Compiler& comp) const {
+    for(auto& child: mParams->getParams()) {
+        child->compile(comp);
+    }
+}
 
 ListCreationNode::ListCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params)
 : ExpressionNode(std::move(source)), mParams(std::move(params)) {

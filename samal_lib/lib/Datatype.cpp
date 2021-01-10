@@ -138,7 +138,22 @@ bool Datatype::isInteger() const {
 }
 size_t Datatype::getSizeOnStack() const {
 #ifdef x86_64_BIT_MODE
-    return 8;
+    switch (mCategory) {
+    case DatatypeCategory::i32:
+    case DatatypeCategory::i64:
+    case DatatypeCategory::function:
+    case DatatypeCategory::bool_:
+        return 8;
+    case DatatypeCategory::tuple: {
+        size_t sum = 0;
+        for (auto& subType : getTupleInfo()) {
+            sum += subType.getSizeOnStack();
+        }
+        return sum;
+    }
+    default:
+        assert(false);
+    }
 #endif
     switch (mCategory) {
     case DatatypeCategory::i32:
@@ -149,6 +164,13 @@ size_t Datatype::getSizeOnStack() const {
         return 8;
     case DatatypeCategory::bool_:
         return 1;
+    case DatatypeCategory::tuple: {
+        size_t sum = 0;
+        for (auto& subType : getTupleInfo()) {
+            sum += subType.getSizeOnStack();
+        }
+        return sum;
+    }
     default:
         assert(false);
     }
