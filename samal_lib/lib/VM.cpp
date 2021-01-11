@@ -37,7 +37,7 @@ struct JitReturn {
 class JitCode : public Xbyak::CodeGenerator {
 public:
     explicit JitCode(const std::vector<uint8_t>& instructions)
-    : Xbyak::CodeGenerator(4096 * 4){
+    : Xbyak::CodeGenerator(4096 * 4) {
         setDefaultJmpNEAR(true);
         // prelude
         push(rbx);
@@ -78,9 +78,8 @@ public:
         //    adjust rsp
         sub(rsp, stackSize);
 
-
         auto jumpWithIp = [&] {
-          jmp(ptr [tableRegister + ip * sizeof(void*)]);
+            jmp(ptr[tableRegister + ip * sizeof(void*)]);
         };
         jumpWithIp();
 
@@ -281,18 +280,18 @@ public:
         }*/
 
         L("JumpTable");
-        for(size_t i = 0; i <= instructions.size(); ++i) {
-          bool labelExists = false;
-          for(auto& label: labels) {
-            if(label.first == i) {
-              labelExists = true;
-              putL(label.second);
-              break;
+        for (size_t i = 0; i <= instructions.size(); ++i) {
+            bool labelExists = false;
+            for (auto& label : labels) {
+                if (label.first == i) {
+                    labelExists = true;
+                    putL(label.second);
+                    break;
+                }
             }
-          }
-          if(!labelExists) {
-            putL("AfterJumpTable");
-          }
+            if (!labelExists) {
+                putL("AfterJumpTable");
+            }
         }
         L("AfterJumpTable");
 
@@ -357,26 +356,26 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
 #ifdef SAMAL_ENABLE_JIT
         // first try to jit as many instructions as possible
         {
-#ifdef _DEBUG
+#    ifdef _DEBUG
             printf("Executing jit...\n");
-#endif
+#    endif
             std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
             JitReturn ret = mCompiledCode->getCode<JitReturn (*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getBasePtr(), mStack.getSize());
             mStack.setSize(ret.stackSize);
             mIp = ret.ip;
             std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
             if (mIp == 0x42424242) {
-#ifdef _DEBUG
+#    ifdef _DEBUG
                 auto dump = mStack.dump();
                 printf("Dump:\n%s\n", dump.c_str());
-#endif
+#    endif
                 return mStack.moveData();
             }
-#ifdef _DEBUG
+#    ifdef _DEBUG
             auto dump = mStack.dump();
             printf("New ip: %u\n", mIp);
             printf("Dump:\n%s\n", dump.c_str());
-#endif
+#    endif
         }
 #endif
         // then run one through the interpreter

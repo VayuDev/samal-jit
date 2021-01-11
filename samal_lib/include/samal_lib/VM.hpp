@@ -3,7 +3,7 @@
 #include "Program.hpp"
 #include "Util.hpp"
 #ifdef SAMAL_ENABLE_JIT
-#include <xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 #endif
 
 namespace samal {

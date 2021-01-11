@@ -165,7 +165,7 @@ void Compiler::accessTupleElement(const Datatype& tupleType, uint32_t index) {
     auto& tupleInfo = tupleType.getTupleInfo();
     auto& accessedType = tupleInfo.at(index);
     size_t offsetOfAccessedType = 0;
-    for(ssize_t i = static_cast<ssize_t>(tupleInfo.size()) - 1; i > index; --i) {
+    for (ssize_t i = static_cast<ssize_t>(tupleInfo.size()) - 1; i > index; --i) {
         offsetOfAccessedType += tupleInfo.at(i).getSizeOnStack();
     }
     addInstructions(Instruction::REPUSH_FROM_N, accessedType.getSizeOnStack(), offsetOfAccessedType);
@@ -173,7 +173,6 @@ void Compiler::accessTupleElement(const Datatype& tupleType, uint32_t index) {
 
     mStackSize += accessedType.getSizeOnStack();
     mStackSize -= tupleType.getSizeOnStack();
-
 }
 
 FunctionDuration::FunctionDuration(Compiler& compiler, const up<IdentifierNode>& identifier, const up<ParameterListNode>& params)

@@ -59,6 +59,7 @@ public:
     void performFunctionCall(size_t sizeOfArguments, size_t sizeOfReturnValue);
     void setVariableLocation(const up<IdentifierNode>& identifier);
     void accessTupleElement(const Datatype& tupleType, uint32_t index);
+
 private:
     void addInstructions(Instruction insn);
     void addInstructions(Instruction insn, int32_t param);

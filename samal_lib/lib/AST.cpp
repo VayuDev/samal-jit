@@ -254,7 +254,7 @@ std::string TupleCreationNode::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 void TupleCreationNode::compile(Compiler& comp) const {
-    for(auto& child: mParams->getParams()) {
+    for (auto& child : mParams->getParams()) {
         child->compile(comp);
     }
 }
@@ -521,11 +521,10 @@ std::string ListAccessExpressionNode::dump(unsigned int indent) const {
 
 TupleAccessExpressionNode::TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index)
 : ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(index) {
-
 }
 std::optional<Datatype> TupleAccessExpressionNode::getDatatype() const {
     auto nameType = mName->getDatatype();
-    if(!nameType)
+    if (!nameType)
         return {};
     return nameType->getTupleInfo().at(mIndex);
 }
@@ -533,7 +532,7 @@ void TupleAccessExpressionNode::completeDatatype(DatatypeCompleter& declList) {
     mName->completeDatatype(declList);
     auto lhsType = mName->getDatatype();
     assert(lhsType);
-    if(lhsType->getCategory() != DatatypeCategory::tuple) {
+    if (lhsType->getCategory() != DatatypeCategory::tuple) {
         throwException("Trying to access non-tuple type " + lhsType->toString() + " as a tuple");
     }
     // TODO detect out of range

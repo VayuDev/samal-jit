@@ -152,7 +152,7 @@ class TupleCreationNode : public ExpressionNode {
 public:
     explicit TupleCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params);
     void completeDatatype(DatatypeCompleter& declList) override;
-    void compile(Compiler &) const override;
+    void compile(Compiler&) const override;
     [[nodiscard]] std::optional<Datatype> getDatatype() const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "TupleCreationNode"; }
@@ -236,9 +236,10 @@ public:
     TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index);
     [[nodiscard]] std::optional<Datatype> getDatatype() const override;
     void completeDatatype(DatatypeCompleter& declList) override;
-    void compile(Compiler &) const override;
+    void compile(Compiler&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "TupleAccessExpressionNode"; }
+
 private:
     up<ExpressionNode> mName;
     uint32_t mIndex;
