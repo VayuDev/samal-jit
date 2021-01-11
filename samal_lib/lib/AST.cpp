@@ -1,16 +1,13 @@
 #include "samal_lib/AST.hpp"
-#include "easy_iterator.h"
 #include "samal_lib/Compiler.hpp"
 #include "samal_lib/DatatypeCompleter.hpp"
 #include <cassert>
-
-using namespace easy_iterator;
 
 namespace samal {
 
 static std::string createIndent(unsigned indent) {
     std::string ret;
-    for ([[maybe_unused]] auto _ : range(indent)) {
+    for (unsigned i = 0; i < indent; ++i) {
         ret += ' ';
     }
     return ret;
