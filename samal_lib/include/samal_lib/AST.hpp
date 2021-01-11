@@ -231,6 +231,19 @@ private:
     up<ExpressionNode> mName, mIndex;
 };
 
+class TupleAccessExpressionNode : public ExpressionNode {
+public:
+    TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index);
+    [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+    void completeDatatype(DatatypeCompleter& declList) override;
+    void compile(Compiler &) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "TupleAccessExpressionNode"; }
+private:
+    up<ExpressionNode> mName;
+    uint32_t mIndex;
+};
+
 class DeclarationNode : public ASTNode {
 public:
     explicit DeclarationNode(SourceCodeRef source);

@@ -195,7 +195,7 @@ Parser::Parser() {
         };
     };
     // this is stupid because we don't handle left recursion correctly in the peg parser :c
-    mPegParser["PostfixExpression"] << "LiteralExpression ~nws~(~nws~(~nws~'(' ExpressionListWithoutDatatype ')') | ~nws~('[' Expression ']'))*" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["PostfixExpression"] << "LiteralExpression ~nws~(~nws~(~nws~'(' ExpressionListWithoutDatatype ')') | ~nws~('[' Expression ']') | ~nws~(~nws~':' ~nws~[\\d]+))*" >> [](peg::MatchInfo& res) -> peg::Any {
         peg::Any ret = std::move(res[0].result);
         while (!res[1].subs.empty()) {
             switch (*res[1][0].choice) {
@@ -213,6 +213,19 @@ Parser::Parser() {
                     up<ExpressionNode> { res[1][0][0][1].result.move<ExpressionNode*>() }
                 };
                 break;
+            case 2: {
+                uint32_t index;
+                const auto& node = res[1][0][0][1];
+                std::from_chars(node.start, node.start + node.len, index);
+                ret = TupleAccessExpressionNode {
+                    toRef(res),
+                    up<ExpressionNode> { ret.move<ExpressionNode*>() },
+                    index
+                };
+                break;
+            }
+            default:
+                assert(false);
             }
             res[1].subs.erase(res[1].subs.begin());
         }

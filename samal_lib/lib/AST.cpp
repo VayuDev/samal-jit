@@ -519,6 +519,39 @@ std::string ListAccessExpressionNode::dump(unsigned int indent) const {
     return ret;
 }
 
+TupleAccessExpressionNode::TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index)
+: ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(index) {
+
+}
+std::optional<Datatype> TupleAccessExpressionNode::getDatatype() const {
+    auto nameType = mName->getDatatype();
+    if(!nameType)
+        return {};
+    return nameType->getTupleInfo().at(mIndex);
+}
+void TupleAccessExpressionNode::completeDatatype(DatatypeCompleter& declList) {
+    mName->completeDatatype(declList);
+    auto lhsType = mName->getDatatype();
+    assert(lhsType);
+    if(lhsType->getCategory() != DatatypeCategory::tuple) {
+        throwException("Trying to access non-tuple type " + lhsType->toString() + " as a tuple");
+    }
+    // TODO detect out of range
+}
+void TupleAccessExpressionNode::compile(Compiler& comp) const {
+    // TODO optimize if lhs is IdentifierNode
+    mName->compile(comp);
+    comp.accessTupleElement(*mName->getDatatype(), mIndex);
+}
+std::string TupleAccessExpressionNode::dump(unsigned int indent) const {
+    auto ret = ASTNode::dump(indent);
+    ret += createIndent(indent + 1) + "Name:\n";
+    ret += mName->dump(indent + 2);
+    ret += createIndent(indent + 1) + "Index:\n";
+    ret += std::to_string(mIndex);
+    return ret;
+}
+
 DeclarationNode::DeclarationNode(SourceCodeRef source)
 : ASTNode(std::move(source)) {
 }

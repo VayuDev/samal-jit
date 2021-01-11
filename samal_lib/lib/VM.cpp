@@ -79,7 +79,6 @@ public:
         sub(rsp, stackSize);
 
 
-        std();
         auto jumpWithIp = [&] {
           jmp(ptr [tableRegister + ip * sizeof(void*)]);
         };
@@ -172,6 +171,7 @@ public:
                 add(rsi, repushOffset);
                 sub(rsp, repushLen);
                 mov(rdi, rsp);
+                cld();
                 //    copy
                 for (int j = 0; j < repushLen / 8; ++j) {
                     movsq();
@@ -189,6 +189,7 @@ public:
                 mov(rdi, rsp);
                 add(rdi, popOffset + popLen - 8);
 
+                std();
                 //    copy
                 for (int j = 0; j < popOffset / 8; ++j) {
                     movsq();
@@ -243,6 +244,7 @@ public:
                     mov(rdi, rsp);
                     add(rdi, popOffset + popLen - 8);
 
+                    std();
                     //    copy
                     for (int j = 0; j < popOffset / 8; ++j) {
                         movsq();
