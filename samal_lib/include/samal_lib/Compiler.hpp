@@ -44,12 +44,7 @@ public:
     size_t getCurrentLocation();
     void changeStackSize(ssize_t diff);
 
-    template<typename T>
-    inline void pushPrimitiveLiteral(T) {
-        assert(false);
-    }
-    template<>
-    inline void pushPrimitiveLiteral(int32_t param) {
+    inline void pushPrimitiveLiteralI32(int32_t param) {
 #ifdef x86_64_BIT_MODE
         addInstructions(Instruction::PUSH_8, param, 0);
         mStackSize += 8;

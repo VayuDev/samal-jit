@@ -206,7 +206,7 @@ std::string LiteralInt32Node::dump(unsigned int indent) const {
 void LiteralInt32Node::completeDatatype(DatatypeCompleter&) {
 }
 void LiteralInt32Node::compile(Compiler& comp) const {
-    comp.pushPrimitiveLiteral(mValue);
+    comp.pushPrimitiveLiteralI32(mValue);
 }
 
 IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name)
