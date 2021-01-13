@@ -11,3 +11,6 @@ BreakBeforeBraces: Attach
 NamespaceIndentation: None
 AllowAllArgumentsOnNextLine: false
 ConstructorInitializerIndentWidth: 0
+SpacesInAngles: false
+SpaceBeforeParens: Never
+SpaceBeforeCpp11BracedList: false
