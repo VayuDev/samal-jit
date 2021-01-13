@@ -16,7 +16,7 @@ class ASTNode {
 public:
     explicit ASTNode(SourceCodeRef source);
     virtual ~ASTNode() = default;
-    virtual void completeDatatype(DatatypeCompleter&) {};
+    virtual void completeDatatype(DatatypeCompleter&){};
     virtual void compile(Compiler&) const {};
     [[nodiscard]] virtual std::string dump(unsigned indent) const;
     [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
@@ -212,10 +212,26 @@ public:
     void compile(Compiler&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionCallExpressionNode"; }
+    void prependChainedParameter(Datatype chainedParamType);
 
 private:
     up<ExpressionNode> mName;
+    std::optional<Datatype> mPrependedChainedParameterType;
     up<ExpressionListNodeWithoutDatatypes> mParams;
+};
+
+class FunctionChainExpressionNode : public ExpressionNode {
+public:
+    FunctionChainExpressionNode(SourceCodeRef source, up<ExpressionNode> initialValue, up<FunctionCallExpressionNode> functionCall);
+    [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+    void completeDatatype(DatatypeCompleter& declList) override;
+    void compile(Compiler&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "FunctionChainExpressionNode"; }
+
+private:
+    up<ExpressionNode> mInitialValue;
+    up<FunctionCallExpressionNode> mFunctionCall;
 };
 
 class ListAccessExpressionNode : public ExpressionNode {

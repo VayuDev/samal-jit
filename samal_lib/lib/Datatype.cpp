@@ -4,15 +4,15 @@
 namespace samal {
 
 std::string Datatype::toString() const {
-    switch (mCategory) {
+    switch(mCategory) {
     case DatatypeCategory::i32:
         return "i32";
     case DatatypeCategory::function: {
         auto& functionInfo = getFunctionTypeInfo();
         std::string ret = "fn(";
-        for (size_t i = 0; i < functionInfo.second.size(); ++i) {
+        for(size_t i = 0; i < functionInfo.second.size(); ++i) {
             ret += functionInfo.second.at(i).toString();
-            if (i < functionInfo.second.size() - 1) {
+            if(i < functionInfo.second.size() - 1) {
                 ret += ",";
             }
         }
@@ -22,9 +22,9 @@ std::string Datatype::toString() const {
     case DatatypeCategory::tuple: {
         auto& tupleInfo = getTupleInfo();
         std::string ret = "(";
-        for (size_t i = 0; i < tupleInfo.size(); ++i) {
+        for(size_t i = 0; i < tupleInfo.size(); ++i) {
             ret += tupleInfo.at(i).toString();
-            if (i < tupleInfo.size() - 1) {
+            if(i < tupleInfo.size() - 1) {
                 ret += ",";
             }
         }
@@ -59,60 +59,60 @@ Datatype::Datatype(std::vector<Datatype> params)
 : mFurtherInfo(std::move(params)), mCategory(DatatypeCategory::tuple) {
 }
 const std::pair<sp<Datatype>, std::vector<Datatype>>& Datatype::getFunctionTypeInfo() const& {
-    if (mCategory != DatatypeCategory::function) {
-        throw std::runtime_error { "Can't call this type!" };
+    if(mCategory != DatatypeCategory::function) {
+        throw std::runtime_error{ "Can't call this type!" };
     }
     return std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(mFurtherInfo);
 }
 const std::vector<Datatype>& Datatype::getTupleInfo() const {
-    if (mCategory != DatatypeCategory::tuple) {
-        throw std::runtime_error { "This is not a tuple!" };
+    if(mCategory != DatatypeCategory::tuple) {
+        throw std::runtime_error{ "This is not a tuple!" };
     }
     return std::get<std::vector<Datatype>>(mFurtherInfo);
 }
 const Datatype& Datatype::getListInfo() const {
-    if (mCategory != DatatypeCategory::list) {
-        throw std::runtime_error { "This is not a list!" };
+    if(mCategory != DatatypeCategory::list) {
+        throw std::runtime_error{ "This is not a list!" };
     }
     return *std::get<sp<Datatype>>(mFurtherInfo);
 }
 bool Datatype::operator==(const Datatype& other) const {
-    if (mCategory != other.mCategory)
+    if(mCategory != other.mCategory)
         return false;
-    if (mFurtherInfo.index() != other.mFurtherInfo.index())
+    if(mFurtherInfo.index() != other.mFurtherInfo.index())
         return false;
     try {
         // check for function type equality
         auto& selfValue = std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(mFurtherInfo);
         auto& otherValue = std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(other.mFurtherInfo);
-        if (selfValue.second != otherValue.second)
+        if(selfValue.second != otherValue.second)
             return false;
-        if (selfValue.first != otherValue.first) {
-            if (selfValue.first && otherValue.first) {
-                if (*selfValue.first != *otherValue.first) {
+        if(selfValue.first != otherValue.first) {
+            if(selfValue.first && otherValue.first) {
+                if(*selfValue.first != *otherValue.first) {
                     return false;
                 } else {
                     return true;
                 }
             }
         }
-    } catch (std::bad_variant_access&) {
+    } catch(std::bad_variant_access&) {
         try {
             // check for array type equality
             auto& selfValue = std::get<sp<Datatype>>(mFurtherInfo);
             auto& otherValue = std::get<sp<Datatype>>(other.mFurtherInfo);
-            if (selfValue != otherValue) {
-                if (selfValue && otherValue) {
-                    if (*selfValue != *otherValue) {
+            if(selfValue != otherValue) {
+                if(selfValue && otherValue) {
+                    if(*selfValue != *otherValue) {
                         return false;
                     } else {
                         return true;
                     }
                 }
             }
-        } catch (std::bad_variant_access&) {
+        } catch(std::bad_variant_access&) {
             // fall back to simple check
-            if (mFurtherInfo != other.mFurtherInfo) {
+            if(mFurtherInfo != other.mFurtherInfo) {
                 return false;
             }
         }
@@ -126,10 +126,10 @@ DatatypeCategory Datatype::getCategory() const {
     return mCategory;
 }
 Datatype Datatype::createEmptyTuple() {
-    return Datatype(std::vector<Datatype> {});
+    return Datatype(std::vector<Datatype>{});
 }
 Datatype Datatype::createListType(Datatype baseType) {
-    Datatype ret { DatatypeCategory::list };
+    Datatype ret{ DatatypeCategory::list };
     ret.mFurtherInfo = std::make_shared<Datatype>(std::move(baseType));
     return ret;
 }
@@ -138,15 +138,16 @@ bool Datatype::isInteger() const {
 }
 size_t Datatype::getSizeOnStack() const {
 #ifdef x86_64_BIT_MODE
-    switch (mCategory) {
+    switch(mCategory) {
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
     case DatatypeCategory::function:
     case DatatypeCategory::bool_:
+    case DatatypeCategory::list:
         return 8;
     case DatatypeCategory::tuple: {
         size_t sum = 0;
-        for (auto& subType : getTupleInfo()) {
+        for(auto& subType : getTupleInfo()) {
             sum += subType.getSizeOnStack();
         }
         return sum;
@@ -155,7 +156,7 @@ size_t Datatype::getSizeOnStack() const {
         assert(false);
     }
 #endif
-    switch (mCategory) {
+    switch(mCategory) {
     case DatatypeCategory::i32:
         return 4;
     case DatatypeCategory::i64:
@@ -166,11 +167,13 @@ size_t Datatype::getSizeOnStack() const {
         return 1;
     case DatatypeCategory::tuple: {
         size_t sum = 0;
-        for (auto& subType : getTupleInfo()) {
+        for(auto& subType : getTupleInfo()) {
             sum += subType.getSizeOnStack();
         }
         return sum;
     }
+    case DatatypeCategory::list:
+        return 8;
     default:
         assert(false);
     }

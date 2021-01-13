@@ -29,8 +29,8 @@ private:
     void ensureSpace(size_t additionalLen);
 
     uint8_t* mData;
-    size_t mDataLen { 0 };
-    size_t mDataReserved { 0 };
+    size_t mDataLen{ 0 };
+    size_t mDataReserved{ 0 };
 };
 
 class VM final {

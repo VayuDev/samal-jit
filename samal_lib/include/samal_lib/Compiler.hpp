@@ -71,12 +71,12 @@ private:
 
     struct StackFrame {
         std::map<int32_t, VariableInfoOnStack> variables;
-        size_t bytesToPopOnExit { 0 };
+        size_t bytesToPopOnExit{ 0 };
     };
 
     std::optional<Program> mProgram;
     std::stack<StackFrame> mStackFrames;
-    int mStackSize { 0 };
+    int mStackSize{ 0 };
     // maps function ids to their offset in the code
     std::map<int32_t, int32_t> mFunctions;
     std::vector<size_t> mFunctionIdsInCode;

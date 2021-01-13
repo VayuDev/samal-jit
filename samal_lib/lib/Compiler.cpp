@@ -9,10 +9,10 @@ Compiler::Compiler() {
 
 Program Compiler::compile(std::vector<up<ModuleRootNode>>& modules) {
     mProgram.emplace();
-    for (auto& module : modules) {
+    for(auto& module : modules) {
         module->compile(*this);
     }
-    for (auto& locationInCode : mFunctionIdsInCode) {
+    for(auto& locationInCode : mFunctionIdsInCode) {
         auto varId = *(int32_t*)&mProgram->code.at(locationInCode);
         auto ipOffsetOrError = mFunctions.find(varId);
         assert(ipOffsetOrError != mFunctions.end());
@@ -24,11 +24,11 @@ void Compiler::assignToVariable(const up<IdentifierNode>& identifier) {
     auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
     addInstructions(Instruction::REPUSH_N, static_cast<int32_t>(sizeOnStack));
     mStackSize += sizeOnStack;
-    mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack { .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
+    mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::setVariableLocation(const up<IdentifierNode>& identifier) {
     auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
-    mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack { .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
+    mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::addInstructions(Instruction insn, int32_t param) {
     mProgram->code.resize(mProgram->code.size() + 5);
@@ -55,9 +55,9 @@ void Compiler::popUnusedValueAtEndOfScope(const Datatype& type) {
     mStackFrames.top().bytesToPopOnExit += type.getSizeOnStack();
 }
 void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode::BinaryOperator op) {
-    switch (op) {
+    switch(op) {
     case BinaryExpressionNode::BinaryOperator::PLUS:
-        switch (inputTypes.getCategory()) {
+        switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::ADD_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
@@ -67,7 +67,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::MINUS:
-        switch (inputTypes.getCategory()) {
+        switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::SUB_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
@@ -77,7 +77,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
-        switch (inputTypes.getCategory()) {
+        switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -87,7 +87,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
-        switch (inputTypes.getCategory()) {
+        switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -97,7 +97,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
-        switch (inputTypes.getCategory()) {
+        switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_MORE_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -107,7 +107,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
-        switch (inputTypes.getCategory()) {
+        switch(inputTypes.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -122,12 +122,12 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
 }
 void Compiler::loadVariableToStack(const IdentifierNode& identifier) {
     auto stackCpy = mStackFrames;
-    while (!stackCpy.empty()) {
+    while(!stackCpy.empty()) {
         auto varLocation = stackCpy.top().variables.find(*identifier.getId());
-        if (varLocation != stackCpy.top().variables.end()) {
+        if(varLocation != stackCpy.top().variables.end()) {
             addInstructions(Instruction::REPUSH_FROM_N, varLocation->second.sizeOnStack, mStackSize - varLocation->second.offsetFromTop);
             // replace every function id with its ip at the end
-            if (identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
+            if(identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
                 mFunctionIdsInCode.push_back(mProgram->code.size() - 8);
             }
             mStackSize += varLocation->second.sizeOnStack;
@@ -135,7 +135,7 @@ void Compiler::loadVariableToStack(const IdentifierNode& identifier) {
         }
         stackCpy.pop();
     }
-    if (identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
+    if(identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
         addInstructions(Instruction::PUSH_8, *identifier.getId(), 0);
         mFunctionIdsInCode.push_back(mProgram->code.size() - 8);
         mStackSize += 8;
@@ -165,7 +165,7 @@ void Compiler::accessTupleElement(const Datatype& tupleType, uint32_t index) {
     auto& tupleInfo = tupleType.getTupleInfo();
     auto& accessedType = tupleInfo.at(index);
     size_t offsetOfAccessedType = 0;
-    for (ssize_t i = static_cast<ssize_t>(tupleInfo.size()) - 1; i > index; --i) {
+    for(ssize_t i = static_cast<ssize_t>(tupleInfo.size()) - 1; i > index; --i) {
         offsetOfAccessedType += tupleInfo.at(i).getSizeOnStack();
     }
     addInstructions(Instruction::REPUSH_FROM_N, accessedType.getSizeOnStack(), offsetOfAccessedType);
@@ -184,7 +184,7 @@ FunctionDuration::FunctionDuration(Compiler& compiler, const up<IdentifierNode>&
     mCompiler.mProgram->functions[mIdentifier->getName()].len = -1;
     mCompiler.mStackFrames.emplace();
 
-    for (auto& param : mParams->getParams()) {
+    for(auto& param : mParams->getParams()) {
         mCompiler.mStackSize += param.type.getSizeOnStack();
         mCompiler.setVariableLocation(param.name);
     }
@@ -193,12 +193,12 @@ FunctionDuration::~FunctionDuration() {
     // the stackframe contains the allocation for the parameters
     assert(mCompiler.mStackFrames.top().bytesToPopOnExit == 0);
     size_t sumSize = 0;
-    for (auto& var : mCompiler.mStackFrames.top().variables) {
+    for(auto& var : mCompiler.mStackFrames.top().variables) {
         sumSize += var.second.sizeOnStack;
     }
     const auto functionType = mIdentifier->getDatatype();
     const auto returnTypeSize = functionType->getFunctionTypeInfo().first->getSizeOnStack();
-    if (sumSize > 0) {
+    if(sumSize > 0) {
         mCompiler.addInstructions(Instruction::POP_N_BELOW, static_cast<int32_t>(sumSize), returnTypeSize);
         mCompiler.mStackSize -= sumSize;
     }
@@ -220,10 +220,10 @@ ScopeDuration::~ScopeDuration() {
     // At the end of the scope, we need to pop all local variables off the stack.
     // We do this in a single instruction at the end to improve performance.
     size_t sumSize = mCompiler.mStackFrames.top().bytesToPopOnExit;
-    for (auto& var : mCompiler.mStackFrames.top().variables) {
+    for(auto& var : mCompiler.mStackFrames.top().variables) {
         sumSize += var.second.sizeOnStack;
     }
-    if (sumSize > 0) {
+    if(sumSize > 0) {
         mCompiler.addInstructions(Instruction::POP_N_BELOW, static_cast<int32_t>(sumSize), mReturnTypeSize);
         mCompiler.mStackSize -= sumSize;
     }
@@ -232,18 +232,18 @@ ScopeDuration::~ScopeDuration() {
 
 std::string Program::disassemble() const {
     std::string ret;
-    for (auto& [name, location] : functions) {
+    for(auto& [name, location] : functions) {
         ret += "Function " + name + ":\n";
         size_t offset = location.offset;
-        while (offset < location.offset + location.len) {
+        while(offset < location.offset + location.len) {
             ret += " " + std::to_string(offset) + " ";
             ret += instructionToString(static_cast<Instruction>(code.at(offset)));
             auto width = instructionToWidth(static_cast<Instruction>(code.at(offset)));
-            if (width >= 5) {
+            if(width >= 5) {
                 ret += " ";
                 ret += std::to_string(*reinterpret_cast<const int32_t*>(&code.at(offset + 1)));
             }
-            if (width >= 9) {
+            if(width >= 9) {
                 ret += " ";
                 ret += std::to_string(*reinterpret_cast<const int32_t*>(&code.at(offset + 5)));
             }

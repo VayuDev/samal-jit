@@ -7,7 +7,7 @@ namespace samal {
 
 static std::string createIndent(unsigned indent) {
     std::string ret;
-    for (unsigned i = 0; i < indent; ++i) {
+    for(unsigned i = 0; i < indent; ++i) {
         ret += ' ';
     }
     return ret;
@@ -21,9 +21,9 @@ std::string ASTNode::dump(unsigned int indent) const {
 }
 void ASTNode::throwException(const std::string& msg) const {
     throw DatatypeCompletionException(
-        std::string { "In " }
+        std::string{ "In " }
         + getClassName() + ": '"
-        + std::string { std::string_view { mSourceCodeRef.start, mSourceCodeRef.len } }
+        + std::string{ std::string_view{ mSourceCodeRef.start, mSourceCodeRef.len } }
         + "' (" + std::to_string(mSourceCodeRef.line) + ":" + std::to_string(mSourceCodeRef.column) + ")"
         + ": " + msg);
 }
@@ -33,14 +33,14 @@ ParameterListNode::ParameterListNode(SourceCodeRef source, std::vector<Parameter
 }
 std::string ParameterListNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
-    for (auto& child : mParams) {
+    for(auto& child : mParams) {
         ret += child.name->dump(indent + 1);
         ret += createIndent(indent + 1) + "Type: " + child.type.toString() + "\n";
     }
     return ret;
 }
 void ParameterListNode::completeDatatype(DatatypeCompleter& declList) {
-    for (auto& param : mParams) {
+    for(auto& param : mParams) {
         declList.declareVariable(param.name->getName(), param.type);
         param.name->completeDatatype(declList);
     }
@@ -54,13 +54,13 @@ ExpressionListNodeWithoutDatatypes::ExpressionListNodeWithoutDatatypes(SourceCod
 }
 std::string ExpressionListNodeWithoutDatatypes::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
-    for (auto& child : mParams) {
+    for(auto& child : mParams) {
         ret += child->dump(indent + 1);
     }
     return ret;
 }
 void ExpressionListNodeWithoutDatatypes::completeDatatype(DatatypeCompleter& declList) {
-    for (auto& child : mParams) {
+    for(auto& child : mParams) {
         child->completeDatatype(declList);
     }
 }
@@ -110,9 +110,9 @@ BinaryExpressionNode::BinaryExpressionNode(SourceCodeRef source,
 std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
     auto lhsType = mLeft->getDatatype();
     auto rhsType = mRight->getDatatype();
-    if (!lhsType || !rhsType)
+    if(!lhsType || !rhsType)
         return {};
-    switch (mOperator) {
+    switch(mOperator) {
     case BinaryOperator::LOGICAL_AND:
     case BinaryOperator::LOGICAL_EQUALS:
     case BinaryOperator::LOGICAL_NOT_EQUALS:
@@ -121,7 +121,7 @@ std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
     case BinaryOperator::COMPARISON_MORE_THAN:
     case BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
     case BinaryOperator::COMPARISON_LESS_THAN:
-        return Datatype { DatatypeCategory::bool_ };
+        return Datatype{ DatatypeCategory::bool_ };
     default:
         return lhsType;
     }
@@ -129,7 +129,7 @@ std::optional<Datatype> BinaryExpressionNode::getDatatype() const {
 std::string BinaryExpressionNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
     ret += createIndent(indent + 1) + "Operator: ";
-    switch (mOperator) {
+    switch(mOperator) {
     case BinaryOperator::PLUS:
         ret += "+";
         break;
@@ -179,7 +179,7 @@ void BinaryExpressionNode::completeDatatype(DatatypeCompleter& declList) {
     mRight->completeDatatype(declList);
     auto lhsType = mLeft->getDatatype();
     auto rhsType = mRight->getDatatype();
-    if (lhsType != rhsType) {
+    if(lhsType != rhsType) {
         throwException("lhs=" + lhsType->toString() + " and rhs=" + rhsType->toString() + " don't match");
     }
 }
@@ -213,10 +213,10 @@ IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> na
 : ExpressionNode(std::move(source)), mName(std::move(name)) {
 }
 std::optional<Datatype> IdentifierNode::getDatatype() const {
-    return mDatatype ? mDatatype->first : std::optional<Datatype> {};
+    return mDatatype ? mDatatype->first : std::optional<Datatype>{};
 }
 std::optional<int32_t> IdentifierNode::getId() const {
-    return mDatatype ? mDatatype->second : std::optional<int32_t> {};
+    return mDatatype ? mDatatype->second : std::optional<int32_t>{};
 }
 std::string IdentifierNode::dump(unsigned int indent) const {
     return createIndent(indent) + getClassName() + ": " + concat(mName)
@@ -241,20 +241,20 @@ void TupleCreationNode::completeDatatype(DatatypeCompleter& declList) {
 }
 std::optional<Datatype> TupleCreationNode::getDatatype() const {
     std::vector<Datatype> paramTypes;
-    for (auto& child : mParams->getParams()) {
+    for(auto& child : mParams->getParams()) {
         auto childType = child->getDatatype();
-        if (!childType) {
+        if(!childType) {
             return {};
         }
         paramTypes.emplace_back(std::move(*childType));
     }
-    return Datatype { std::move(paramTypes) };
+    return Datatype{ std::move(paramTypes) };
 }
 std::string TupleCreationNode::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 void TupleCreationNode::compile(Compiler& comp) const {
-    for (auto& child : mParams->getParams()) {
+    for(auto& child : mParams->getParams()) {
         child->compile(comp);
     }
 }
@@ -266,13 +266,13 @@ ListCreationNode::ListCreationNode(SourceCodeRef source, Datatype baseType)
 : ExpressionNode(std::move(source)), mBaseType(std::move(baseType)) {
 }
 void ListCreationNode::completeDatatype(DatatypeCompleter& declList) {
-    if (mParams) {
+    if(mParams) {
         mParams->completeDatatype(declList);
-        for (auto& child : mParams->getParams()) {
+        for(auto& child : mParams->getParams()) {
             auto childType = child->getDatatype();
             assert(childType);
-            if (mBaseType) {
-                if (childType != *mBaseType) {
+            if(mBaseType) {
+                if(childType != *mBaseType) {
                     throwException("Not all elements in the created list have the same type; previous children had the type "
                         + mBaseType->toString() + ", but one has the type " + childType->toString());
                 }
@@ -281,20 +281,20 @@ void ListCreationNode::completeDatatype(DatatypeCompleter& declList) {
             }
         }
     }
-    if (!mBaseType) {
+    if(!mBaseType) {
         throwException("Can't determine the type of this list. Hint: Try something like [:i32] to create an empty list.");
     }
 }
 std::optional<Datatype> ListCreationNode::getDatatype() const {
-    if (!mBaseType)
+    if(!mBaseType)
         return {};
     return Datatype::createListType(*mBaseType);
 }
 std::string ListCreationNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
-    if (mParams) {
+    if(mParams) {
         ret += mParams->dump(indent + 1);
-    } else if (mBaseType) {
+    } else if(mBaseType) {
         ret += createIndent(indent + 1) + "Base type: " + mBaseType->toString() + "\n";
     }
     return ret;
@@ -304,30 +304,30 @@ ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expre
 : ExpressionNode(std::move(source)), mExpressions(std::move(expressions)) {
 }
 std::optional<Datatype> ScopeNode::getDatatype() const {
-    if (mExpressions.empty()) {
+    if(mExpressions.empty()) {
         return Datatype::createEmptyTuple();
     }
     return mExpressions.at(mExpressions.size() - 1)->getDatatype();
 }
 std::string ScopeNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
-    for (auto& child : mExpressions) {
+    for(auto& child : mExpressions) {
         ret += child->dump(indent + 1);
     }
     return ret;
 }
 void ScopeNode::completeDatatype(DatatypeCompleter& declList) {
     auto scope = declList.openScope();
-    for (auto& child : mExpressions) {
+    for(auto& child : mExpressions) {
         child->completeDatatype(declList);
     }
 }
 void ScopeNode::compile(Compiler& comp) const {
     auto duration = comp.enterScope(*getDatatype());
     size_t i = 0;
-    for (auto& expr : mExpressions) {
+    for(auto& expr : mExpressions) {
         auto exprAsAssignment = dynamic_cast<AssignmentExpression*>(expr.get());
-        if (exprAsAssignment && i < mExpressions.size() - 1) {
+        if(exprAsAssignment && i < mExpressions.size() - 1) {
             // Child is an assignment -> OPTIMIZE!
             // Without this optimization, we always do the following:
             // Evaluate rhs
@@ -345,7 +345,7 @@ void ScopeNode::compile(Compiler& comp) const {
             expr->compile(comp);
             // Pop the values from all lines at the end except for the last line.
             // This is because the last line is the return value.
-            if (i < mExpressions.size() - 1) {
+            if(i < mExpressions.size() - 1) {
                 comp.popUnusedValueAtEndOfScope(*expr->getDatatype());
             }
         }
@@ -361,12 +361,12 @@ std::optional<Datatype> IfExpressionNode::getDatatype() const {
 }
 std::string IfExpressionNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
-    for (auto& child : mChildren) {
+    for(auto& child : mChildren) {
         ret += createIndent(indent + 1) + "Condition:\n" + child.first->dump(indent + 2);
         ret += createIndent(indent + 1) + "Body:\n" + child.second->dump(indent + 2);
     }
     ret += createIndent(indent + 1) + "Else:\n";
-    if (mElseBody) {
+    if(mElseBody) {
         ret += mElseBody->dump(indent + 2);
     } else {
         ret += createIndent(indent + 2) + "nullptr\n";
@@ -375,14 +375,14 @@ std::string IfExpressionNode::dump(unsigned int indent) const {
 }
 void IfExpressionNode::completeDatatype(DatatypeCompleter& declList) {
     std::optional<Datatype> type;
-    for (auto& child : mChildren) {
+    for(auto& child : mChildren) {
         child.first->completeDatatype(declList);
         child.second->completeDatatype(declList);
         // ensure that every possible branch has the same type
         auto childType = child.second->getDatatype();
         assert(childType);
-        if (type) {
-            if (*childType != *type) {
+        if(type) {
+            if(*childType != *type) {
                 throwException("Not all branches of this if expression return the same value. "
                                "Previous branches return "
                     + type->toString() + ", but one returns " + childType->toString());
@@ -391,21 +391,21 @@ void IfExpressionNode::completeDatatype(DatatypeCompleter& declList) {
             type = std::move(*childType);
         }
     }
-    if (mElseBody) {
+    if(mElseBody) {
         mElseBody->completeDatatype(declList);
         auto elseBodyType = mElseBody->getDatatype();
         assert(elseBodyType);
-        if (elseBodyType != *type) {
+        if(elseBodyType != *type) {
             throwException("The else branch of this if expression returns a value different from the other branches. "
                            "Previous branches return "
                 + type->toString() + ", but the else branch returns " + elseBodyType->toString());
         }
     } else {
-        if (type->getCategory() == DatatypeCategory::tuple && type->getTupleInfo().size() == 0) {
+        if(type->getCategory() == DatatypeCategory::tuple && type->getTupleInfo().size() == 0) {
             std::vector<up<ExpressionNode>> elseBodyExpressions;
-            elseBodyExpressions.emplace_back(std::make_unique<TupleCreationNode>(SourceCodeRef {},
-                std::make_unique<ExpressionListNodeWithoutDatatypes>(SourceCodeRef {}, std::vector<up<ExpressionNode>> {})));
-            mElseBody = std::make_unique<ScopeNode>(SourceCodeRef {}, std::move(elseBodyExpressions));
+            elseBodyExpressions.emplace_back(std::make_unique<TupleCreationNode>(SourceCodeRef{},
+                std::make_unique<ExpressionListNodeWithoutDatatypes>(SourceCodeRef{}, std::vector<up<ExpressionNode>>{})));
+            mElseBody = std::make_unique<ScopeNode>(SourceCodeRef{}, std::move(elseBodyExpressions));
         } else {
             throwException("The else branch is missing, but the return type of the other branches isn't the empty tuple.");
         }
@@ -415,7 +415,7 @@ void IfExpressionNode::compile(Compiler& comp) const {
     std::vector<size_t> jumpToEndLabels;
     auto selfType = getDatatype();
     assert(selfType);
-    for (auto& child : mChildren) {
+    for(auto& child : mChildren) {
         child.first->compile(comp);
 
         auto label = comp.addLabel(5);
@@ -433,7 +433,7 @@ void IfExpressionNode::compile(Compiler& comp) const {
     mElseBody->compile(comp);
     comp.changeStackSize(-selfType->getSizeOnStack());
 
-    for (auto& label : jumpToEndLabels) {
+    for(auto& label : jumpToEndLabels) {
         auto labelPtr = comp.getLabelPtr(label);
         *(Instruction*)labelPtr = Instruction::JUMP;
         *((int32_t*)((uint8_t*)labelPtr + 1)) = comp.getCurrentLocation();
@@ -460,19 +460,29 @@ void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter& declList) {
     mParams->completeDatatype(declList);
     auto identifierType = mName->getDatatype();
     assert(identifierType);
-    if (identifierType->getCategory() != DatatypeCategory::function) {
+    if(identifierType->getCategory() != DatatypeCategory::function) {
         throwException("Calling non-function type '" + identifierType->toString() + "'");
     }
     auto& functionType = identifierType->getFunctionTypeInfo();
-    if (functionType.second.size() != mParams->getParams().size()) {
+    if(functionType.second.size() != mParams->getParams().size() && !(mPrependedChainedParameterType && functionType.second.size() - 1 == mParams->getParams().size())) {
         throwException("Function " + identifierType->toString() + " expects " + std::to_string(functionType.second.size())
-            + " arguments, but " + std::to_string(mParams->getParams().size()) + " have been passed");
+            + " arguments, but " + std::to_string(mParams->getParams().size()) + " have been passed" + (mPrependedChainedParameterType ? "(+ one chained parameter)" : ""));
     }
-    for (size_t i = 0; i < functionType.second.size(); ++i) {
-        auto passedType = mParams->getParams().at(i)->getDatatype();
+
+    // check prepared function type
+    if(mPrependedChainedParameterType) {
+        if(functionType.second.at(0) != *mPrependedChainedParameterType) {
+            auto& expectedType = functionType.second.at(0);
+            throwException("Function " + identifierType->toString() + " got passed invalid chained argument; at position 0 "
+                                                                      "we expected a '"
+                + expectedType.toString() + "', but got passed a '" + mPrependedChainedParameterType->toString() + "'");
+        }
+    }
+    for(size_t i = mPrependedChainedParameterType ? 1 : 0; i < functionType.second.size(); ++i) {
+        auto passedType = mParams->getParams().at(i + (mPrependedChainedParameterType ? -1 : 0))->getDatatype();
         assert(passedType);
         auto& expectedType = functionType.second.at(i);
-        if (expectedType != passedType) {
+        if(expectedType != passedType) {
             throwException("Function " + identifierType->toString() + " got passed invalid argument types; at position "
                 + std::to_string(i) + " we expected a '" + expectedType.toString() + "', but got passed a '" + passedType->toString() + "'");
         }
@@ -484,11 +494,43 @@ void FunctionCallExpressionNode::compile(Compiler& comp) const {
     auto functionType = mName->getDatatype();
     assert(functionType);
     auto returnType = functionType->getFunctionTypeInfo().first;
-    for (auto& param : mParams->getParams()) {
+    for(auto& param : mParams->getParams()) {
         param->compile(comp);
         sizeOfArguments += param->getDatatype()->getSizeOnStack();
     }
     comp.performFunctionCall(sizeOfArguments, returnType->getSizeOnStack());
+}
+void FunctionCallExpressionNode::prependChainedParameter(Datatype chainedParamType) {
+    mPrependedChainedParameterType = std::move(chainedParamType);
+}
+
+FunctionChainExpressionNode::FunctionChainExpressionNode(SourceCodeRef source, up<ExpressionNode> initialValue, up<FunctionCallExpressionNode> functionCall)
+: ExpressionNode(std::move(source)), mInitialValue(std::move(initialValue)), mFunctionCall(std::move(functionCall)) {
+}
+std::optional<Datatype> FunctionChainExpressionNode::getDatatype() const {
+    auto functionCallRet = mFunctionCall->getDatatype();
+    if(!functionCallRet)
+        return {};
+    return std::move(*functionCallRet);
+}
+void FunctionChainExpressionNode::completeDatatype(DatatypeCompleter& declList) {
+    mInitialValue->completeDatatype(declList);
+    auto initialValueType = mInitialValue->getDatatype();
+    assert(initialValueType);
+    mFunctionCall->prependChainedParameter(std::move(*initialValueType));
+    mFunctionCall->completeDatatype(declList);
+}
+void FunctionChainExpressionNode::compile(Compiler& comp) const {
+    mInitialValue->compile(comp);
+    mFunctionCall->compile(comp);
+}
+std::string FunctionChainExpressionNode::dump(unsigned int indent) const {
+    auto ret = ASTNode::dump(indent);
+    ret += createIndent(indent + 1) + "Initial value:\n";
+    ret += mInitialValue->dump(indent + 2);
+    ret += createIndent(indent + 1) + "Function:\n";
+    ret += mFunctionCall->dump(indent + 2);
+    return ret;
 }
 
 ListAccessExpressionNode::ListAccessExpressionNode(SourceCodeRef source,
@@ -497,7 +539,7 @@ ListAccessExpressionNode::ListAccessExpressionNode(SourceCodeRef source,
 : ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(std::move(index)) {
 }
 std::optional<Datatype> ListAccessExpressionNode::getDatatype() const {
-    if (!mName->getDatatype())
+    if(!mName->getDatatype())
         return {};
     return mName->getDatatype()->getListInfo();
 }
@@ -506,7 +548,7 @@ void ListAccessExpressionNode::completeDatatype(DatatypeCompleter& declList) {
     mIndex->completeDatatype(declList);
     auto indexType = mIndex->getDatatype();
     assert(indexType);
-    if (!indexType->isInteger()) {
+    if(!indexType->isInteger()) {
         throwException("List access index must be numeric, e.g. i32; index type is " + indexType->toString());
     }
 }
@@ -524,7 +566,7 @@ TupleAccessExpressionNode::TupleAccessExpressionNode(SourceCodeRef source, up<Ex
 }
 std::optional<Datatype> TupleAccessExpressionNode::getDatatype() const {
     auto nameType = mName->getDatatype();
-    if (!nameType)
+    if(!nameType)
         return {};
     return nameType->getTupleInfo().at(mIndex);
 }
@@ -532,7 +574,7 @@ void TupleAccessExpressionNode::completeDatatype(DatatypeCompleter& declList) {
     mName->completeDatatype(declList);
     auto lhsType = mName->getDatatype();
     assert(lhsType);
-    if (lhsType->getCategory() != DatatypeCategory::tuple) {
+    if(lhsType->getCategory() != DatatypeCategory::tuple) {
         throwException("Trying to access non-tuple type " + lhsType->toString() + " as a tuple");
     }
     // TODO detect out of range
@@ -561,7 +603,7 @@ ModuleRootNode::ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationN
 std::string ModuleRootNode::dump(unsigned indent) const {
     auto ret = ASTNode::dump(indent);
     ret += createIndent(indent + 1) + "Name: " + mName + "\n";
-    for (auto& child : mDeclarations) {
+    for(auto& child : mDeclarations) {
         ret += child->dump(indent + 1);
     }
     return ret;
@@ -569,20 +611,20 @@ std::string ModuleRootNode::dump(unsigned indent) const {
 std::vector<DeclarationNode*> ModuleRootNode::createDeclarationList() {
     std::vector<DeclarationNode*> ret;
     ret.reserve(mDeclarations.size());
-    for (auto& child : mDeclarations) {
+    for(auto& child : mDeclarations) {
         ret.emplace_back(child.get());
     }
     return ret;
 }
 void ModuleRootNode::completeDatatype(DatatypeCompleter& declList) {
     auto scope = declList.openScope(mName);
-    for (auto& child : mDeclarations) {
+    for(auto& child : mDeclarations) {
         child->completeDatatype(declList);
     }
 }
 void ModuleRootNode::declareShallow(DatatypeCompleter& completer) const {
     auto scope = completer.openScope();
-    for (auto& child : mDeclarations) {
+    for(auto& child : mDeclarations) {
         child->declareShallow(completer);
     }
     completer.saveModule(mName);
@@ -591,7 +633,7 @@ void ModuleRootNode::setModuleName(std::string name) {
     mName = std::move(name);
 }
 void ModuleRootNode::compile(Compiler& comp) const {
-    for (auto& decl : mDeclarations) {
+    for(auto& decl : mDeclarations) {
         decl->compile(comp);
     }
 }
@@ -618,19 +660,19 @@ void FunctionDeclarationNode::completeDatatype(DatatypeCompleter& declList) {
     mBody->completeDatatype(declList);
     auto bodyType = mBody->getDatatype();
     assert(bodyType);
-    if (bodyType != mReturnType) {
+    if(bodyType != mReturnType) {
         throwException("This function's declared return type (" + mReturnType.toString() + ") and actual return type (" + bodyType->toString() + ") don't match");
     }
 }
 void FunctionDeclarationNode::declareShallow(DatatypeCompleter& completer) const {
     // TODO also set params etc.
     std::vector<Datatype> paramTypes;
-    for (auto& p : mParameters->getParams()) {
+    for(auto& p : mParameters->getParams()) {
         paramTypes.emplace_back(p.type);
     }
     try {
-        completer.declareVariableNonOverrideable(mName->getName(), Datatype { mReturnType, std::move(paramTypes) });
-    } catch (std::runtime_error& e) {
+        completer.declareVariableNonOverrideable(mName->getName(), Datatype{ mReturnType, std::move(paramTypes) });
+    } catch(std::runtime_error& e) {
         throwException(e.what());
     }
 }

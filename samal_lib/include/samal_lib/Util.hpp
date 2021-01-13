@@ -25,7 +25,7 @@ public:
     }
     ~Stopwatch() {
         auto duration = (std::chrono::high_resolution_clock::now() - mStart).count();
-        if (strlen(mName) > 0) {
+        if(strlen(mName) > 0) {
             printf("%s took %0.2fµs\n", mName, duration / 1000.0);
         } else {
             printf("Something took %0.2f\nµs", duration / 1000.0);
@@ -52,9 +52,9 @@ private:
 
 static inline std::string concat(const std::vector<std::string>& splitName) {
     std::string ret;
-    for (size_t i = 0; i < splitName.size(); ++i) {
+    for(size_t i = 0; i < splitName.size(); ++i) {
         ret += splitName.at(i);
-        if (i < splitName.size() - 1) {
+        if(i < splitName.size() - 1) {
             ret += ".";
         }
     }

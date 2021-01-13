@@ -14,7 +14,7 @@ struct JitReturn {
 };
 
 [[maybe_unused]] static constexpr bool isJittable(Instruction i) {
-    switch (i) {
+    switch(i) {
     case Instruction::PUSH_8:
     case Instruction::ADD_I32:
     case Instruction::SUB_I32:
@@ -86,7 +86,7 @@ public:
         L("Code");
         std::vector<std::pair<uint32_t, Xbyak::Label>> labels;
         // Start executing some Code!
-        for (size_t i = 0; i < instructions.size();) {
+        for(size_t i = 0; i < instructions.size();) {
             auto ins = static_cast<Instruction>(instructions.at(i));
             auto nextInstruction = [&] {
                 return static_cast<Instruction>(instructions.at(i + instructionToWidth(ins)));
@@ -96,16 +96,16 @@ public:
             };
             bool shouldAutoIncrement = true;
             labels.emplace_back(std::make_pair((uint32_t)i, L()));
-            switch (ins) {
+            switch(ins) {
             case Instruction::PUSH_8:
-                if (nextInstruction() == Instruction::SUB_I32) {
+                if(nextInstruction() == Instruction::SUB_I32) {
                     pop(rbx);
                     sub(rbx, *(uint64_t*)&instructions.at(i + 1));
                     push(rbx);
                     add(ip, instructionToWidth(ins) + nextInstructionWidth());
                     i += instructionToWidth(ins) + nextInstructionWidth();
                     shouldAutoIncrement = false;
-                } else if (nextInstruction() == Instruction::ADD_I32) {
+                } else if(nextInstruction() == Instruction::ADD_I32) {
                     pop(rbx);
                     add(rbx, *(uint64_t*)&instructions.at(i + 1));
                     push(rbx);
@@ -172,7 +172,7 @@ public:
                 mov(rdi, rsp);
                 cld();
                 //    copy
-                for (int j = 0; j < repushLen / 8; ++j) {
+                for(int j = 0; j < repushLen / 8; ++j) {
                     movsq();
                 }
                 break;
@@ -190,7 +190,7 @@ public:
 
                 std();
                 //    copy
-                for (int j = 0; j < popOffset / 8; ++j) {
+                for(int j = 0; j < popOffset / 8; ++j) {
                     movsq();
                 }
 
@@ -245,7 +245,7 @@ public:
 
                     std();
                     //    copy
-                    for (int j = 0; j < popOffset / 8; ++j) {
+                    for(int j = 0; j < popOffset / 8; ++j) {
                         movsq();
                     }
 
@@ -264,7 +264,7 @@ public:
                 jmp("AfterJumpTable");
                 break;
             }
-            if (shouldAutoIncrement) {
+            if(shouldAutoIncrement) {
                 i += instructionToWidth(ins);
                 add(ip, instructionToWidth(ins));
             }
@@ -280,16 +280,16 @@ public:
         }*/
 
         L("JumpTable");
-        for (size_t i = 0; i <= instructions.size(); ++i) {
+        for(size_t i = 0; i <= instructions.size(); ++i) {
             bool labelExists = false;
-            for (auto& label : labels) {
-                if (label.first == i) {
+            for(auto& label : labels) {
+                if(label.first == i) {
                     labelExists = true;
                     putL(label.second);
                     break;
                 }
             }
-            if (!labelExists) {
+            if(!labelExists) {
                 putL("AfterJumpTable");
             }
         }
@@ -343,8 +343,8 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
     mStack.clear();
     mStack.push(initialStack);
     auto functionOrNot = mProgram.functions.find(functionName);
-    if (functionOrNot == mProgram.functions.end()) {
-        throw std::runtime_error { "Function " + functionName + " not found!" };
+    if(functionOrNot == mProgram.functions.end()) {
+        throw std::runtime_error{ "Function " + functionName + " not found!" };
     }
     mIp = functionOrNot->second.offset;
     mMainFunctionReturnTypeSize = functionOrNot->second.returnTypeSize;
@@ -352,7 +352,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
     auto dump = mStack.dump();
     printf("Dump:\n%s\n", dump.c_str());
 #endif
-    while (true) {
+    while(true) {
 #ifdef SAMAL_ENABLE_JIT
         // first try to jit as many instructions as possible
         {
@@ -364,7 +364,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
             mStack.setSize(ret.stackSize);
             mIp = ret.ip;
             std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
-            if (mIp == 0x42424242) {
+            if(mIp == 0x42424242) {
 #    ifdef _DEBUG
                 auto dump = mStack.dump();
                 printf("Dump:\n%s\n", dump.c_str());
@@ -385,7 +385,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
         auto dump = mStack.dump();
         printf("Dump:\n%s\n", dump.c_str());
 #endif
-        if (!ret) {
+        if(!ret) {
             return mStack.moveData();
         }
     }
@@ -396,7 +396,7 @@ bool VM::interpretInstruction() {
 #ifdef _DEBUG
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
-    switch (ins) {
+    switch(ins) {
     case Instruction::PUSH_4:
 #ifdef x86_64_BIT_MODE
         assert(false);
@@ -432,14 +432,14 @@ bool VM::interpretInstruction() {
 #ifdef x86_64_BIT_MODE
         auto val = *(bool*)mStack.get(8);
         mStack.pop(8);
-        if (!val) {
+        if(!val) {
             mIp = *(int32_t*)&mProgram.code.at(mIp + 1);
             incIp = false;
         }
 #else
         auto val = *(bool*)mStack.get(1);
         mStack.pop(1);
-        if (!val) {
+        if(!val) {
             mIp = *(int32_t*)&mProgram.code.at(mIp + 1);
             incIp = false;
         }
@@ -502,7 +502,7 @@ bool VM::interpretInstruction() {
         mIp = *(int32_t*)mStack.get(offset + 8);
         mStack.popBelow(offset, 8);
         incIp = false;
-        if (mIp == 0x42424242) {
+        if(mIp == 0x42424242) {
             return false;
         }
         break;
@@ -542,11 +542,11 @@ void Stack::pop(size_t len) {
 }
 std::string Stack::dump() {
     std::string ret;
-    for (size_t i = 0; i < mDataLen;) {
+    for(size_t i = 0; i < mDataLen;) {
         uint8_t val = mData[i];
         ret += std::to_string(val) + " ";
         ++i;
-        if (i > 0 && i % 4 == 0) {
+        if(i > 0 && i % 4 == 0) {
             ret += "\n";
         }
     }
@@ -568,7 +568,7 @@ Stack::~Stack() {
     mData = nullptr;
 }
 void Stack::ensureSpace(size_t additionalLen) {
-    if (mDataReserved <= mDataLen + additionalLen) {
+    if(mDataReserved <= mDataLen + additionalLen) {
         mDataReserved *= 2;
         mData = (uint8_t*)realloc(mData, mDataReserved);
     }

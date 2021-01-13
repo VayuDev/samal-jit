@@ -55,7 +55,7 @@ private:
 };
 
 static inline size_t getSimpleSize(DatatypeCategory type) {
-    return Datatype { type }.getSizeOnStack();
+    return Datatype{ type }.getSizeOnStack();
 }
 
 }
