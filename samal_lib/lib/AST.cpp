@@ -464,9 +464,10 @@ void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter& declList) {
         throwException("Calling non-function type '" + identifierType->toString() + "'");
     }
     auto& functionType = identifierType->getFunctionTypeInfo();
-    if(functionType.second.size() != mParams->getParams().size() && !(mPrependedChainedParameterType && functionType.second.size() - 1 == mParams->getParams().size())) {
+    // check in a convoluted way if the number of expected and actual arguments matches, taking the prepended value into account
+    if(!(!mPrependedChainedParameterType && functionType.second.size() == mParams->getParams().size()) && !(mPrependedChainedParameterType && functionType.second.size() - 1 == mParams->getParams().size())) {
         throwException("Function " + identifierType->toString() + " expects " + std::to_string(functionType.second.size())
-            + " arguments, but " + std::to_string(mParams->getParams().size()) + " have been passed" + (mPrependedChainedParameterType ? "(+ one chained parameter)" : ""));
+            + " arguments, but " + std::to_string(mParams->getParams().size()) + " have been passed" + (mPrependedChainedParameterType ? " (plus one chained parameter)" : ""));
     }
 
     // check prepared function type
