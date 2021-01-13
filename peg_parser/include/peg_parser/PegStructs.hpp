@@ -23,13 +23,13 @@ public:
     Any() = default;
     template<typename T, std::enable_if_t<!std::is_same<T, Any>::value, bool> = true>
     inline Any(T&& ele) {
-        data = new T { std::forward<T>(ele) };
+        data = new T{ std::forward<T>(ele) };
         destructor = [](void* d) {
-            delete (T*)d;
+            delete(T*)d;
         };
     }
     inline ~Any() {
-        if (destructor)
+        if(destructor)
             destructor(data);
     }
     Any(const Any& other) = delete;
@@ -66,7 +66,7 @@ public:
         static_assert(!std::is_pointer_v<T>, "If you want a pointer to the data, use move() instead");
         assert(data);
         T movedValue = std::move(*static_cast<T*>(data));
-        delete (T*)data;
+        delete(T*)data;
         data = nullptr;
         destructor = {};
         return movedValue;
@@ -87,14 +87,14 @@ struct MatchInfo {
 
     [[nodiscard]] inline const char* startTrimmed() const {
         auto retStart = start;
-        while ((*retStart == ' ' || *retStart == '\n' || *retStart == '\t') && retStart < (start + len)) {
+        while((*retStart == ' ' || *retStart == '\n' || *retStart == '\t') && retStart < (start + len)) {
             retStart += 1;
         }
         return retStart;
     }
     [[nodiscard]] inline const char* endTrimmed() const {
         auto retEnd = start + len;
-        while ((*(retEnd - 1) == ' ' || *(retEnd - 1) == '\n' || *(retEnd - 1) == '\t') && start < retEnd) {
+        while((*(retEnd - 1) == ' ' || *(retEnd - 1) == '\n' || *(retEnd - 1) == '\t') && start < retEnd) {
             retEnd -= 1;
         }
         return retEnd;

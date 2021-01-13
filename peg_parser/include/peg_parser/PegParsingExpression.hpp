@@ -68,7 +68,7 @@ public:
     }
 
 private:
-    ExpressionFailReason mReason { ExpressionFailReason::SUCCESS };
+    ExpressionFailReason mReason{ ExpressionFailReason::SUCCESS };
     ParsingState mState;
     std::string mSelfDump, mInfo1, mInfo2;
     std::vector<ExpressionFailInfo> mSubExprFailInfo;

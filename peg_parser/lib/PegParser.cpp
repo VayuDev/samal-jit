@@ -6,22 +6,22 @@
 namespace peg {
 
 ParserResult PegParser::parse(const std::string_view& start, std::string code) const {
-    PegTokenizer tokenizer { std::move(code) };
-    peg::NonTerminalParsingExpression fakeNonTerminal { std::string { start } };
-    auto matchResult = fakeNonTerminal.match(ParsingState {}, mRules, tokenizer);
-    if (matchResult.index() == 0) {
+    PegTokenizer tokenizer{ std::move(code) };
+    peg::NonTerminalParsingExpression fakeNonTerminal{ std::string{ start } };
+    auto matchResult = fakeNonTerminal.match(ParsingState{}, mRules, tokenizer);
+    if(matchResult.index() == 0) {
         auto state = std::get<0>(matchResult).getState();
         state = tokenizer.skipWhitespaces(state);
-        if (!tokenizer.isEmpty(state)) {
+        if(!tokenizer.isEmpty(state)) {
             // characters left unconsumed
-            return std::make_pair(ParsingFailInfo {
+            return std::make_pair(ParsingFailInfo{
                                       .eof = true,
                                       .error = std::make_unique<ExpressionFailInfo>(std::get<0>(matchResult).moveFailInfo()) },
                 std::move(tokenizer));
         }
     }
-    if (matchResult.index() == 1) {
-        return std::make_pair(ParsingFailInfo {
+    if(matchResult.index() == 1) {
+        return std::make_pair(ParsingFailInfo{
                                   .eof = false,
                                   .error = std::make_unique<ExpressionFailInfo>(std::get<1>(matchResult)) },
             std::move(tokenizer));
@@ -29,14 +29,14 @@ ParserResult PegParser::parse(const std::string_view& start, std::string code) c
     return std::make_pair(std::variant<ExpressionSuccessInfo, ParsingFailInfo>(std::move(std::get<0>(matchResult))), std::move(tokenizer));
 }
 void PegParser::addRule(std::string nonTerminal, std::shared_ptr<ParsingExpression> rule, RuleCallback&& callback) {
-    if (mRules.count(nonTerminal) > 0) {
-        throw std::runtime_error { "A rule already exists for the Terminal " + nonTerminal };
+    if(mRules.count(nonTerminal) > 0) {
+        throw std::runtime_error{ "A rule already exists for the Terminal " + nonTerminal };
     }
-    mRules.emplace(std::make_pair(std::move(nonTerminal), Rule { .expr = std::move(rule), .callback = std::move(callback) }));
+    mRules.emplace(std::make_pair(std::move(nonTerminal), Rule{ .expr = std::move(rule), .callback = std::move(callback) }));
 }
 
 Rule& PegParser::operator[](const char* non_terminal) {
-    return mRules.emplace(non_terminal, Rule {}).first->second;
+    return mRules.emplace(non_terminal, Rule{}).first->second;
 }
 
 }
