@@ -174,6 +174,10 @@ void Compiler::accessTupleElement(const Datatype& tupleType, uint32_t index) {
     mStackSize += accessedType.getSizeOnStack();
     mStackSize -= tupleType.getSizeOnStack();
 }
+void Compiler::moveToTop(size_t len, size_t offset) {
+    addInstructions(Instruction::REPUSH_FROM_N, len, offset);
+    addInstructions(Instruction::POP_N_BELOW, len, offset + len);
+}
 
 FunctionDuration::FunctionDuration(Compiler& compiler, const up<IdentifierNode>& identifier, const up<ParameterListNode>& params)
 : mCompiler(compiler), mIdentifier(identifier), mParams(params) {

@@ -492,6 +492,10 @@ void FunctionCallExpressionNode::completeDatatype(DatatypeCompleter& declList) {
 void FunctionCallExpressionNode::compile(Compiler& comp) const {
     mName->compile(comp);
     size_t sizeOfArguments = 0;
+    if(mPrependedChainedParameterType) {
+        comp.moveToTop(mPrependedChainedParameterType->getSizeOnStack(), 8);
+        sizeOfArguments += mPrependedChainedParameterType->getSizeOnStack();
+    }
     auto functionType = mName->getDatatype();
     assert(functionType);
     auto returnType = functionType->getFunctionTypeInfo().first;

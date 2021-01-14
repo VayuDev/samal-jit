@@ -105,19 +105,26 @@ Parser::Parser() {
         }
         return ScopeNode{ toRef(res), std::move(expressions) };
     };
-    mPegParser["Expression"] << "(IfExpression | ScopeExpression | MathExpression) ('|>' Expression)?" >> [](peg::MatchInfo& res) -> peg::Any {
-        if(res[1].subs.empty())
-            return std::move(res[0][0].result);
-        auto chainedFunctionCall = res[1][0][1].result.move<ExpressionNode*>();
-        auto chainedFunctionCallCasted = dynamic_cast<FunctionCallExpressionNode*>(chainedFunctionCall);
-        if(chainedFunctionCallCasted == nullptr) {
-            throw std::runtime_error{ "Chained expression needs to be a function call!" };
+    mPegParser["Expression"] << "BasicExpression ('|>' BasicExpression)*" >> [](peg::MatchInfo& res) -> peg::Any {
+        // create chained function calls
+        peg::Any ret = std::move(res[0].result);
+        while(!res[1].subs.empty()) {
+            auto chainedFunctionCall = res[1][0][1].result.move<ExpressionNode*>();
+            auto chainedFunctionCallCasted = dynamic_cast<FunctionCallExpressionNode*>(chainedFunctionCall);
+            if(chainedFunctionCallCasted == nullptr) {
+                throw std::runtime_error{ "Chained expression needs to be a function call, not a " + std::string{ chainedFunctionCall->getClassName() } };
+            }
+            ret = FunctionChainExpressionNode{
+                toRef(res),
+                up<ExpressionNode>{ ret.move<ExpressionNode*>() },
+                up<FunctionCallExpressionNode>{ chainedFunctionCallCasted }
+            };
+            res[1].subs.erase(res[1].subs.begin());
         }
-        return FunctionChainExpressionNode{
-            toRef(res),
-            up<ExpressionNode>{ res[0][0].result.move<ExpressionNode*>() },
-            up<FunctionCallExpressionNode>{ chainedFunctionCallCasted }
-        };
+        return ret;
+    };
+    mPegParser["BasicExpression"] << "IfExpression | ScopeExpression | MathExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+        return std::move(res[0].result);
     };
     mPegParser["MathExpression"] << "AssignmentExpression #Expected mathematical expression#" >> [](peg::MatchInfo& res) -> peg::Any {
         return std::move(res.result);
