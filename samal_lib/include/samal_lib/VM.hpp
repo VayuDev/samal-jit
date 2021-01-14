@@ -2,6 +2,7 @@
 
 #include "Program.hpp"
 #include "Util.hpp"
+#include "Forward.hpp"
 #ifdef SAMAL_ENABLE_JIT
 #    include <xbyak/xbyak.h>
 #endif
@@ -38,6 +39,7 @@ public:
     explicit VM(Program program);
     ~VM();
     std::vector<uint8_t> run(const std::string& functionName, const std::vector<uint8_t>& initialStack);
+    std::vector<uint8_t> run(const std::string& functionName, const std::vector<ExternalVMValue>& params);
 
 private:
     inline bool interpretInstruction();

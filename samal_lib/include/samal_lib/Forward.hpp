@@ -12,5 +12,7 @@ class ExpressionNode;
 class DatatypeCompleter;
 class Compiler;
 class Datatype;
+class ExternalVMValue;
+class VM;
 
 }

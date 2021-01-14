@@ -1,6 +1,7 @@
 #include "samal_lib/VM.hpp"
 #include "samal_lib/Instruction.hpp"
 #include "samal_lib/Util.hpp"
+#include "samal_lib/ExternalVMValue.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -50,6 +51,7 @@ public:
 
         // ip
         const auto& ip = r11;
+        const auto& ip32 = r11d;
         mov(ip, rdi);
         // stack ptr
         const auto& stackPtr = r12;
@@ -226,9 +228,7 @@ public:
             }
             case Instruction::RETURN: {
                 int32_t returnInfoOffset = *(uint32_t*)&instructions.at(i + 1);
-                mov(rax, rsp);
-                add(rax, returnInfoOffset);
-                mov(ip, qword[rax]);
+                mov(ip, qword[rsp + returnInfoOffset]);
 
                 // pop below
                 {
@@ -251,9 +251,6 @@ public:
 
                     add(rsp, popLen);
                 }
-                // TODO replace last return address with another special value that we can integrate into the jump table
-                cmp(ip, 0x42424242);
-                jge("AfterJumpTable");
 
                 jumpWithIp();
                 break;
@@ -364,7 +361,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
             mStack.setSize(ret.stackSize);
             mIp = ret.ip;
             std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
-            if(mIp == 0x42424242) {
+            if(mIp == mProgram.code.size()) {
 #    ifdef _DEBUG
                 auto dump = mStack.dump();
                 printf("Dump:\n%s\n", dump.c_str());
@@ -502,7 +499,7 @@ bool VM::interpretInstruction() {
         mIp = *(int32_t*)mStack.get(offset + 8);
         mStack.popBelow(offset, 8);
         incIp = false;
-        if(mIp == 0x42424242) {
+        if(mIp == mProgram.code.size()) {
             return false;
         }
         break;
@@ -513,6 +510,17 @@ bool VM::interpretInstruction() {
     }
     mIp += instructionToWidth(ins) * incIp;
     return true;
+}
+std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<ExternalVMValue>& params) {
+    std::vector<uint8_t> stack(8);
+    auto returnValueIP = static_cast<uint32_t>(mProgram.code.size());
+    memcpy(stack.data(), &returnValueIP, 4);
+    memset(stack.data() + 4, 0, 4);
+    for(auto& param: params) {
+        auto stackedValue = param.toStackValue(*this);
+        stack.insert(stack.end(), stackedValue.cbegin(), stackedValue.cend());
+    }
+    return run(functionName, stack);
 }
 VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t>& data) {
