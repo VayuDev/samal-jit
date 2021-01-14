@@ -80,6 +80,7 @@ public:
         //    adjust rsp
         sub(rsp, stackSize);
 
+        std();
         auto jumpWithIp = [&] {
             jmp(ptr[tableRegister + ip * sizeof(void*)]);
         };
@@ -166,22 +167,18 @@ public:
             case Instruction::REPUSH_FROM_N: {
                 int32_t repushLen = *(uint32_t*)&instructions.at(i + 1);
                 int32_t repushOffset = *(uint32_t*)&instructions.at(i + 5);
-                //    init copy
                 assert(repushLen % 8 == 0);
-                mov(rsi, rsp);
-                add(rsi, repushOffset);
-                sub(rsp, repushLen);
-                mov(rdi, rsp);
-                cld();
-                //    copy
                 for(int j = 0; j < repushLen / 8; ++j) {
-                    movsq();
+                    mov(rax, qword[rsp + (repushOffset + repushLen - 8)]);
+                    push(rax);
                 }
                 break;
             }
             case Instruction::POP_N_BELOW: {
                 int32_t popLen = *(uint32_t*)&instructions.at(i + 1);
                 int32_t popOffset = *(uint32_t*)&instructions.at(i + 5);
+                // TODO replace movsq()-code with simple mov code, similar to REPUSH_FROM_N
+
                 //    init copy
                 assert(popOffset % 8 == 0);
                 mov(rsi, rsp);
@@ -190,7 +187,6 @@ public:
                 mov(rdi, rsp);
                 add(rdi, popOffset + popLen - 8);
 
-                std();
                 //    copy
                 for(int j = 0; j < popOffset / 8; ++j) {
                     movsq();
@@ -243,7 +239,6 @@ public:
                     mov(rdi, rsp);
                     add(rdi, popOffset + popLen - 8);
 
-                    std();
                     //    copy
                     for(int j = 0; j < popOffset / 8; ++j) {
                         movsq();
