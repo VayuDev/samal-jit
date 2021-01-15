@@ -213,8 +213,7 @@ FunctionDuration::FunctionDuration(Compiler& compiler, const up<IdentifierNode>&
     auto functionId = mIdentifier->getId();
     assert(functionId);
     mCompiler.mFunctions.emplace(*functionId, mCompiler.getCurrentLocation());
-    mCompiler.mProgram->functions[mIdentifier->getName()].offset = static_cast<int32_t>(mCompiler.mProgram->code.size());
-    mCompiler.mProgram->functions[mIdentifier->getName()].len = -1;
+    mCompiler.mProgram->functions.emplace(std::make_pair(mIdentifier->getName(), Program::Function{.offset = static_cast<int32_t>(mCompiler.mProgram->code.size()), .len = -1, .type = *mIdentifier->getDatatype()}));
     mCompiler.mStackFrames.emplace();
 
     for(auto& param : mParams->getParams()) {
@@ -230,6 +229,7 @@ FunctionDuration::~FunctionDuration() {
         sumSize += var.second.sizeOnStack;
     }
     const auto functionType = mIdentifier->getDatatype();
+    assert(functionType);
     const auto returnTypeSize = functionType->getFunctionTypeInfo().first->getSizeOnStack();
     if(sumSize > 0) {
         mCompiler.addInstructions(Instruction::POP_N_BELOW, static_cast<int32_t>(sumSize), returnTypeSize);
@@ -237,8 +237,7 @@ FunctionDuration::~FunctionDuration() {
     }
     mCompiler.addInstructions(Instruction::RETURN, returnTypeSize);
     mCompiler.mStackFrames.pop();
-    mCompiler.mProgram->functions[mIdentifier->getName()].len = mCompiler.mProgram->code.size() - mCompiler.mProgram->functions[mIdentifier->getName()].offset;
-    mCompiler.mProgram->functions[mIdentifier->getName()].returnTypeSize = returnTypeSize;
+    mCompiler.mProgram->functions.at(mIdentifier->getName()).len = mCompiler.mProgram->code.size() - mCompiler.mProgram->functions.at(mIdentifier->getName()).offset;
 
     // TODO won't work for lambdas I guess
     assert(mCompiler.mStackSize == returnTypeSize);

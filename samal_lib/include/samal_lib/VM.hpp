@@ -22,6 +22,7 @@ public:
     std::string dump();
     std::vector<uint8_t> moveData();
     uint8_t* getBasePtr();
+    const uint8_t* getBasePtr() const;
     size_t getSize() const;
     void setSize(size_t);
     void clear();
@@ -38,16 +39,15 @@ class VM final {
 public:
     explicit VM(Program program);
     ~VM();
-    std::vector<uint8_t> run(const std::string& functionName, const std::vector<uint8_t>& initialStack);
-    std::vector<uint8_t> run(const std::string& functionName, const std::vector<ExternalVMValue>& params);
-
+    ExternalVMValue run(const std::string& functionName, const std::vector<uint8_t>& initialStack);
+    ExternalVMValue run(const std::string& functionName, const std::vector<ExternalVMValue>& params);
+    const Stack& getStack() const;
 private:
     inline bool interpretInstruction();
 
     Stack mStack;
     Program mProgram;
     uint32_t mIp = 0;
-    size_t mMainFunctionReturnTypeSize = 0;
 #ifdef SAMAL_ENABLE_JIT
     up<class JitCode> mCompiledCode;
 #endif

@@ -36,4 +36,31 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
         assert(false);
     }
 }
+std::string ExternalVMValue::dump() const {
+    std::string ret { "{type: "};
+    ret += mType.toString();
+    ret += ", value: ";
+    switch(mType.getCategory()) {
+    case DatatypeCategory::i32:
+        ret += std::to_string(std::get<int32_t>(mValue));
+        break;
+    case DatatypeCategory::i64:
+        ret += std::to_string(std::get<int64_t>(mValue));
+        break;
+    default:
+        assert(false);
+    }
+    ret += "}";
+    return ret;
+}
+ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t stackOffset) {
+    switch(type.getCategory()) {
+    case DatatypeCategory::i32:
+        return ExternalVMValue{std::move(type), *(int32_t*)(vm.getStack().getBasePtr() + stackOffset)};
+    case DatatypeCategory::i64:
+        return ExternalVMValue{std::move(type), *(int64_t*)(vm.getStack().getBasePtr() + stackOffset)};
+    default:
+        assert(false);
+    }
+}
 }

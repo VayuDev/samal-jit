@@ -29,7 +29,11 @@ fn sub(a : i32, b : i32) -> i32 {
 }
 fn func2(p : i64) -> i64 {
     t = (p, 1)
-    t:0 + 5i64
+    if false {
+        t:0
+    } else {
+        42i64
+    }
 })");
     assert(ast.first);
     {
@@ -58,7 +62,7 @@ fn func2(p : i64) -> i64 {
         samal::VM vm{ std::move(program) };
         for(size_t i = 0; i < 5; ++i) {
             auto ret = vm.run("fib", { samal::ExternalVMValue::wrapInt32(28) });
-            std::cout << "fib(28)=" << *(int32_t*)ret.data() << "\n";
+            std::cout << "fib(28)=" << ret.dump() << "\n";
         }
     }
 #endif
@@ -68,7 +72,7 @@ fn func2(p : i64) -> i64 {
         samal::VM vm{ std::move(program) };
         auto ret = vm.run("func2", { samal::ExternalVMValue::wrapInt64(2) });
         //auto ret = vm.run("func2", { 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 2, 0, 0, 0, 0, 0, 0, 0 });
-        std::cout << "func2(2)=" << *(int64_t*)ret.data() << "\n";
+        std::cout << "func2(2)=" << ret.dump() << "\n";
     }
 #endif
 }

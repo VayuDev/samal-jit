@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "Datatype.hpp"
 
 namespace samal {
 
@@ -10,7 +11,7 @@ struct Program {
     struct Function {
         int32_t offset;
         int32_t len;
-        int32_t returnTypeSize;
+        Datatype type;
     };
     std::vector<uint8_t> code;
     std::map<std::string, Function> functions;

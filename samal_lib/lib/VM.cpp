@@ -375,7 +375,7 @@ VM::VM(Program program)
     mCompiledCode = std::make_unique<JitCode>(mProgram.code);
 #endif
 }
-std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<uint8_t>& initialStack) {
+ExternalVMValue VM::run(const std::string& functionName, const std::vector<uint8_t>& initialStack) {
     mStack.clear();
     mStack.push(initialStack);
     auto functionOrNot = mProgram.functions.find(functionName);
@@ -383,7 +383,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
         throw std::runtime_error{ "Function " + functionName + " not found!" };
     }
     mIp = functionOrNot->second.offset;
-    mMainFunctionReturnTypeSize = functionOrNot->second.returnTypeSize;
+    auto returnType = *functionOrNot->second.type.getFunctionTypeInfo().first;
 #ifdef _DEBUG
     auto dump = mStack.dump();
     printf("Dump:\n%s\n", dump.c_str());
@@ -405,7 +405,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
                 auto dump = mStack.dump();
                 printf("Dump:\n%s\n", dump.c_str());
 #    endif
-                return mStack.moveData();
+                return ExternalVMValue::wrapStackedValue(returnType, *this, 0);
             }
 #    ifdef _DEBUG
             auto dump = mStack.dump();
@@ -422,7 +422,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
         printf("Dump:\n%s\n", dump.c_str());
 #endif
         if(!ret) {
-            return mStack.moveData();
+            return ExternalVMValue::wrapStackedValue(returnType, *this, 0);
         }
     }
 }
@@ -649,7 +649,7 @@ bool VM::interpretInstruction() {
     mIp += instructionToWidth(ins) * incIp;
     return true;
 }
-std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<ExternalVMValue>& params) {
+ExternalVMValue VM::run(const std::string& functionName, const std::vector<ExternalVMValue>& params) {
     std::vector<uint8_t> stack(8);
     auto returnValueIP = static_cast<uint32_t>(mProgram.code.size());
     memcpy(stack.data(), &returnValueIP, 4);
@@ -659,6 +659,9 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
         stack.insert(stack.end(), stackedValue.cbegin(), stackedValue.cend());
     }
     return run(functionName, stack);
+}
+const Stack& VM::getStack() const {
+    return mStack;
 }
 VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t>& data) {
@@ -720,6 +723,9 @@ void Stack::ensureSpace(size_t additionalLen) {
     }
 }
 uint8_t* Stack::getBasePtr() {
+    return mData;
+}
+const uint8_t* Stack::getBasePtr() const {
     return mData;
 }
 size_t Stack::getSize() const {
