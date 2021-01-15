@@ -224,6 +224,21 @@ std::string LiteralInt64Node::dump(unsigned int indent) const {
     return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
 }
 
+LiteralBoolNode::LiteralBoolNode(SourceCodeRef source, bool val)
+: LiteralNode(std::move(source)), mValue(val) {
+}
+void LiteralBoolNode::completeDatatype(DatatypeCompleter& declList) {
+}
+void LiteralBoolNode::compile(Compiler& comp) const {
+    comp.pushPrimitiveLiteralBool(mValue);
+}
+std::optional<Datatype> LiteralBoolNode::getDatatype() const {
+    return Datatype{ DatatypeCategory::bool_ };
+}
+std::string LiteralBoolNode::dump(unsigned int indent) const {
+    return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
+}
+
 IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name)
 : ExpressionNode(std::move(source)), mName(std::move(name)) {
 }

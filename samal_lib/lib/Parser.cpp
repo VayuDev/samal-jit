@@ -254,8 +254,9 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionListWithoutDatatype
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+ ~nws~'i64'?) | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' Expression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
-        if(*res.choice == 0) {
+    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' Expression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+        switch(*res.choice) {
+        case 0:
             if(res[0][1].subs.empty()) {
                 int32_t val;
                 std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
@@ -265,18 +266,24 @@ Parser::Parser() {
                 std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
                 return LiteralInt64Node{ toRef(res), val };
             }
-        } else if(*res.choice == 1) {
+        case 1:
+            return LiteralBoolNode{ toRef(res), true };
+        case 2:
+            return LiteralBoolNode{ toRef(res), false };
+        case 3:
             return ListCreationNode(toRef(res), res[0][2].result.moveValue<Datatype>());
-        } else if(*res.choice == 2) {
+        case 4:
             return ListCreationNode(toRef(res), up<ExpressionListNodeWithoutDatatypes>{ res[0][1].result.move<ExpressionListNodeWithoutDatatypes*>() });
-        } else if(*res.choice == 4) {
-            return std::move(res[0][1].result);
-        } else if(*res.choice == 5) {
-            return TupleCreationNode{ toRef(res), up<ExpressionListNodeWithoutDatatypes>{ res[0][1].result.move<ExpressionListNodeWithoutDatatypes*>() } };
-        } else {
+        case 5:
+        case 8:
             return std::move(res[0].result);
+        case 6:
+            return std::move(res[0][1].result);
+        case 7:
+            return TupleCreationNode{ toRef(res), up<ExpressionListNodeWithoutDatatypes>{ res[0][1].result.move<ExpressionListNodeWithoutDatatypes*>() } };
+        default:
+            assert(false);
         }
-        assert(false);
     };
     mPegParser["IfExpression"] << "'if' Expression ScopeExpression ('else' 'if' Expression ScopeExpression)* ('else' ScopeExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
         IfExpressionChildList list;

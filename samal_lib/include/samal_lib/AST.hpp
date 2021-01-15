@@ -145,6 +145,19 @@ private:
     int64_t mValue;
 };
 
+class LiteralBoolNode : public LiteralNode {
+public:
+    explicit LiteralBoolNode(SourceCodeRef source, bool val);
+    void completeDatatype(DatatypeCompleter& declList) override;
+    void compile(Compiler&) const override;
+    [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "LiteralBoolNode"; }
+
+private:
+    bool mValue;
+};
+
 class IdentifierNode : public ExpressionNode {
 public:
     explicit IdentifierNode(SourceCodeRef source, std::vector<std::string> name);

@@ -7,6 +7,7 @@ namespace samal {
 
 #define ENUMERATE_INSTRUCTIONS                  \
     INSTRUCTION(INVALID, 5)                     \
+    INSTRUCTION(PUSH_1, 2)                      \
     INSTRUCTION(PUSH_4, 5)                      \
     INSTRUCTION(PUSH_8, 9)                      \
     INSTRUCTION(POP_N_BELOW, 9)                 \

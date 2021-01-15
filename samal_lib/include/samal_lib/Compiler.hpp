@@ -53,6 +53,15 @@ public:
         mStackSize += 4;
 #endif
     }
+    inline void pushPrimitiveLiteralBool(bool param) {
+#ifdef x86_64_BIT_MODE
+        addInstructions(Instruction::PUSH_8, param, 0);
+        mStackSize += 8;
+#else
+        addInstructionOneByteParam(Instruction::PUSH_1, param);
+        mStackSize += 1;
+#endif
+    }
     inline void pushPrimitiveLiteralI64(int64_t param) {
         addInstructions(Instruction::PUSH_8, param, param >> 32);
         mStackSize += 8;
@@ -67,6 +76,7 @@ public:
 
 private:
     void addInstructions(Instruction insn);
+    void addInstructionOneByteParam(Instruction insn, int8_t param);
     void addInstructions(Instruction insn, int32_t param);
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     struct VariableInfoOnStack {

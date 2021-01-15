@@ -45,6 +45,11 @@ void Compiler::addInstructions(Instruction insn, int32_t param1, int32_t param2)
     memcpy(&mProgram->code.at(mProgram->code.size() - 8), &param1, 4);
     memcpy(&mProgram->code.at(mProgram->code.size() - 4), &param2, 4);
 }
+void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
+    mProgram->code.resize(mProgram->code.size() + 2);
+    memcpy(&mProgram->code.at(mProgram->code.size() - 2), &insn, 1);
+    memcpy(&mProgram->code.at(mProgram->code.size() - 1), &param, 1);
+}
 FunctionDuration Compiler::enterFunction(const up<IdentifierNode>& identifier, const up<ParameterListNode>& params) {
     return FunctionDuration(*this, identifier, params);
 }

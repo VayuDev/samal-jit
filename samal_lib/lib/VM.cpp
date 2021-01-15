@@ -433,6 +433,9 @@ bool VM::interpretInstruction() {
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
     switch(ins) {
+    case Instruction::PUSH_1:
+        mStack.push(&mProgram.code.at(mIp + 1), 1);
+        break;
     case Instruction::PUSH_4:
 #ifdef x86_64_BIT_MODE
         assert(false);
