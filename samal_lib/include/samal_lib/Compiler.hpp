@@ -53,6 +53,10 @@ public:
         mStackSize += 4;
 #endif
     }
+    inline void pushPrimitiveLiteralI64(int64_t param) {
+        addInstructions(Instruction::PUSH_8, param, param >> 32);
+        mStackSize += 8;
+    }
     void loadVariableToStack(const IdentifierNode& identifier);
     void popUnusedValueAtEndOfScope(const Datatype& type);
     void binaryOperation(const Datatype& inputTypes, BinaryExpressionNode::BinaryOperator op);

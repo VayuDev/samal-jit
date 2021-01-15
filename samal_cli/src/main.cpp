@@ -1,11 +1,11 @@
 #include "samal_lib/AST.hpp"
 #include "samal_lib/Compiler.hpp"
 #include "samal_lib/DatatypeCompleter.hpp"
+#include "samal_lib/ExternalVMValue.hpp"
 #include "samal_lib/Forward.hpp"
 #include "samal_lib/Parser.hpp"
 #include "samal_lib/VM.hpp"
 #include <iostream>
-#include "samal_lib/ExternalVMValue.hpp"
 
 int main() {
     samal::Stopwatch stopwatch{ "The main function" };
@@ -27,11 +27,9 @@ fn add(a : i32, b : i32) -> i32 {
 fn sub(a : i32, b : i32) -> i32 {
     a - b
 }
-fn func2(p : i32) -> i32 {
-    p
-    |> add(2)
-    |> add(3)
-    |> sub(1)
+fn func2(p : i64) -> i64 {
+    t = (p, 1)
+    t:0 + 5i64
 })");
     assert(ast.first);
     {
@@ -56,9 +54,9 @@ fn func2(p : i32) -> i32 {
     }
 #if 1
     {
-        samal::Stopwatch stopwatch2 { "Running fib(28) 5 times" };
-        samal::VM vm { std::move(program) };
-        for (size_t i = 0; i < 5; ++i) {
+        samal::Stopwatch stopwatch2{ "Running fib(28) 5 times" };
+        samal::VM vm{ std::move(program) };
+        for(size_t i = 0; i < 5; ++i) {
             auto ret = vm.run("fib", { samal::ExternalVMValue::wrapInt32(28) });
             std::cout << "fib(28)=" << *(int32_t*)ret.data() << "\n";
         }
@@ -68,9 +66,9 @@ fn func2(p : i32) -> i32 {
     {
         samal::Stopwatch stopwatch2{ "func2(2)" };
         samal::VM vm{ std::move(program) };
-        auto ret = vm.run("func2", { samal::ExternalVMValue::wrapInt32(2) });
+        auto ret = vm.run("func2", { samal::ExternalVMValue::wrapInt64(2) });
         //auto ret = vm.run("func2", { 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 2, 0, 0, 0, 0, 0, 0, 0 });
-        std::cout << "func2(2)=" << *(int32_t*)ret.data() << "\n";
+        std::cout << "func2(2)=" << *(int64_t*)ret.data() << "\n";
     }
 #endif
 }

@@ -1,7 +1,7 @@
 #include "samal_lib/VM.hpp"
+#include "samal_lib/ExternalVMValue.hpp"
 #include "samal_lib/Instruction.hpp"
 #include "samal_lib/Util.hpp"
-#include "samal_lib/ExternalVMValue.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -123,19 +123,19 @@ public:
             case Instruction::ADD_I32:
                 pop(rax);
                 pop(rbx);
-                add(rbx, rax);
+                add(ebx, eax);
                 push(rbx);
                 break;
             case Instruction::SUB_I32:
                 pop(rax);
                 pop(rbx);
-                sub(rbx, rax);
+                sub(ebx, eax);
                 push(rbx);
                 break;
             case Instruction::COMPARE_LESS_THAN_I32:
                 pop(rax);
                 pop(rbx);
-                cmp(rbx, rax);
+                cmp(ebx, eax);
                 mov(rax, 0);
                 cmovl(rax, oneRegister);
                 push(rax);
@@ -143,7 +143,7 @@ public:
             case Instruction::COMPARE_LESS_EQUAL_THAN_I32:
                 pop(rax);
                 pop(rbx);
-                cmp(rbx, rax);
+                cmp(ebx, eax);
                 mov(rax, 0);
                 cmovle(rax, oneRegister);
                 push(rax);
@@ -151,12 +151,56 @@ public:
             case Instruction::COMPARE_MORE_THAN_I32:
                 pop(rax);
                 pop(rbx);
-                cmp(rbx, rax);
+                cmp(ebx, eax);
                 mov(rax, 0);
                 cmovg(rax, oneRegister);
                 push(rax);
                 break;
             case Instruction::COMPARE_MORE_EQUAL_THAN_I32:
+                pop(rax);
+                pop(rbx);
+                cmp(ebx, eax);
+                mov(rax, 0);
+                cmovge(rax, oneRegister);
+                push(rax);
+                break;
+            case Instruction::ADD_I64:
+                pop(rax);
+                pop(rbx);
+                add(rbx, rax);
+                push(rbx);
+                break;
+            case Instruction::SUB_I64:
+                pop(rax);
+                pop(rbx);
+                sub(rbx, rax);
+                push(rbx);
+                break;
+            case Instruction::COMPARE_LESS_THAN_I64:
+                pop(rax);
+                pop(rbx);
+                cmp(rbx, rax);
+                mov(rax, 0);
+                cmovl(rax, oneRegister);
+                push(rax);
+                break;
+            case Instruction::COMPARE_LESS_EQUAL_THAN_I64:
+                pop(rax);
+                pop(rbx);
+                cmp(rbx, rax);
+                mov(rax, 0);
+                cmovle(rax, oneRegister);
+                push(rax);
+                break;
+            case Instruction::COMPARE_MORE_THAN_I64:
+                pop(rax);
+                pop(rbx);
+                cmp(rbx, rax);
+                mov(rax, 0);
+                cmovg(rax, oneRegister);
+                push(rax);
+                break;
+            case Instruction::COMPARE_MORE_EQUAL_THAN_I64:
                 pop(rax);
                 pop(rbx);
                 cmp(rbx, rax);
@@ -404,22 +448,6 @@ bool VM::interpretInstruction() {
     case Instruction::REPUSH_N:
         mStack.repush(0, *(int32_t*)&mProgram.code.at(mIp + 1));
         break;
-    case Instruction::COMPARE_LESS_THAN_I32: {
-#ifdef x86_64_BIT_MODE
-        auto lhs = *(int32_t*)mStack.get(16);
-        auto rhs = *(int32_t*)mStack.get(8);
-        mStack.pop(16);
-        int64_t res = lhs < rhs;
-        mStack.push(&res, 8);
-#else
-        auto lhs = *(int32_t*)mStack.get(8);
-        auto rhs = *(int32_t*)mStack.get(4);
-        mStack.pop(8);
-        bool res = lhs < rhs;
-        mStack.push(&res, 1);
-#endif
-        break;
-    }
     case Instruction::JUMP_IF_FALSE: {
 #ifdef x86_64_BIT_MODE
         auto val = *(bool*)mStack.get(8);
@@ -475,6 +503,118 @@ bool VM::interpretInstruction() {
 #endif
         break;
     }
+    case Instruction::COMPARE_LESS_THAN_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(16);
+        auto rhs = *(int32_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs < rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(4);
+        mStack.pop(8);
+        bool res = lhs < rhs;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
+    case Instruction::COMPARE_MORE_THAN_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(16);
+        auto rhs = *(int32_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs > rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(4);
+        mStack.pop(8);
+        bool res = lhs > rhs;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
+    case Instruction::COMPARE_LESS_EQUAL_THAN_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(16);
+        auto rhs = *(int32_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs <= rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(4);
+        mStack.pop(8);
+        bool res = lhs <= rhs;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
+    case Instruction::COMPARE_MORE_EQUAL_THAN_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(16);
+        auto rhs = *(int32_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs >= rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(4);
+        mStack.pop(8);
+        bool res = lhs >= rhs;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
+    case Instruction::SUB_I64: {
+        auto lhs = *(int64_t*)mStack.get(16);
+        auto rhs = *(int64_t*)mStack.get(8);
+        int64_t res = lhs - rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+        break;
+    }
+    case Instruction::ADD_I64: {
+        auto lhs = *(int64_t*)mStack.get(16);
+        auto rhs = *(int64_t*)mStack.get(8);
+        int64_t res = lhs + rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+        break;
+    }
+    case Instruction::COMPARE_LESS_THAN_I64: {
+        auto lhs = *(int64_t*)mStack.get(16);
+        auto rhs = *(int64_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs < rhs;
+        mStack.push(&res, 8);
+        break;
+    }
+    case Instruction::COMPARE_MORE_THAN_I64: {
+        auto lhs = *(int64_t*)mStack.get(16);
+        auto rhs = *(int64_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs > rhs;
+        mStack.push(&res, 8);
+        break;
+    }
+    case Instruction::COMPARE_LESS_EQUAL_THAN_I64: {
+        auto lhs = *(int64_t*)mStack.get(16);
+        auto rhs = *(int64_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs <= rhs;
+        mStack.push(&res, 8);
+        break;
+    }
+    case Instruction::COMPARE_MORE_EQUAL_THAN_I64: {
+        auto lhs = *(int64_t*)mStack.get(16);
+        auto rhs = *(int64_t*)mStack.get(8);
+        mStack.pop(16);
+        int64_t res = lhs >= rhs;
+        mStack.push(&res, 8);
+        break;
+    }
     case Instruction::POP_N_BELOW: {
         mStack.popBelow(*(int32_t*)&mProgram.code.at(mIp + 5),
             *(int32_t*)&mProgram.code.at(mIp + 1));
@@ -511,7 +651,7 @@ std::vector<uint8_t> VM::run(const std::string& functionName, const std::vector<
     auto returnValueIP = static_cast<uint32_t>(mProgram.code.size());
     memcpy(stack.data(), &returnValueIP, 4);
     memset(stack.data() + 4, 0, 4);
-    for(auto& param: params) {
+    for(auto& param : params) {
         auto stackedValue = param.toStackValue(*this);
         stack.insert(stack.end(), stackedValue.cbegin(), stackedValue.cend());
     }

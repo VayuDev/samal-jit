@@ -1,8 +1,8 @@
 #pragma once
 
+#include "Forward.hpp"
 #include "Program.hpp"
 #include "Util.hpp"
-#include "Forward.hpp"
 #ifdef SAMAL_ENABLE_JIT
 #    include <xbyak/xbyak.h>
 #endif

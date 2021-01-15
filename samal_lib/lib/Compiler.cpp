@@ -62,6 +62,10 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
             addInstructions(Instruction::ADD_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
             break;
+        case DatatypeCategory::i64:
+            addInstructions(Instruction::ADD_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64);
+            break;
         default:
             assert(false);
         }
@@ -71,6 +75,10 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         case DatatypeCategory::i32:
             addInstructions(Instruction::SUB_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
+            break;
+        case DatatypeCategory::i64:
+            addInstructions(Instruction::SUB_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64);
             break;
         default:
             assert(false);
@@ -82,6 +90,10 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
             break;
+        case DatatypeCategory::i64:
+            addInstructions(Instruction::COMPARE_LESS_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2 - getSimpleSize(DatatypeCategory::bool_);
+            break;
         default:
             assert(false);
         }
@@ -91,6 +103,10 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
+            break;
+        case DatatypeCategory::i64:
+            addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2 - getSimpleSize(DatatypeCategory::bool_);
             break;
         default:
             assert(false);
@@ -102,6 +118,10 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
             addInstructions(Instruction::COMPARE_MORE_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
             break;
+        case DatatypeCategory::i64:
+            addInstructions(Instruction::COMPARE_MORE_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2 - getSimpleSize(DatatypeCategory::bool_);
+            break;
         default:
             assert(false);
         }
@@ -111,6 +131,10 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
+            break;
+        case DatatypeCategory::i64:
+            addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2 - getSimpleSize(DatatypeCategory::bool_);
             break;
         default:
             assert(false);

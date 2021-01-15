@@ -7,6 +7,8 @@ std::string Datatype::toString() const {
     switch(mCategory) {
     case DatatypeCategory::i32:
         return "i32";
+    case DatatypeCategory::i64:
+        return "i64";
     case DatatypeCategory::function: {
         auto& functionInfo = getFunctionTypeInfo();
         std::string ret = "fn(";

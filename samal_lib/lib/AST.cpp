@@ -209,6 +209,21 @@ void LiteralInt32Node::compile(Compiler& comp) const {
     comp.pushPrimitiveLiteralI32(mValue);
 }
 
+LiteralInt64Node::LiteralInt64Node(SourceCodeRef source, int64_t val)
+: LiteralNode(std::move(source)), mValue(val) {
+}
+void LiteralInt64Node::completeDatatype(DatatypeCompleter& declList) {
+}
+void LiteralInt64Node::compile(Compiler& comp) const {
+    comp.pushPrimitiveLiteralI64(mValue);
+}
+std::optional<Datatype> LiteralInt64Node::getDatatype() const {
+    return Datatype{ DatatypeCategory::i64 };
+}
+std::string LiteralInt64Node::dump(unsigned int indent) const {
+    return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
+}
+
 IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name)
 : ExpressionNode(std::move(source)), mName(std::move(name)) {
 }

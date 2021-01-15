@@ -126,10 +126,23 @@ public:
     void compile(Compiler&) const override;
     [[nodiscard]] std::optional<Datatype> getDatatype() const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
-    [[nodiscard]] inline const char* getClassName() const override { return "LiteralIntNode"; }
+    [[nodiscard]] inline const char* getClassName() const override { return "LiteralInt32Node"; }
 
 private:
     int32_t mValue;
+};
+
+class LiteralInt64Node : public LiteralNode {
+public:
+    explicit LiteralInt64Node(SourceCodeRef source, int64_t val);
+    void completeDatatype(DatatypeCompleter& declList) override;
+    void compile(Compiler&) const override;
+    [[nodiscard]] std::optional<Datatype> getDatatype() const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "LiteralInt64Node"; }
+
+private:
+    int64_t mValue;
 };
 
 class IdentifierNode : public ExpressionNode {

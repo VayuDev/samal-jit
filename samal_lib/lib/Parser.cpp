@@ -65,7 +65,7 @@ Parser::Parser() {
         }
         return IdentifierNode{ toRef(res), std::move(parts) };
     };
-    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             return Datatype{ res[0][5].result.moveValue<Datatype>(), res[0][2].result.moveValue<std::vector<Datatype>>() };
@@ -74,10 +74,12 @@ Parser::Parser() {
         case 2:
             return Datatype{ DatatypeCategory::i32 };
         case 3:
-            return Datatype{ std::string{ std::string_view(res.startTrimmed(), res.startTrimmed() - res.endTrimmed()) } };
+            return Datatype{ DatatypeCategory::i64 };
         case 4:
-            return res[0][1].result.moveValue<Datatype>();
+            return Datatype{ std::string{ std::string_view(res.startTrimmed(), res.startTrimmed() - res.endTrimmed()) } };
         case 5:
+            return res[0][1].result.moveValue<Datatype>();
+        case 6:
             return Datatype{ res[0][1].result.moveValue<std::vector<Datatype>>() };
         default:
             assert(false);
@@ -252,11 +254,17 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionListWithoutDatatype
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+) | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' Expression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
-        int32_t val;
+    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+ ~nws~'i64'?) | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' Expression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         if(*res.choice == 0) {
-            std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
-            return LiteralInt32Node{ toRef(res), val };
+            if(res[0][1].subs.empty()) {
+                int32_t val;
+                std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
+                return LiteralInt32Node{ toRef(res), val };
+            } else {
+                int64_t val;
+                std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
+                return LiteralInt64Node{ toRef(res), val };
+            }
         } else if(*res.choice == 1) {
             return ListCreationNode(toRef(res), res[0][2].result.moveValue<Datatype>());
         } else if(*res.choice == 2) {
