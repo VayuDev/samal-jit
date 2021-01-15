@@ -7,7 +7,7 @@
 #include <peg_parser/PegParsingExpressionParser.hpp>
 
 TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
-    peg::PegTokenizer t { "a b c def" };
+    peg::PegTokenizer t{ "a b c def" };
     peg::ParsingState state;
     auto shouldMatch = [&](const char* param) {
         auto ret = t.matchString(state, param);
@@ -23,14 +23,14 @@ TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
     shouldMatch("b");
     shouldMatch("c");
     shouldNotMatch("abc");
-    state = peg::ParsingState {};
+    state = peg::ParsingState{};
     shouldMatch("a");
     shouldMatch("b");
     shouldMatch("c");
     shouldMatch("de");
     shouldNotMatch("gef");
     shouldMatch("f");
-    state = peg::ParsingState {};
+    state = peg::ParsingState{};
     shouldMatch("a");
     shouldMatch("b");
     shouldMatch("c");
@@ -40,16 +40,16 @@ TEST_CASE("Tokenizer matches strings", "[tokenizer]") {
 }
 
 TEST_CASE("Tokenizer matches regex", "[tokenizer]") {
-    peg::PegTokenizer t { "a b c def" };
+    peg::PegTokenizer t{ "a b c def" };
     peg::ParsingState state;
     auto shouldMatchReg = [&](const char* param) {
-        auto ret = t.matchRegex(state, std::regex { param });
+        auto ret = t.matchRegex(state, std::regex{ param });
         REQUIRE(ret);
         state = *ret;
         state = t.skipWhitespaces(state);
     };
     auto shouldNotMatchReg = [&](const char* param) {
-        auto ret = t.matchRegex(state, std::regex { param });
+        auto ret = t.matchRegex(state, std::regex{ param });
         REQUIRE(!ret);
     };
     shouldMatchReg("^.");
@@ -59,10 +59,10 @@ TEST_CASE("Tokenizer matches regex", "[tokenizer]") {
 }
 
 TEST_CASE("Tokenizer matches regex 2", "[tokenizer]") {
-    peg::PegTokenizer t { "5 + 3" };
+    peg::PegTokenizer t{ "5 + 3" };
     peg::ParsingState state;
     auto shouldMatchReg = [&](const char* param) {
-        auto ret = t.matchRegex(state, std::regex { param });
+        auto ret = t.matchRegex(state, std::regex{ param });
         REQUIRE(ret);
         state = *ret;
         state = t.skipWhitespaces(state);
@@ -79,9 +79,9 @@ TEST_CASE("Tokenizer matches regex 2", "[tokenizer]") {
 }
 
 TEST_CASE("ParsingExpression stringify", "[parser]") {
-    auto rule = std::make_shared<peg::SequenceParsingExpression>(std::vector<peg::sp<peg::ParsingExpression>> {
+    auto rule = std::make_shared<peg::SequenceParsingExpression>(std::vector<peg::sp<peg::ParsingExpression>>{
         std::make_shared<peg::TerminalParsingExpression>("a"),
-        std::make_shared<peg::ChoiceParsingExpression>(std::vector<peg::sp<peg::ParsingExpression>> {
+        std::make_shared<peg::ChoiceParsingExpression>(std::vector<peg::sp<peg::ParsingExpression>>{
             std::make_shared<peg::TerminalParsingExpression>("c"),
             std::make_shared<peg::TerminalParsingExpression>("d") }),
         std::make_shared<peg::TerminalParsingExpression>("b") });
@@ -90,7 +90,7 @@ TEST_CASE("ParsingExpression stringify", "[parser]") {
 
 TEST_CASE("ExpressionTokenizer simple", "[parser]") {
     std::string s = "( that is) gre+at*";
-    peg::ExpressionTokenizer tokenizer { s };
+    peg::ExpressionTokenizer tokenizer{ s };
     REQUIRE(*tokenizer.currentToken() == "(");
     tokenizer.advance();
     REQUIRE(*tokenizer.currentToken() == "that");
@@ -116,7 +116,7 @@ TEST_CASE("ExpressionTokenizer simple", "[parser]") {
 
 TEST_CASE("ExpressionTokenizer string and regex", "[parser]") {
     std::string s = "'strings \\'are' [so great and] nice";
-    peg::ExpressionTokenizer tokenizer { s };
+    peg::ExpressionTokenizer tokenizer{ s };
     REQUIRE(*tokenizer.currentToken() == "'strings \\'are'");
     tokenizer.advance();
     REQUIRE(*tokenizer.currentToken() == "[so great and]");
@@ -127,7 +127,7 @@ TEST_CASE("ExpressionTokenizer string and regex", "[parser]") {
 
 TEST_CASE("ExpressionTokenizer string and regex escapes", "[parser]") {
     std::string s = R"('strings \\' [so great and] nice)";
-    peg::ExpressionTokenizer tokenizer { s };
+    peg::ExpressionTokenizer tokenizer{ s };
     REQUIRE(*tokenizer.currentToken() == R"('strings \\')");
     tokenizer.advance();
     REQUIRE(*tokenizer.currentToken() == "[so great and]");
@@ -138,7 +138,7 @@ TEST_CASE("ExpressionTokenizer string and regex escapes", "[parser]") {
 
 TEST_CASE("ExpressionTokenizer advanced", "[parser]") {
     std::string s = "'a' ('b' | 'c')";
-    peg::ExpressionTokenizer tokenizer { s };
+    peg::ExpressionTokenizer tokenizer{ s };
     REQUIRE(*tokenizer.currentToken() == "'a'");
     tokenizer.advance();
     REQUIRE(*tokenizer.currentToken() == "(");
@@ -275,7 +275,7 @@ TEST_CASE("Nonterminal parsing", "[parser]") {
     {
         peg::PegParser parser;
         parser.addRule("Start", peg::stringToParsingExpression("'a' | Second"), [](const peg::MatchInfo& i) {
-            if (*i.choice == 0) {
+            if(*i.choice == 0) {
                 return 1;
             } else {
                 return 2 + *i.subs.at(0).result.get<int*>();
@@ -295,9 +295,9 @@ TEST_CASE("Calculator test", "[parser]") {
     });
     parser["Sum"] << "Product (('+' #Expected +# | '-' #Expected -#) Product)*" >> [](const peg::MatchInfo& i) -> peg::Any {
         int res = *i[0].result.get<int*>();
-        for (auto& child : i[1].subs) {
+        for(auto& child : i[1].subs) {
             auto val = *child[1].result.get<int*>();
-            if (*child[0].choice == 0) {
+            if(*child[0].choice == 0) {
                 res += val;
             } else {
                 res -= val;
@@ -307,9 +307,9 @@ TEST_CASE("Calculator test", "[parser]") {
     };
     parser["Product"] << "Value (('*' #Expected *# | '/' #Expected /#) Value)*" >> [](const peg::MatchInfo& i) -> peg::Any {
         int res = *i[0].result.get<int*>();
-        for (auto& child : i[1].subs) {
+        for(auto& child : i[1].subs) {
             auto val = *child[1].result.get<int*>();
-            if (*child[0].choice == 0) {
+            if(*child[0].choice == 0) {
                 res *= val;
             } else {
                 res /= val;
@@ -319,7 +319,7 @@ TEST_CASE("Calculator test", "[parser]") {
     };
     parser.addRule("Value", peg::stringToParsingExpression("[\\d]+ #Expected digit# | ('(' Expr ')') #Expected subexpression#"), [](peg::MatchInfo& i) -> peg::Any {
         int val;
-        if (*i.choice == 0) {
+        if(*i.choice == 0) {
             std::from_chars(i.startTrimmed(), i.endTrimmed(), val);
             return val;
         } else {
@@ -335,7 +335,7 @@ TEST_CASE("Calculator test", "[parser]") {
     REQUIRE(*std::get<0>(parser.parse("Expr", "(20-2)*3").first).getMatchInfo().result.get<int*>() == 18 * 3);
     auto res = parser.parse("Expr", "3*hallo");
     //std::cout << peg::errorsToString(std::get<1>(res.first), res.second) << "\n";
-    REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) != std::string { "" });
+    REQUIRE(peg::errorsToString(std::get<1>(res.first), res.second) != std::string{ "" });
 }
 
 TEST_CASE("Attribute parser match", "[parser]") {
