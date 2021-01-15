@@ -590,32 +590,32 @@ bool VM::interpretInstruction() {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        int64_t res = lhs < rhs;
-        mStack.push(&res, 8);
+        bool res = lhs < rhs;
+        mStack.push(&res, 1);
         break;
     }
     case Instruction::COMPARE_MORE_THAN_I64: {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        int64_t res = lhs > rhs;
-        mStack.push(&res, 8);
+        bool res = lhs > rhs;
+        mStack.push(&res, 1);
         break;
     }
     case Instruction::COMPARE_LESS_EQUAL_THAN_I64: {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        int64_t res = lhs <= rhs;
-        mStack.push(&res, 8);
+        bool res = lhs <= rhs;
+        mStack.push(&res, 1);
         break;
     }
     case Instruction::COMPARE_MORE_EQUAL_THAN_I64: {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        int64_t res = lhs >= rhs;
-        mStack.push(&res, 8);
+        bool res = lhs >= rhs;
+        mStack.push(&res, 1);
         break;
     }
     case Instruction::POP_N_BELOW: {

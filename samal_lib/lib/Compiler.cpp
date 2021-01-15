@@ -82,7 +82,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
             break;
         case DatatypeCategory::i64:
-            addInstructions(Instruction::SUB_I32);
+            addInstructions(Instruction::SUB_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64);
             break;
         default:
