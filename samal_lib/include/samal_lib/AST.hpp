@@ -160,7 +160,7 @@ private:
 
 class IdentifierNode : public ExpressionNode {
 public:
-    explicit IdentifierNode(SourceCodeRef source, std::vector<std::string> name);
+    explicit IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters);
     void completeDatatype(DatatypeCompleter& declList) override;
     void compile(Compiler&) const override;
     [[nodiscard]] std::string getName() const;
@@ -172,6 +172,7 @@ public:
 private:
     std::vector<std::string> mName;
     std::optional<std::pair<Datatype, int32_t>> mDatatype;
+    std::vector<Datatype> mTemplateParameters;
 };
 
 class TupleCreationNode : public ExpressionNode {

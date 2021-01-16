@@ -239,8 +239,8 @@ std::string LiteralBoolNode::dump(unsigned int indent) const {
     return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
 }
 
-IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name)
-: ExpressionNode(std::move(source)), mName(std::move(name)) {
+IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters)
+: ExpressionNode(std::move(source)), mName(std::move(name)), mTemplateParameters(std::move(templateParameters)) {
 }
 std::optional<Datatype> IdentifierNode::getDatatype() const {
     return mDatatype ? mDatatype->first : std::optional<Datatype>{};
@@ -249,9 +249,17 @@ std::optional<int32_t> IdentifierNode::getId() const {
     return mDatatype ? mDatatype->second : std::optional<int32_t>{};
 }
 std::string IdentifierNode::dump(unsigned int indent) const {
-    return createIndent(indent) + getClassName() + ": " + concat(mName)
+    std::string ret = createIndent(indent) + getClassName() + ": " + concat(mName)
         + ", type: " + (mDatatype ? mDatatype->first.toString() : "<unknown>")
-        + (mDatatype ? ", id: " + std::to_string(mDatatype->second) : "") + "\n";
+        + (mDatatype ? ", id: " + std::to_string(mDatatype->second) : "");
+    if(!mTemplateParameters.empty()) {
+        ret += ", template parameters: ";
+        for(auto& param: mTemplateParameters) {
+            ret += param.toString();
+            ret += ",";
+        }
+    }
+    return ret + "\n";
 }
 void IdentifierNode::completeDatatype(DatatypeCompleter& declList) {
     mDatatype = declList.getVariableType(mName);
@@ -623,8 +631,8 @@ std::string TupleAccessExpressionNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
     ret += createIndent(indent + 1) + "Name:\n";
     ret += mName->dump(indent + 2);
-    ret += createIndent(indent + 1) + "Index:\n";
-    ret += std::to_string(mIndex);
+    ret += createIndent(indent + 1) + "Index:";
+    ret += std::to_string(mIndex) + "\n";
     return ret;
 }
 

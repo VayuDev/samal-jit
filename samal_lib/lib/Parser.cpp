@@ -49,9 +49,9 @@ Parser::Parser() {
         }
         return params;
     };
-    mPegParser["Identifier"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+)" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Identifier"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+) ('<' DatatypeVector '>')?" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<std::string> parts;
-        for(auto& part : res.subs) {
+        for(auto& part : res[0].subs) {
             const char* end = part.endTrimmed();
             size_t whiteSpacesToCut = 0;
             if(*(end - 1) == '.') {
@@ -63,7 +63,11 @@ Parser::Parser() {
         if(parts.size() > 2) {
             throw std::runtime_error{ "An identifier can only contain at most a single dot" };
         }
-        return IdentifierNode{ toRef(res), std::move(parts) };
+        std::vector<Datatype> templateParameters;
+        if(!res[1].subs.empty()) {
+            templateParameters = res[1][0][1].result.moveValue<std::vector<Datatype>>();
+        }
+        return IdentifierNode{ toRef(res), std::move(parts), std::move(templateParameters) };
     };
     mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
@@ -76,7 +80,7 @@ Parser::Parser() {
         case 3:
             return Datatype{ DatatypeCategory::i64 };
         case 4:
-            return Datatype{ std::string{ std::string_view(res.startTrimmed(), res.startTrimmed() - res.endTrimmed()) } };
+            return Datatype{ std::string{ std::string_view(res.startTrimmed(), static_cast<size_t>(res.endTrimmed() - res.startTrimmed())) } };
         case 5:
             return res[0][1].result.moveValue<Datatype>();
         case 6:
