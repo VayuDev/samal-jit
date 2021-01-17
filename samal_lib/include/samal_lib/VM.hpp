@@ -42,6 +42,7 @@ public:
     ExternalVMValue run(const std::string& functionName, const std::vector<uint8_t>& initialStack);
     ExternalVMValue run(const std::string& functionName, const std::vector<ExternalVMValue>& params);
     const Stack& getStack() const;
+
 private:
     inline bool interpretInstruction();
 

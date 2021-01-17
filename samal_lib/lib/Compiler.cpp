@@ -213,7 +213,7 @@ FunctionDuration::FunctionDuration(Compiler& compiler, const up<IdentifierNode>&
     auto functionId = mIdentifier->getId();
     assert(functionId);
     mCompiler.mFunctions.emplace(*functionId, mCompiler.getCurrentLocation());
-    mCompiler.mProgram->functions.emplace(std::make_pair(mIdentifier->getName(), Program::Function{.offset = static_cast<int32_t>(mCompiler.mProgram->code.size()), .len = -1, .type = *mIdentifier->getDatatype()}));
+    mCompiler.mProgram->functions.emplace(std::make_pair(mIdentifier->getName(), Program::Function{ .offset = static_cast<int32_t>(mCompiler.mProgram->code.size()), .len = -1, .type = *mIdentifier->getDatatype() }));
     mCompiler.mStackFrames.emplace();
 
     for(auto& param : mParams->getParams()) {

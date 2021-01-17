@@ -45,7 +45,7 @@ void ParameterListNode::completeDatatype(DatatypeCompleter& declList) {
         param.name->completeDatatype(declList);
     }
 }
-const std::vector<ParameterListNode::Parameter>& ParameterListNode::getParams() {
+const std::vector<ParameterListNode::Parameter>& ParameterListNode::getParams() const {
     return mParams;
 }
 
@@ -94,10 +94,10 @@ void AssignmentExpression::compile(Compiler& comp) const {
     mRight->compile(comp);
     comp.assignToVariable(mLeft);
 }
-const up<IdentifierNode>& AssignmentExpression::getLeft() {
+const up<IdentifierNode>& AssignmentExpression::getLeft() const {
     return mLeft;
 }
-const up<ExpressionNode>& AssignmentExpression::getRight() {
+const up<ExpressionNode>& AssignmentExpression::getRight() const {
     return mRight;
 }
 
@@ -254,7 +254,7 @@ std::string IdentifierNode::dump(unsigned int indent) const {
         + (mDatatype ? ", id: " + std::to_string(mDatatype->second) : "");
     if(!mTemplateParameters.empty()) {
         ret += ", template parameters: ";
-        for(auto& param: mTemplateParameters) {
+        for(auto& param : mTemplateParameters) {
             ret += param.toString();
             ret += ",";
         }
@@ -364,7 +364,7 @@ void ScopeNode::compile(Compiler& comp) const {
     auto duration = comp.enterScope(*getDatatype());
     size_t i = 0;
     for(auto& expr : mExpressions) {
-        auto exprAsAssignment = dynamic_cast<AssignmentExpression*>(expr.get());
+        auto exprAsAssignment = dynamic_cast<const AssignmentExpression*>(expr.get());
         if(exprAsAssignment && i < mExpressions.size() - 1) {
             // Child is an assignment -> OPTIMIZE!
             // Without this optimization, we always do the following:

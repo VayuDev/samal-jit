@@ -36,7 +36,7 @@ public:
     };
     explicit ParameterListNode(SourceCodeRef source, std::vector<Parameter> params);
     void completeDatatype(DatatypeCompleter& declList) override;
-    [[nodiscard]] const std::vector<Parameter>& getParams();
+    [[nodiscard]] const std::vector<Parameter>& getParams() const;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ParameterListNode"; }
 
@@ -70,8 +70,8 @@ public:
     AssignmentExpression(SourceCodeRef source, up<IdentifierNode> left, up<ExpressionNode> right);
     void completeDatatype(DatatypeCompleter& declList) override;
     void compile(Compiler&) const override;
-    const up<IdentifierNode>& getLeft();
-    const up<ExpressionNode>& getRight();
+    const up<IdentifierNode>& getLeft() const;
+    const up<ExpressionNode>& getRight() const;
     [[nodiscard]] std::optional<Datatype> getDatatype() const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "AssignmentExpression"; }

@@ -37,7 +37,7 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
     }
 }
 std::string ExternalVMValue::dump() const {
-    std::string ret { "{type: "};
+    std::string ret{ "{type: " };
     ret += mType.toString();
     ret += ", value: ";
     switch(mType.getCategory()) {
@@ -56,9 +56,9 @@ std::string ExternalVMValue::dump() const {
 ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t stackOffset) {
     switch(type.getCategory()) {
     case DatatypeCategory::i32:
-        return ExternalVMValue{std::move(type), *(int32_t*)(vm.getStack().getBasePtr() + stackOffset)};
+        return ExternalVMValue{ std::move(type), *(int32_t*)(vm.getStack().getBasePtr() + stackOffset) };
     case DatatypeCategory::i64:
-        return ExternalVMValue{std::move(type), *(int64_t*)(vm.getStack().getBasePtr() + stackOffset)};
+        return ExternalVMValue{ std::move(type), *(int64_t*)(vm.getStack().getBasePtr() + stackOffset) };
     default:
         assert(false);
     }

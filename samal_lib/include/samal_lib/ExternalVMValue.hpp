@@ -13,6 +13,7 @@ public:
     [[nodiscard]] const Datatype& getDatatype() const&;
     std::vector<uint8_t> toStackValue(VM& vm) const;
     [[nodiscard]] std::string dump() const;
+
 private:
     Datatype mType;
     std::variant<int32_t, int64_t> mValue;

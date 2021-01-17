@@ -1,9 +1,9 @@
 #pragma once
+#include "Datatype.hpp"
 #include <cctype>
 #include <map>
 #include <string>
 #include <vector>
-#include "Datatype.hpp"
 
 namespace samal {
 

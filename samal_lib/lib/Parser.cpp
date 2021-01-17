@@ -332,6 +332,6 @@ std::pair<up<ModuleRootNode>, peg::PegTokenizer> Parser::parse(std::string modul
     }
 
     std::cerr << peg::errorsToString(std::get<1>(ret.first), ret.second);
-    return std::make_pair(nullptr, std::move(ret.second));
+    return std::make_pair(up<ModuleRootNode>{}, std::move(ret.second));
 }
 }

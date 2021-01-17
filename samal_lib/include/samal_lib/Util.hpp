@@ -1,7 +1,9 @@
 #pragma once
+#include <cassert>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
