@@ -78,6 +78,9 @@ const Datatype& Datatype::getListInfo() const {
     }
     return *std::get<sp<Datatype>>(mFurtherInfo);
 }
+const std::string& Datatype::getUndeterminedIdentifierInfo() const {
+    return std::get<std::string>(mFurtherInfo);
+}
 bool Datatype::operator==(const Datatype& other) const {
     if(mCategory != other.mCategory)
         return false;
@@ -176,6 +179,60 @@ size_t Datatype::getSizeOnStack() const {
     }
     case DatatypeCategory::list:
         return 8;
+    default:
+        assert(false);
+    }
+}
+Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams) const {
+    Datatype cpy = *this;
+    switch(mCategory) {
+    case DatatypeCategory::bool_:
+    case DatatypeCategory::i32:
+    case DatatypeCategory::i64:
+    case DatatypeCategory::string:
+        break;
+    case DatatypeCategory::function: {
+        auto functionType = getFunctionTypeInfo();
+        *std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(cpy.mFurtherInfo).first = functionType.first->completeWithTemplateParameters(templateParams);
+        size_t i = 0;
+        for(auto& param : functionType.second) {
+            std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(cpy.mFurtherInfo).second[i] = param.completeWithTemplateParameters(templateParams);
+            ++i;
+        }
+        break;
+    }
+    case DatatypeCategory::undetermined_identifier: {
+        auto maybeReplacementType = templateParams.find(std::get<std::string>(mFurtherInfo));
+        if(maybeReplacementType != templateParams.end()) {
+            cpy = maybeReplacementType->second;
+        }
+        break;
+    }
+    default:
+        assert(false);
+    }
+    return cpy;
+}
+bool Datatype::hasUndeterminedTemplateTypes() const {
+    switch(mCategory) {
+    case DatatypeCategory::bool_:
+    case DatatypeCategory::i32:
+    case DatatypeCategory::i64:
+    case DatatypeCategory::string:
+        return false;
+    case DatatypeCategory::function:
+        if(getFunctionTypeInfo().first->hasUndeterminedTemplateTypes())
+            return true;
+        for(auto& param : getFunctionTypeInfo().second) {
+            if(param.hasUndeterminedTemplateTypes())
+                return true;
+        }
+
+        break;
+
+    case DatatypeCategory::undetermined_identifier: {
+        return true;
+    }
     default:
         assert(false);
     }

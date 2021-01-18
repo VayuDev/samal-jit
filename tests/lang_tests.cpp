@@ -2,9 +2,9 @@
 #include "samal_lib/AST.hpp"
 #include "samal_lib/Compiler.hpp"
 #include "samal_lib/DatatypeCompleter.hpp"
+#include "samal_lib/ExternalVMValue.hpp"
 #include "samal_lib/Parser.hpp"
 #include "samal_lib/VM.hpp"
-#include "samal_lib/ExternalVMValue.hpp"
 #include <catch2/catch.hpp>
 #include <charconv>
 #include <iostream>
@@ -20,7 +20,7 @@ samal::VM compileSimple(const char* code) {
     completer.complete(modules.at(0));
     samal::Compiler comp;
     auto program = comp.compile(modules);
-    return samal::VM{std::move(program)};
+    return samal::VM{ std::move(program) };
 }
 
 TEST_CASE("Ensure that fib64 works", "[samal_whole_system]") {
@@ -32,7 +32,7 @@ fn fib64(n : i64) -> i64 {
         fib64(n - 1i64) + fib64(n - 2i64)
     }
 })");
-    auto vmRet = vm.run("fib64", {samal::ExternalVMValue::wrapInt64(10)});
+    auto vmRet = vm.run("fib64", { samal::ExternalVMValue::wrapInt64(10) });
     REQUIRE(vmRet.dump() == "{type: i64, value: 55}");
 }
 
@@ -45,7 +45,7 @@ fn fib32(n : i32) -> i32 {
         fib32(n - 1) + fib32(n - 2)
     }
 })");
-    auto vmRet = vm.run("fib32", {samal::ExternalVMValue::wrapInt32(10)});
+    auto vmRet = vm.run("fib32", { samal::ExternalVMValue::wrapInt32(10) });
     REQUIRE(vmRet.dump() == "{type: i32, value: 55}");
 }
 

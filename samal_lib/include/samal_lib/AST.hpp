@@ -160,18 +160,23 @@ private:
 
 class IdentifierNode : public ExpressionNode {
 public:
+    struct IdentifierId {
+        int32_t variableId = 0;
+        int32_t templateId = 0;
+    };
     explicit IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters);
     void completeDatatype(DatatypeCompleter& declList) override;
     void compile(Compiler&) const override;
     [[nodiscard]] std::string getName() const;
     [[nodiscard]] std::optional<Datatype> getDatatype() const override;
-    [[nodiscard]] std::optional<int32_t> getId() const;
+    [[nodiscard]] std::optional<IdentifierId> getId() const;
+    [[nodiscard]] const std::vector<Datatype>& getTemplateParameters() const;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "IdentifierNode"; }
 
 private:
     std::vector<std::string> mName;
-    std::optional<std::pair<Datatype, int32_t>> mDatatype;
+    std::optional<std::pair<Datatype, IdentifierId>> mDatatype;
     std::vector<Datatype> mTemplateParameters;
 };
 

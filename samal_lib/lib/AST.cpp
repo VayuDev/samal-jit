@@ -41,7 +41,8 @@ std::string ParameterListNode::dump(unsigned int indent) const {
 }
 void ParameterListNode::completeDatatype(DatatypeCompleter& declList) {
     for(auto& param : mParams) {
-        declList.declareVariable(param.name->getName(), param.type);
+        assert(param.name->getTemplateParameters().empty());
+        declList.declareVariable(*param.name, param.type, {});
         param.name->completeDatatype(declList);
     }
 }
@@ -87,7 +88,8 @@ void AssignmentExpression::completeDatatype(DatatypeCompleter& declList) {
     mRight->completeDatatype(declList);
     auto rightType = mRight->getDatatype();
     assert(rightType);
-    declList.declareVariable(mLeft->getName(), *rightType);
+    assert(mLeft->getTemplateParameters().empty());
+    declList.declareVariable(*mLeft, *rightType, {});
     mLeft->completeDatatype(declList);
 }
 void AssignmentExpression::compile(Compiler& comp) const {
@@ -245,13 +247,13 @@ IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> na
 std::optional<Datatype> IdentifierNode::getDatatype() const {
     return mDatatype ? mDatatype->first : std::optional<Datatype>{};
 }
-std::optional<int32_t> IdentifierNode::getId() const {
-    return mDatatype ? mDatatype->second : std::optional<int32_t>{};
+std::optional<IdentifierNode::IdentifierId> IdentifierNode::getId() const {
+    return mDatatype ? mDatatype->second : std::optional<IdentifierId>{};
 }
 std::string IdentifierNode::dump(unsigned int indent) const {
     std::string ret = createIndent(indent) + getClassName() + ": " + concat(mName)
         + ", type: " + (mDatatype ? mDatatype->first.toString() : "<unknown>")
-        + (mDatatype ? ", id: " + std::to_string(mDatatype->second) : "");
+        + (mDatatype ? ", id: " + std::to_string(mDatatype->second.variableId) + ":" + std::to_string(mDatatype->second.templateId) : "");
     if(!mTemplateParameters.empty()) {
         ret += ", template parameters: ";
         for(auto& param : mTemplateParameters) {
@@ -262,13 +264,16 @@ std::string IdentifierNode::dump(unsigned int indent) const {
     return ret + "\n";
 }
 void IdentifierNode::completeDatatype(DatatypeCompleter& declList) {
-    mDatatype = declList.getVariableType(mName);
+    mDatatype = declList.getVariableType(mName, mTemplateParameters);
 }
 std::string IdentifierNode::getName() const {
     return concat(mName);
 }
 void IdentifierNode::compile(Compiler& comp) const {
     comp.loadVariableToStack(*this);
+}
+const std::vector<Datatype>& IdentifierNode::getTemplateParameters() const {
+    return mTemplateParameters;
 }
 
 TupleCreationNode::TupleCreationNode(SourceCodeRef source, up<ExpressionListNodeWithoutDatatypes> params)
@@ -714,7 +719,7 @@ void FunctionDeclarationNode::declareShallow(DatatypeCompleter& completer) const
         paramTypes.emplace_back(p.type);
     }
     try {
-        completer.declareVariableNonOverrideable(mName->getName(), Datatype{ mReturnType, std::move(paramTypes) });
+        completer.declareFunction(*mName.get(), Datatype{ mReturnType, std::move(paramTypes) });
     } catch(std::runtime_error& e) {
         throwException(e.what());
     }

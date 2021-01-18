@@ -11,12 +11,14 @@ DatatypeCompleter::ScopeChecker::~ScopeChecker() {
     mCompleter.popScope();
 }
 void DatatypeCompleter::declareModules(std::vector<up<ModuleRootNode>>& roots) {
+    mTemplateInstantiationInfo = {};
     for(auto& decl : roots) {
         decl->declareShallow(*this);
     }
 }
-void DatatypeCompleter::complete(up<ModuleRootNode>& root) {
+std::map<const IdentifierNode*, DatatypeCompleter::TemplateInstantiationInfo> DatatypeCompleter::complete(up<ModuleRootNode>& root) {
     root->completeDatatype(*this);
+    return mTemplateInstantiationInfo;
 }
 DatatypeCompleter::ScopeChecker DatatypeCompleter::openScope(const std::string& moduleName) {
     return DatatypeCompleter::ScopeChecker(*this, moduleName);
@@ -30,36 +32,84 @@ void DatatypeCompleter::pushScope(const std::string& name) {
 void DatatypeCompleter::popScope() {
     mScope.erase(mScope.end() - 1);
 }
-void DatatypeCompleter::declareVariable(const std::string& name, Datatype type) {
-    declareVariable(name, std::move(type), true);
+void DatatypeCompleter::declareVariable(const IdentifierNode& name, Datatype type, std::vector<Datatype> templateParameters) {
+    declareVariable(name, std::move(type), std::move(templateParameters), true);
 }
-void DatatypeCompleter::declareVariableNonOverrideable(const std::string& name, Datatype type) {
-    declareVariable(name, std::move(type), false);
+void DatatypeCompleter::declareFunction(const IdentifierNode& identifierNode, Datatype type) {
+    declareVariable(identifierNode, std::move(type), identifierNode.getTemplateParameters(), false);
+    if(!identifierNode.getTemplateParameters().empty()) {
+        bool inserted = mTemplateInstantiationInfo.emplace(&identifierNode, std::vector<std::vector<Datatype>>{}).second;
+        assert(inserted);
+    }
 }
-void DatatypeCompleter::declareVariable(const std::string& name, Datatype type, bool overrideable) {
-    if(name.find('.') != std::string::npos) {
+void DatatypeCompleter::declareVariable(const IdentifierNode& identifier, Datatype type, std::vector<Datatype> templateParameters, bool overrideable) {
+    if(identifier.getName().find('.') != std::string::npos) {
         throw std::runtime_error{ "The '.' character is not allowed in variable declarations" };
     }
     auto& currentScope = mScope.at(mScope.size() - 1);
-    auto varAlreadyInScope = currentScope.find(name);
+    auto varAlreadyInScope = currentScope.find(identifier.getName());
     if(varAlreadyInScope != currentScope.end()) {
         if(!varAlreadyInScope->second.overrideable) {
-            throw std::runtime_error{ "Overriding non-overrideable variable named '" + name + "'" };
+            throw std::runtime_error{ "Overriding non-overrideable variable named '" + identifier.getName() + "'" };
         }
         currentScope.erase(varAlreadyInScope->first);
     }
-
-    auto insertResult = currentScope.emplace(std::make_pair(name, VariableDeclaration{ .type = std::move(type), .id = mIdCounter++, .overrideable = overrideable }));
+    auto insertResult = currentScope.emplace(std::make_pair(identifier.getName(),
+        VariableDeclaration{ .identifier = &identifier, .type = std::move(type), .templateParameters = std::move(templateParameters), .id = mIdCounter++, .overrideable = overrideable }));
     assert(insertResult.second);
 }
-std::pair<Datatype, int32_t> DatatypeCompleter::getVariableType(const std::vector<std::string>& name) const {
+std::pair<Datatype, IdentifierNode::IdentifierId> DatatypeCompleter::getVariableType(const std::vector<std::string>& name, const std::vector<Datatype>& templateParameters) {
+    // create a map that maps e.g. T => i32 if you call fib<i32>,
+    // which is then used to determine the return & param types of fib<i32>
+    // which could be fib<T> -> T, so it becomes i32
+    auto createTemplateParamMap = [&](const std::vector<Datatype>& identifierTemplateInfo) {
+        std::map<std::string, Datatype> ret;
+        size_t i = 0;
+        for(auto& identifierTemplateParameter : identifierTemplateInfo) {
+            ret.emplace(identifierTemplateParameter.getUndeterminedIdentifierInfo(), templateParameters.at(i));
+            ++i;
+        }
+        return ret;
+    };
+
+    auto returnFoundVariableDeclaration = [&] (const VariableDeclaration& value) {
+        // just determine the identifier if it's not a template type
+        if(value.templateParameters.empty()) {
+            return std::make_pair(value.type, IdentifierNode::IdentifierId{ .variableId = value.id, .templateId = 0 });
+        }
+        // don't add this call if it's just the function declaration e.g. fib<T>
+        bool shouldAddToInstantiatedTemplates = true;
+        for(auto& usedTemplateParam: templateParameters) {
+            if(usedTemplateParam.hasUndeterminedTemplateTypes()) {
+                shouldAddToInstantiatedTemplates = false;
+            }
+        }
+        int32_t templateId = -1;
+        if(shouldAddToInstantiatedTemplates) {
+            // check if this version is already instantiated, and, if not, at it to the list. Determine the templateId this way
+            auto& templateInstantiations = mTemplateInstantiationInfo.at(value.identifier);
+            std::optional<int32_t> templateIdOrNot;
+            for(size_t i = 0; i < templateInstantiations.size(); ++i) {
+                if(templateInstantiations.at(i) == templateParameters) {
+                    templateIdOrNot = i;
+                }
+            }
+            if(!templateIdOrNot.has_value()) {
+                templateInstantiations.push_back(templateParameters);
+                templateIdOrNot = templateInstantiations.size() - 1;
+            }
+            templateId = *templateIdOrNot;
+        }
+        return std::make_pair(value.type.completeWithTemplateParameters(createTemplateParamMap(value.templateParameters)), IdentifierNode::IdentifierId{ .variableId = value.id, .templateId = templateId });
+    };
+
     std::vector<std::string> fullPath = name;
     assert(fullPath.size() == 1 || fullPath.size() == 2);
     if(name.size() == 1) {
         for(ssize_t i = mScope.size() - 1; i >= 0; --i) {
             auto value = mScope.at(i).find(name.at(0));
             if(value != mScope.at(i).end()) {
-                return std::make_pair(value->second.type, value->second.id);
+                return returnFoundVariableDeclaration(value->second);
             }
         }
         // prepend current module name
@@ -71,7 +121,7 @@ std::pair<Datatype, int32_t> DatatypeCompleter::getVariableType(const std::vecto
         auto& moduleDeclarations = module->second;
         auto value = moduleDeclarations.find(fullPath.at(1));
         if(value != moduleDeclarations.end()) {
-            return std::make_pair(value->second.type, value->second.id);
+            return returnFoundVariableDeclaration(value->second);
         }
     }
     throw std::runtime_error{ "Couldn't find a variable called " + concat(name) };

@@ -24,11 +24,11 @@ void Compiler::assignToVariable(const up<IdentifierNode>& identifier) {
     auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
     addInstructions(Instruction::REPUSH_N, static_cast<int32_t>(sizeOnStack));
     mStackSize += sizeOnStack;
-    mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
+    mStackFrames.top().variables.emplace(identifier->getId()->variableId, VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::setVariableLocation(const up<IdentifierNode>& identifier) {
     auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
-    mStackFrames.top().variables.emplace(*identifier->getId(), VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
+    mStackFrames.top().variables.emplace(identifier->getId()->variableId, VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::addInstructions(Instruction insn, int32_t param) {
     mProgram->code.resize(mProgram->code.size() + 5);
@@ -152,8 +152,9 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
 void Compiler::loadVariableToStack(const IdentifierNode& identifier) {
     auto stackCpy = mStackFrames;
     while(!stackCpy.empty()) {
-        auto varLocation = stackCpy.top().variables.find(*identifier.getId());
+        auto varLocation = stackCpy.top().variables.find(identifier.getId()->variableId);
         if(varLocation != stackCpy.top().variables.end()) {
+            assert(identifier.getId()->templateId == 0);
             addInstructions(Instruction::REPUSH_FROM_N, varLocation->second.sizeOnStack, mStackSize - varLocation->second.offsetFromTop);
             // replace every function id with its ip at the end
             if(identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
@@ -165,7 +166,7 @@ void Compiler::loadVariableToStack(const IdentifierNode& identifier) {
         stackCpy.pop();
     }
     if(identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
-        addInstructions(Instruction::PUSH_8, *identifier.getId(), 0);
+        addInstructions(Instruction::PUSH_8, identifier.getId()->variableId, identifier.getId()->templateId);
         mFunctionIdsInCode.push_back(mProgram->code.size() - 8);
         mStackSize += 8;
         return;
@@ -212,7 +213,7 @@ FunctionDuration::FunctionDuration(Compiler& compiler, const up<IdentifierNode>&
 : mCompiler(compiler), mIdentifier(identifier), mParams(params) {
     auto functionId = mIdentifier->getId();
     assert(functionId);
-    mCompiler.mFunctions.emplace(*functionId, mCompiler.getCurrentLocation());
+    mCompiler.mFunctions.emplace(functionId->variableId, mCompiler.getCurrentLocation());
     mCompiler.mProgram->functions.emplace(std::make_pair(mIdentifier->getName(), Program::Function{ .offset = static_cast<int32_t>(mCompiler.mProgram->code.size()), .len = -1, .type = *mIdentifier->getDatatype() }));
     mCompiler.mStackFrames.emplace();
 

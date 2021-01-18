@@ -94,6 +94,10 @@ private:
     int mStackSize{ 0 };
     // maps function ids to their offset in the code
     std::map<int32_t, int32_t> mFunctions;
+    // a list of places in the code where the function id was inserted,
+    // but the actual ip of the function is required. After the general compilation pass,
+    // we have to go through this list and replace for each entry in this array
+    // the id at its position with the actual ip of the function it refers to.
     std::vector<size_t> mFunctionIdsInCode;
 
     friend class FunctionDuration;

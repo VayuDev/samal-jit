@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 #include <samal_lib/Util.hpp>
 #include <variant>
 #include <vector>
@@ -31,6 +32,7 @@ public:
     [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const&;
     [[nodiscard]] const std::vector<Datatype>& getTupleInfo() const;
     [[nodiscard]] const Datatype& getListInfo() const;
+    [[nodiscard]] const std::string& getUndeterminedIdentifierInfo() const;
     bool operator==(const Datatype& other) const;
     bool operator!=(const Datatype& other) const;
     [[nodiscard]] DatatypeCategory getCategory() const;
@@ -41,6 +43,9 @@ public:
     static Datatype createEmptyTuple();
     static Datatype createListType(Datatype baseType);
 
+    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams) const;
+
+    [[nodiscard]] bool hasUndeterminedTemplateTypes() const;
 private:
     std::variant<
         std::monostate,

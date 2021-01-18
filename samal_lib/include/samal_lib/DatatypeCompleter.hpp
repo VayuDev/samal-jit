@@ -19,28 +19,33 @@ private:
     };
 
 public:
+    using TemplateInstantiationInfo = std::vector<std::vector<Datatype>>;
+
     void declareModules(std::vector<up<ModuleRootNode>>&);
-    void complete(up<ModuleRootNode>& root);
+    std::map<const IdentifierNode*, TemplateInstantiationInfo> complete(up<ModuleRootNode>& root);
     ScopeChecker openScope(const std::string& moduleName = "");
-    void declareVariable(const std::string& name, Datatype type);
-    void declareVariableNonOverrideable(const std::string& name, Datatype type);
+    void declareVariable(const IdentifierNode& name, Datatype type, std::vector<Datatype> templateParameters);
+    void declareFunction(const IdentifierNode& identifier, Datatype type);
     void saveModule(std::string name);
-    [[nodiscard]] std::pair<Datatype, int32_t> getVariableType(const std::vector<std::string>& name) const;
+    [[nodiscard]] std::pair<Datatype, IdentifierNode::IdentifierId> getVariableType(const std::vector<std::string>& identifierTemplateInfo, const std::vector<Datatype>& templateParameters);
 
 private:
-    void declareVariable(const std::string& name, Datatype type, bool overrideable);
+    void declareVariable(const IdentifierNode& name, Datatype type, std::vector<Datatype> templateParameters, bool overrideable);
     void pushScope(const std::string&);
     void popScope();
     struct VariableDeclaration {
+        const IdentifierNode* identifier{ nullptr };
         Datatype type;
-        int32_t id;
-        bool overrideable;
+        std::vector<Datatype> templateParameters;
+        int32_t id{ -1 };
+        bool overrideable{ false };
     };
     using ScopeFrame = std::map<std::string, VariableDeclaration>;
     std::map<std::string, ScopeFrame> mModules;
     std::vector<ScopeFrame> mScope;
     int32_t mIdCounter = 0;
     std::string mCurrentModule;
+    std::map<const IdentifierNode*, TemplateInstantiationInfo> mTemplateInstantiationInfo;
 };
 
 }
