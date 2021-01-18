@@ -26,7 +26,7 @@ Parser::Parser() {
     mPegParser["Declaration"] << "FunctionDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
         return std::move(res.result);
     };
-    mPegParser["FunctionDeclaration"] << "'fn' Identifier '(' ParameterList ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["FunctionDeclaration"] << "'fn' IdentifierWithTemplate '(' ParameterList ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         return FunctionDeclarationNode(
             toRef(res),
             up<IdentifierNode>{ res[1].result.move<IdentifierNode*>() },
@@ -49,7 +49,23 @@ Parser::Parser() {
         }
         return params;
     };
-    mPegParser["Identifier"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+) ('<' DatatypeVector '>')?" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Identifier"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+)" >> [](peg::MatchInfo& res) -> peg::Any {
+        std::vector<std::string> parts;
+        for(auto& part : res.subs) {
+            const char* end = part.endTrimmed();
+            size_t whiteSpacesToCut = 0;
+            if(*(end - 1) == '.') {
+                end--;
+                whiteSpacesToCut += 1;
+            }
+            parts.emplace_back(std::string_view{ part.startTrimmed(), part.len - whiteSpacesToCut });
+        }
+        if(parts.size() > 2) {
+            throw std::runtime_error{ "An identifier can only contain at most a single dot" };
+        }
+        return IdentifierNode{ toRef(res), std::move(parts), {} };
+    };
+    mPegParser["IdentifierWithTemplate"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+) ('<' DatatypeVector '>')?" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<std::string> parts;
         for(auto& part : res[0].subs) {
             const char* end = part.endTrimmed();
@@ -258,7 +274,7 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionListWithoutDatatype
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | Identifier | '(' Expression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionListWithoutDatatype ']' | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionListWithoutDatatype ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             if(res[0][1].subs.empty()) {
