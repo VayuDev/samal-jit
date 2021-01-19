@@ -18,6 +18,7 @@ Program Compiler::compile(std::vector<up<ModuleRootNode>>& modules, const std::m
         auto ipOffsetOrError = mFunctions.find(varId);
         assert(ipOffsetOrError != mFunctions.end());
         *(int32_t*)&mProgram->code.at(locationInCode) = ipOffsetOrError->second;
+        *(int32_t*)&mProgram->code.at(locationInCode + 4) = 0;
     }
     mTemplateInfo = nullptr;
     return std::move(*mProgram);

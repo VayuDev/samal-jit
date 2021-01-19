@@ -18,7 +18,7 @@ void DatatypeCompleter::declareModules(std::vector<up<ModuleRootNode>>& roots) {
 }
 std::map<const IdentifierNode*, TemplateInstantiationInfo> DatatypeCompleter::complete(up<ModuleRootNode>& root) {
     root->completeDatatype(*this);
-    return mTemplateInstantiationInfo;
+    return std::move(mTemplateInstantiationInfo);
 }
 DatatypeCompleter::ScopeChecker DatatypeCompleter::openScope(const std::string& moduleName) {
     return DatatypeCompleter::ScopeChecker(*this, moduleName);

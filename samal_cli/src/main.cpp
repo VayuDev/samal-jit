@@ -15,7 +15,13 @@ fn func2(p : i32) -> i32 {
     b = add<i64>(2i64, 7i64)
     add<i32>(2, 7)
 }
+fn addi64(a : i64, b : i64) -> i64 {
+    a + b
+}
 fn add<T>(a : T, b : T) -> T {
+    a + b
+}
+fn addi32(a : i32, b : i32) -> i32 {
     a + b
 })");
     assert(ast.first);
