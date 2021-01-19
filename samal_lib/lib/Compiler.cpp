@@ -24,22 +24,16 @@ Program Compiler::compile(std::vector<up<ModuleRootNode>>& modules, const std::m
     return std::move(*mProgram);
 }
 void Compiler::assignToVariable(const up<IdentifierNode>& identifier) {
-    auto identifierType = identifier->getDatatype();
-    assert(identifierType);
-    if(identifierType->hasUndeterminedTemplateTypes())
-        identifierType = identifierType->completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
-    auto sizeOnStack = identifierType->getSizeOnStack();
+    auto identifierType = performTemplateReplacement(*identifier->getDatatype());
+    auto sizeOnStack = identifierType.getSizeOnStack();
     addInstructions(Instruction::REPUSH_N, static_cast<int32_t>(sizeOnStack));
     mStackSize += sizeOnStack;
     assert(identifier->getId()->templateId == 0);
     mStackFrames.top().variables.emplace(identifier->getId()->variableId, VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::setVariableLocation(const up<IdentifierNode>& identifier) {
-    auto identifierType = identifier->getDatatype();
-    assert(identifierType);
-    if(identifierType->hasUndeterminedTemplateTypes())
-        identifierType = identifierType->completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
-    auto sizeOnStack = identifierType->getSizeOnStack();
+    auto identifierType = performTemplateReplacement(*identifier->getDatatype());
+    auto sizeOnStack = identifierType.getSizeOnStack();
     assert(identifier->getId()->templateId == 0);
     mStackFrames.top().variables.emplace(identifier->getId()->variableId, VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
@@ -70,12 +64,10 @@ void Compiler::popUnusedValueAtEndOfScope(const Datatype& type) {
     mStackFrames.top().bytesToPopOnExit += type.getSizeOnStack();
 }
 void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode::BinaryOperator op) {
-    auto inputTypesCpy = inputTypes;
-    if(inputTypesCpy.hasUndeterminedTemplateTypes())
-        inputTypesCpy = inputTypesCpy.completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
+    auto inputTypesCompleted = performTemplateReplacement(inputTypes);
     switch(op) {
     case BinaryExpressionNode::BinaryOperator::PLUS:
-        switch(inputTypesCpy.getCategory()) {
+        switch(inputTypesCompleted.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::ADD_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
@@ -89,7 +81,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::MINUS:
-        switch(inputTypesCpy.getCategory()) {
+        switch(inputTypesCompleted.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::SUB_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
@@ -103,7 +95,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
-        switch(inputTypesCpy.getCategory()) {
+        switch(inputTypesCompleted.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -117,7 +109,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
-        switch(inputTypesCpy.getCategory()) {
+        switch(inputTypesCompleted.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -131,7 +123,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
-        switch(inputTypesCpy.getCategory()) {
+        switch(inputTypesCompleted.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_MORE_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -145,7 +137,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
-        switch(inputTypesCpy.getCategory()) {
+        switch(inputTypesCompleted.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -231,11 +223,8 @@ void Compiler::compileFunction(const up<IdentifierNode>& identifier, const up<Pa
         mStackFrames.emplace();
 
         for(auto& param : params->getParams()) {
-            auto paramType = param.type;
-            if(paramType.hasUndeterminedTemplateTypes())
-                paramType = paramType.completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
-
-            mStackSize += paramType.getSizeOnStack();
+            auto paramTypeCompleted = performTemplateReplacement(param.type);
+            mStackSize += paramTypeCompleted.getSizeOnStack();
             setVariableLocation(param.name);
         }
         compileBodyCallback(*this);
@@ -247,11 +236,8 @@ void Compiler::compileFunction(const up<IdentifierNode>& identifier, const up<Pa
         for(auto& var : mStackFrames.top().variables) {
             sumSize += var.second.sizeOnStack;
         }
-        auto functionType = identifier->getDatatype();
-        if(functionType->hasUndeterminedTemplateTypes())
-            functionType = functionType->completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
-        assert(functionType);
-        const auto returnTypeSize = functionType->getFunctionTypeInfo().first->getSizeOnStack();
+        auto functionType = performTemplateReplacement(*identifier->getDatatype());
+        const auto returnTypeSize = functionType.getFunctionTypeInfo().first->getSizeOnStack();
         if(sumSize > 0) {
             addInstructions(Instruction::POP_N_BELOW, static_cast<int32_t>(sumSize), returnTypeSize);
             mStackSize -= sumSize;
@@ -280,14 +266,17 @@ void Compiler::compileFunction(const up<IdentifierNode>& identifier, const up<Pa
         compile();
     }
 }
+Datatype Compiler::performTemplateReplacement(const Datatype& source) {
+    if(!source.hasUndeterminedTemplateTypes())
+        return source;
+    return source.completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
+}
 ScopeDuration::ScopeDuration(Compiler& compiler, const Datatype& returnType)
 : mCompiler(compiler) {
     mCompiler.mStackFrames.emplace();
 
-    auto returnTypeCpy = returnType;
-    if(returnTypeCpy.hasUndeterminedTemplateTypes())
-        returnTypeCpy = returnTypeCpy.completeWithTemplateParameters(*mCompiler.mCurrentTemplateReplacementsMap);
-    mReturnTypeSize = returnTypeCpy.getSizeOnStack();
+    auto returnTypeCompleted = mCompiler.performTemplateReplacement(returnType);
+    mReturnTypeSize = returnTypeCompleted.getSizeOnStack();
 }
 ScopeDuration::~ScopeDuration() {
     // At the end of the scope, we need to pop all local variables off the stack.

@@ -40,7 +40,7 @@ std::string Datatype::toString() const {
     case DatatypeCategory::bool_:
         return "bool";
     case DatatypeCategory::undetermined_identifier:
-        return "<undetermined identifier '" + std::get<std::string>(mFurtherInfo) + "'>";
+        return "<undetermined '" + std::get<std::string>(mFurtherInfo) + "'>";
     default:
         return "DATATYPE";
     }

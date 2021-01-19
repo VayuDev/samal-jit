@@ -91,6 +91,8 @@ private:
     const std::map<const IdentifierNode*, TemplateInstantiationInfo>* mTemplateInfo { nullptr };
     std::optional<std::map<std::string, Datatype>> mCurrentTemplateReplacementsMap;
 
+    Datatype performTemplateReplacement(const Datatype& source);
+
     friend class FunctionDuration;
     friend class ScopeDuration;
 };
