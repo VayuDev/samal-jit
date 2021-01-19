@@ -193,7 +193,7 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         break;
     case DatatypeCategory::function: {
         auto functionType = getFunctionTypeInfo();
-        *std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(cpy.mFurtherInfo).first = functionType.first->completeWithTemplateParameters(templateParams);
+        std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(cpy.mFurtherInfo).first = std::make_shared<Datatype>(functionType.first->completeWithTemplateParameters(templateParams));
         size_t i = 0;
         for(auto& param : functionType.second) {
             std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(cpy.mFurtherInfo).second[i] = param.completeWithTemplateParameters(templateParams);
@@ -227,9 +227,7 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
             if(param.hasUndeterminedTemplateTypes())
                 return true;
         }
-
-        break;
-
+        return false;
     case DatatypeCategory::undetermined_identifier: {
         return true;
     }

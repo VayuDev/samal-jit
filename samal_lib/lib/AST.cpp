@@ -247,7 +247,7 @@ IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> na
 std::optional<Datatype> IdentifierNode::getDatatype() const {
     return mDatatype ? mDatatype->first : std::optional<Datatype>{};
 }
-std::optional<IdentifierNode::IdentifierId> IdentifierNode::getId() const {
+std::optional<IdentifierId> IdentifierNode::getId() const {
     return mDatatype ? mDatatype->second : std::optional<IdentifierId>{};
 }
 std::string IdentifierNode::dump(unsigned int indent) const {
@@ -725,7 +725,8 @@ void FunctionDeclarationNode::declareShallow(DatatypeCompleter& completer) const
     }
 }
 void FunctionDeclarationNode::compile(Compiler& comp) const {
-    auto duration = comp.enterFunction(mName, mParameters);
-    mBody->compile(comp);
+    comp.compileFunction(mName, mParameters, [this] (Compiler& comp) {
+        mBody->compile(comp);
+    });
 }
 }

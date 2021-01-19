@@ -4,6 +4,7 @@
 #include "Util.hpp"
 #include <map>
 #include <vector>
+#include "IdentifierId.hpp"
 
 namespace samal {
 
@@ -19,15 +20,13 @@ private:
     };
 
 public:
-    using TemplateInstantiationInfo = std::vector<std::vector<Datatype>>;
-
     void declareModules(std::vector<up<ModuleRootNode>>&);
     std::map<const IdentifierNode*, TemplateInstantiationInfo> complete(up<ModuleRootNode>& root);
     ScopeChecker openScope(const std::string& moduleName = "");
     void declareVariable(const IdentifierNode& name, Datatype type, std::vector<Datatype> templateParameters);
     void declareFunction(const IdentifierNode& identifier, Datatype type);
     void saveModule(std::string name);
-    [[nodiscard]] std::pair<Datatype, IdentifierNode::IdentifierId> getVariableType(const std::vector<std::string>& identifierTemplateInfo, const std::vector<Datatype>& templateParameters);
+    [[nodiscard]] std::pair<Datatype, IdentifierId> getVariableType(const std::vector<std::string>& identifierTemplateInfo, const std::vector<Datatype>& templateParameters);
 
 private:
     void declareVariable(const IdentifierNode& name, Datatype type, std::vector<Datatype> templateParameters, bool overrideable);

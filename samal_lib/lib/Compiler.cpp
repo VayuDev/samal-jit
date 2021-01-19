@@ -7,27 +7,39 @@ namespace samal {
 Compiler::Compiler() {
 }
 
-Program Compiler::compile(std::vector<up<ModuleRootNode>>& modules) {
+Program Compiler::compile(std::vector<up<ModuleRootNode>>& modules, const std::map<const IdentifierNode*, TemplateInstantiationInfo>& templateInfo) {
+    mTemplateInfo = &templateInfo;
     mProgram.emplace();
     for(auto& module : modules) {
         module->compile(*this);
     }
     for(auto& locationInCode : mFunctionIdsInCode) {
-        auto varId = *(int32_t*)&mProgram->code.at(locationInCode);
+        IdentifierId varId{.variableId = *(int32_t*)&mProgram->code.at(locationInCode), .templateId = *(int32_t*)&mProgram->code.at(locationInCode + 4)};
         auto ipOffsetOrError = mFunctions.find(varId);
         assert(ipOffsetOrError != mFunctions.end());
         *(int32_t*)&mProgram->code.at(locationInCode) = ipOffsetOrError->second;
     }
+    mTemplateInfo = nullptr;
     return std::move(*mProgram);
 }
 void Compiler::assignToVariable(const up<IdentifierNode>& identifier) {
-    auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
+    auto identifierType = identifier->getDatatype();
+    assert(identifierType);
+    if(identifierType->hasUndeterminedTemplateTypes())
+        identifierType = identifierType->completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
+    auto sizeOnStack = identifierType->getSizeOnStack();
     addInstructions(Instruction::REPUSH_N, static_cast<int32_t>(sizeOnStack));
     mStackSize += sizeOnStack;
+    assert(identifier->getId()->templateId == 0);
     mStackFrames.top().variables.emplace(identifier->getId()->variableId, VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::setVariableLocation(const up<IdentifierNode>& identifier) {
-    auto sizeOnStack = identifier->getDatatype()->getSizeOnStack();
+    auto identifierType = identifier->getDatatype();
+    assert(identifierType);
+    if(identifierType->hasUndeterminedTemplateTypes())
+        identifierType = identifierType->completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
+    auto sizeOnStack = identifierType->getSizeOnStack();
+    assert(identifier->getId()->templateId == 0);
     mStackFrames.top().variables.emplace(identifier->getId()->variableId, VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::addInstructions(Instruction insn, int32_t param) {
@@ -50,9 +62,6 @@ void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
     memcpy(&mProgram->code.at(mProgram->code.size() - 2), &insn, 1);
     memcpy(&mProgram->code.at(mProgram->code.size() - 1), &param, 1);
 }
-FunctionDuration Compiler::enterFunction(const up<IdentifierNode>& identifier, const up<ParameterListNode>& params) {
-    return FunctionDuration(*this, identifier, params);
-}
 ScopeDuration Compiler::enterScope(const Datatype& returnType) {
     return ScopeDuration(*this, returnType);
 }
@@ -60,9 +69,12 @@ void Compiler::popUnusedValueAtEndOfScope(const Datatype& type) {
     mStackFrames.top().bytesToPopOnExit += type.getSizeOnStack();
 }
 void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode::BinaryOperator op) {
+    auto inputTypesCpy = inputTypes;
+    if(inputTypesCpy.hasUndeterminedTemplateTypes())
+        inputTypesCpy = inputTypesCpy.completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
     switch(op) {
     case BinaryExpressionNode::BinaryOperator::PLUS:
-        switch(inputTypes.getCategory()) {
+        switch(inputTypesCpy.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::ADD_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
@@ -76,7 +88,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::MINUS:
-        switch(inputTypes.getCategory()) {
+        switch(inputTypesCpy.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::SUB_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
@@ -90,7 +102,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
-        switch(inputTypes.getCategory()) {
+        switch(inputTypesCpy.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -104,7 +116,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
-        switch(inputTypes.getCategory()) {
+        switch(inputTypesCpy.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -118,7 +130,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
-        switch(inputTypes.getCategory()) {
+        switch(inputTypesCpy.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_MORE_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -132,7 +144,7 @@ void Compiler::binaryOperation(const Datatype& inputTypes, BinaryExpressionNode:
         }
         break;
     case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
-        switch(inputTypes.getCategory()) {
+        switch(inputTypesCpy.getCategory()) {
         case DatatypeCategory::i32:
             addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2 - getSimpleSize(DatatypeCategory::bool_);
@@ -208,46 +220,73 @@ void Compiler::moveToTop(size_t len, size_t offset) {
     addInstructions(Instruction::REPUSH_FROM_N, len, offset);
     addInstructions(Instruction::POP_N_BELOW, len, offset + len);
 }
-
-FunctionDuration::FunctionDuration(Compiler& compiler, const up<IdentifierNode>& identifier, const up<ParameterListNode>& params)
-: mCompiler(compiler), mIdentifier(identifier), mParams(params) {
-    auto functionId = mIdentifier->getId();
+void Compiler::compileFunction(const up<IdentifierNode>& identifier, const up<ParameterListNode>& params, std::function<void(Compiler&)> compileBodyCallback) {
+    // enter function
+    auto functionId = identifier->getId();
     assert(functionId);
-    mCompiler.mFunctions.emplace(functionId->variableId, mCompiler.getCurrentLocation());
-    mCompiler.mProgram->functions.emplace(std::make_pair(mIdentifier->getName(), Program::Function{ .offset = static_cast<int32_t>(mCompiler.mProgram->code.size()), .len = -1, .type = *mIdentifier->getDatatype() }));
-    mCompiler.mStackFrames.emplace();
 
-    for(auto& param : mParams->getParams()) {
-        mCompiler.mStackSize += param.type.getSizeOnStack();
-        mCompiler.setVariableLocation(param.name);
-    }
-}
-FunctionDuration::~FunctionDuration() {
-    // the stackframe contains the allocation for the parameters
-    assert(mCompiler.mStackFrames.top().bytesToPopOnExit == 0);
-    size_t sumSize = 0;
-    for(auto& var : mCompiler.mStackFrames.top().variables) {
-        sumSize += var.second.sizeOnStack;
-    }
-    const auto functionType = mIdentifier->getDatatype();
-    assert(functionType);
-    const auto returnTypeSize = functionType->getFunctionTypeInfo().first->getSizeOnStack();
-    if(sumSize > 0) {
-        mCompiler.addInstructions(Instruction::POP_N_BELOW, static_cast<int32_t>(sumSize), returnTypeSize);
-        mCompiler.mStackSize -= sumSize;
-    }
-    mCompiler.addInstructions(Instruction::RETURN, returnTypeSize);
-    mCompiler.mStackFrames.pop();
-    mCompiler.mProgram->functions.at(mIdentifier->getName()).len = mCompiler.mProgram->code.size() - mCompiler.mProgram->functions.at(mIdentifier->getName()).offset;
+    auto compile = [&] {
+        mProgram->functions.emplace(std::make_pair(identifier->getName(), Program::Function{ .offset = static_cast<int32_t>(mProgram->code.size()), .len = -1, .type = *identifier->getDatatype() }));
+        mStackFrames.emplace();
 
-    // TODO won't work for lambdas I guess
-    assert(mCompiler.mStackSize == returnTypeSize);
-    mCompiler.mStackSize = 0;
+        for(auto& param : params->getParams()) {
+            auto paramType = param.type;
+            if(paramType.hasUndeterminedTemplateTypes())
+                paramType = paramType.completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
+
+            mStackSize += paramType.getSizeOnStack();
+            setVariableLocation(param.name);
+        }
+        compileBodyCallback(*this);
+
+        // exit function
+        // the stackframe contains the allocation for the parameters
+        assert(mStackFrames.top().bytesToPopOnExit == 0);
+        size_t sumSize = 0;
+        for(auto& var : mStackFrames.top().variables) {
+            sumSize += var.second.sizeOnStack;
+        }
+        auto functionType = identifier->getDatatype();
+        if(functionType->hasUndeterminedTemplateTypes())
+            functionType = functionType->completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
+        assert(functionType);
+        const auto returnTypeSize = functionType->getFunctionTypeInfo().first->getSizeOnStack();
+        if(sumSize > 0) {
+            addInstructions(Instruction::POP_N_BELOW, static_cast<int32_t>(sumSize), returnTypeSize);
+            mStackSize -= sumSize;
+        }
+        addInstructions(Instruction::RETURN, returnTypeSize);
+        mStackFrames.pop();
+        mProgram->functions.at(identifier->getName()).len = mProgram->code.size() - mProgram->functions.at(identifier->getName()).offset;
+
+        // TODO won't work for lambdas I guess
+        assert(mStackSize == returnTypeSize);
+        mStackSize = 0;
+        assert(mStackFrames.empty());
+    };
+
+    if(functionId->templateId == -1) {
+        // template declaration
+        auto templatesToCompile = mTemplateInfo->at(identifier.get());
+        for(size_t i = 0; i < templatesToCompile.size(); ++i) {
+            mFunctions.emplace(IdentifierId{.variableId = identifier->getId()->variableId, .templateId = static_cast<int32_t>(i)}, getCurrentLocation());
+            mCurrentTemplateReplacementsMap = createTemplateParamMap(identifier->getTemplateParameters(), templatesToCompile.at(i));
+            compile();
+            mCurrentTemplateReplacementsMap.reset();
+        }
+    } else {
+        mFunctions.emplace(*functionId, getCurrentLocation());
+        compile();
+    }
 }
 ScopeDuration::ScopeDuration(Compiler& compiler, const Datatype& returnType)
 : mCompiler(compiler) {
     mCompiler.mStackFrames.emplace();
-    mReturnTypeSize = returnType.getSizeOnStack();
+
+    auto returnTypeCpy = returnType;
+    if(returnTypeCpy.hasUndeterminedTemplateTypes())
+        returnTypeCpy = returnTypeCpy.completeWithTemplateParameters(*mCompiler.mCurrentTemplateReplacementsMap);
+    mReturnTypeSize = returnTypeCpy.getSizeOnStack();
 }
 ScopeDuration::~ScopeDuration() {
     // At the end of the scope, we need to pop all local variables off the stack.

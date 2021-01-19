@@ -16,7 +16,7 @@ void DatatypeCompleter::declareModules(std::vector<up<ModuleRootNode>>& roots) {
         decl->declareShallow(*this);
     }
 }
-std::map<const IdentifierNode*, DatatypeCompleter::TemplateInstantiationInfo> DatatypeCompleter::complete(up<ModuleRootNode>& root) {
+std::map<const IdentifierNode*, TemplateInstantiationInfo> DatatypeCompleter::complete(up<ModuleRootNode>& root) {
     root->completeDatatype(*this);
     return mTemplateInstantiationInfo;
 }
@@ -58,24 +58,11 @@ void DatatypeCompleter::declareVariable(const IdentifierNode& identifier, Dataty
         VariableDeclaration{ .identifier = &identifier, .type = std::move(type), .templateParameters = std::move(templateParameters), .id = mIdCounter++, .overrideable = overrideable }));
     assert(insertResult.second);
 }
-std::pair<Datatype, IdentifierNode::IdentifierId> DatatypeCompleter::getVariableType(const std::vector<std::string>& name, const std::vector<Datatype>& templateParameters) {
-    // create a map that maps e.g. T => i32 if you call fib<i32>,
-    // which is then used to determine the return & param types of fib<i32>
-    // which could be fib<T> -> T, so it becomes i32
-    auto createTemplateParamMap = [&](const std::vector<Datatype>& identifierTemplateInfo) {
-        std::map<std::string, Datatype> ret;
-        size_t i = 0;
-        for(auto& identifierTemplateParameter : identifierTemplateInfo) {
-            ret.emplace(identifierTemplateParameter.getUndeterminedIdentifierInfo(), templateParameters.at(i));
-            ++i;
-        }
-        return ret;
-    };
-
+std::pair<Datatype, IdentifierId> DatatypeCompleter::getVariableType(const std::vector<std::string>& name, const std::vector<Datatype>& templateParameters) {
     auto returnFoundVariableDeclaration = [&] (const VariableDeclaration& value) {
         // just determine the identifier if it's not a template type
         if(value.templateParameters.empty()) {
-            return std::make_pair(value.type, IdentifierNode::IdentifierId{ .variableId = value.id, .templateId = 0 });
+            return std::make_pair(value.type, IdentifierId{ .variableId = value.id, .templateId = 0 });
         }
         // don't add this call if it's just the function declaration e.g. fib<T>
         bool shouldAddToInstantiatedTemplates = true;
@@ -100,7 +87,7 @@ std::pair<Datatype, IdentifierNode::IdentifierId> DatatypeCompleter::getVariable
             }
             templateId = *templateIdOrNot;
         }
-        return std::make_pair(value.type.completeWithTemplateParameters(createTemplateParamMap(value.templateParameters)), IdentifierNode::IdentifierId{ .variableId = value.id, .templateId = templateId });
+        return std::make_pair(value.type.completeWithTemplateParameters(createTemplateParamMap(value.templateParameters, templateParameters)), IdentifierId{ .variableId = value.id, .templateId = templateId });
     };
 
     std::vector<std::string> fullPath = name;

@@ -1,5 +1,6 @@
 #pragma once
 #include "Datatype.hpp"
+#include "IdentifierId.hpp"
 #include "samal_lib/Forward.hpp"
 #include <optional>
 #include <string>
@@ -160,10 +161,6 @@ private:
 
 class IdentifierNode : public ExpressionNode {
 public:
-    struct IdentifierId {
-        int32_t variableId = 0;
-        int32_t templateId = 0;
-    };
     explicit IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters);
     void completeDatatype(DatatypeCompleter& declList) override;
     void compile(Compiler&) const override;

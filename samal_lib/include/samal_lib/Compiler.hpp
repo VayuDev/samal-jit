@@ -10,17 +10,6 @@
 
 namespace samal {
 
-class FunctionDuration final {
-public:
-    FunctionDuration(Compiler& compiler, const up<IdentifierNode>& identifier, const up<ParameterListNode>& params);
-    ~FunctionDuration();
-
-private:
-    Compiler& mCompiler;
-    const up<IdentifierNode>& mIdentifier;
-    const up<ParameterListNode>& mParams;
-};
-
 class ScopeDuration final {
 public:
     explicit ScopeDuration(Compiler& compiler, const Datatype& returnType);
@@ -34,9 +23,9 @@ private:
 class Compiler {
 public:
     Compiler();
-    Program compile(std::vector<up<ModuleRootNode>>& modules);
+    Program compile(std::vector<up<ModuleRootNode>>& modules, const std::map<const IdentifierNode*, TemplateInstantiationInfo>& templateInfo);
     void assignToVariable(const up<IdentifierNode>& identifier);
-    [[nodiscard]] FunctionDuration enterFunction(const up<IdentifierNode>& identifier, const up<ParameterListNode>& params);
+    [[nodiscard]] void compileFunction(const up<IdentifierNode>& identifier, const up<ParameterListNode>& params, std::function<void(Compiler&)> compileBodyCallback);
     [[nodiscard]] ScopeDuration enterScope(const Datatype& returnType);
 
     size_t addLabel(size_t len);
@@ -93,12 +82,14 @@ private:
     std::stack<StackFrame> mStackFrames;
     int mStackSize{ 0 };
     // maps function ids to their offset in the code
-    std::map<int32_t, int32_t> mFunctions;
+    std::map<IdentifierId, int32_t> mFunctions;
     // a list of places in the code where the function id was inserted,
     // but the actual ip of the function is required. After the general compilation pass,
     // we have to go through this list and replace for each entry in this array
     // the id at its position with the actual ip of the function it refers to.
     std::vector<size_t> mFunctionIdsInCode;
+    const std::map<const IdentifierNode*, TemplateInstantiationInfo>* mTemplateInfo { nullptr };
+    std::optional<std::map<std::string, Datatype>> mCurrentTemplateReplacementsMap;
 
     friend class FunctionDuration;
     friend class ScopeDuration;
