@@ -39,9 +39,9 @@ private:
     std::chrono::high_resolution_clock::time_point mStart;
 };
 
-class DatatypeCompletionException : public std::exception {
+class CompilationException : public std::exception {
 public:
-    explicit DatatypeCompletionException(std::string msg)
+    explicit CompilationException(std::string msg)
     : mMsg(std::move(msg)) {
     }
     [[nodiscard]] const char* what() const noexcept override {
@@ -62,5 +62,7 @@ static inline std::string concat(const std::vector<std::string>& splitName) {
     }
     return ret;
 }
+
+#define todo() assert(false)
 
 }

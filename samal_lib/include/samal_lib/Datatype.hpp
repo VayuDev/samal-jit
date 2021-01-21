@@ -25,6 +25,7 @@ enum class DatatypeCategory {
 
 class Datatype {
 public:
+    Datatype();
     explicit Datatype(DatatypeCategory category);
     Datatype(Datatype returnType, std::vector<Datatype> params);
     explicit Datatype(std::vector<Datatype> params);

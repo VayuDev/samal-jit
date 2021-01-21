@@ -11,11 +11,10 @@ int main() {
     samal::Parser parser;
     auto ast = parser.parse("Main", R"(
 fn func2(p : i32) -> i32 {
-    x = Templ.add<i32>(2, 7)
-    x
+    5
 })");
     auto ast2 = parser.parse("Templ", R"(
-fn add<T>(a : T, b : T) -> T {
+fn add(a : T, b : T) -> T {
     a + b
 })");
     assert(ast.first);
@@ -23,7 +22,18 @@ fn add<T>(a : T, b : T) -> T {
         samal::Stopwatch stopwatch2{ "Dumping the AST" };
         std::cout << ast.first->dump(0) << "\n";
         std::cout << ast2.first->dump(0) << "\n";
-    }/*
+    }
+    std::vector<samal::up<samal::ModuleRootNode>> modules;
+    modules.emplace_back(std::move(ast.first));
+    modules.emplace_back(std::move(ast2.first));
+    samal::Compiler compiler{modules};
+    auto program = compiler.compile();
+    std::cout << "Code dump:\n" + program.disassemble();
+
+    samal::VM vm{std::move(program)};
+    auto ret = vm.run("Main.func2", {samal::ExternalVMValue::wrapInt32(52)});
+    std::cout << "Func2 returned " << ret.dump() << "\n";
+    /*
     std::vector<samal::up<samal::ModuleRootNode>> modules;
     std::map<const samal::IdentifierNode*, samal::TemplateInstantiationInfo> templates;
     {

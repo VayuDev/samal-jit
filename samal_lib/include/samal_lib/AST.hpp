@@ -27,10 +27,7 @@ public:
     };
     [[nodiscard]] virtual std::string dump(unsigned indent) const;
     [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
-
-protected:
     void throwException(const std::string& msg) const;
-
 private:
     SourceCodeRef mSourceCodeRef;
 };
@@ -168,9 +165,11 @@ class ScopeNode : public ExpressionNode {
 public:
     explicit ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions);
     Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const std::vector<up<ExpressionNode>>& getExpressions() const {
+        return mExpressions;
+    }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ScopeNode"; }
-
 private:
     std::vector<up<ExpressionNode>> mExpressions;
 };
@@ -244,6 +243,7 @@ public:
     [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
     [[nodiscard]] virtual std::vector<Datatype> getTemplateParameterVector() const = 0;
     [[nodiscard]] virtual const IdentifierNode* getIdentifier() const = 0;
+    [[nodiscard]] virtual Datatype getDatatype() const = 0;
     //void compile(Compiler &) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
 
@@ -272,6 +272,16 @@ public:
     [[nodiscard]] bool hasTemplateParameters() const override;
     [[nodiscard]] std::vector<Datatype> getTemplateParameterVector() const override;
     [[nodiscard]] const IdentifierNode* getIdentifier() const override;
+    [[nodiscard]] inline const std::vector<Parameter>& getParameters() const {
+        return mParameters;
+    }
+    [[nodiscard]] inline const Datatype& getReturnType() const {
+        return mReturnType;
+    }
+    [[nodiscard]] inline const up<ScopeNode>& getBody() const {
+        return mBody;
+    }
+    [[nodiscard]] Datatype getDatatype() const override;
     Datatype compile(Compiler& comp) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionDeclarationNode"; }

@@ -45,6 +45,9 @@ std::string Datatype::toString() const {
         return "DATATYPE";
     }
 }
+Datatype::Datatype()
+: mCategory(DatatypeCategory::invalid) {
+}
 Datatype::Datatype(DatatypeCategory category)
 : mCategory(category) {
 }
