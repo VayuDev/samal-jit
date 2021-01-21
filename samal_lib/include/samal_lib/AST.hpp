@@ -165,6 +165,7 @@ public:
     void completeDatatype(DatatypeCompleter& declList) override;
     void compile(Compiler&) const override;
     [[nodiscard]] std::string getName() const;
+    [[nodiscard]] std::vector<std::string> getNameSplit() const;
     [[nodiscard]] std::optional<Datatype> getDatatype() const override;
     [[nodiscard]] std::optional<IdentifierId> getId() const;
     [[nodiscard]] const std::vector<Datatype>& getTemplateParameters() const;
@@ -294,6 +295,9 @@ class DeclarationNode : public ASTNode {
 public:
     explicit DeclarationNode(SourceCodeRef source);
     virtual void declareShallow(DatatypeCompleter& completer) const = 0;
+    [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
+    [[nodiscard]] virtual std::vector<Datatype> getTemplateParameterVector() const = 0;
+    [[nodiscard]] virtual const IdentifierNode* getIdentifier() const = 0;
     //void compile(Compiler &) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
 
@@ -306,11 +310,12 @@ public:
     void completeDatatype(DatatypeCompleter& declList) override;
     void declareShallow(DatatypeCompleter& completer) const;
     void compile(Compiler&) const override;
+    [[nodiscard]] const std::vector<up<DeclarationNode>>& getDeclarations() const;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ModuleRootNode"; }
     std::vector<DeclarationNode*> createDeclarationList();
     void setModuleName(std::string name);
-
+    [[nodiscard]] const std::string& getModuleName() const;
 private:
     std::vector<up<DeclarationNode>> mDeclarations;
     std::string mName;
@@ -321,6 +326,9 @@ public:
     FunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, up<ParameterListNode> params, Datatype returnType, up<ScopeNode> body);
     void completeDatatype(DatatypeCompleter& declList) override;
     void declareShallow(DatatypeCompleter& completer) const override;
+    [[nodiscard]] bool hasTemplateParameters() const override;
+    [[nodiscard]] std::vector<Datatype> getTemplateParameterVector() const override;
+    [[nodiscard]] const IdentifierNode* getIdentifier() const override;
     void compile(Compiler&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionDeclarationNode"; }

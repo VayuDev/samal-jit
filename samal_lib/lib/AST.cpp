@@ -264,10 +264,13 @@ std::string IdentifierNode::dump(unsigned int indent) const {
     return ret + "\n";
 }
 void IdentifierNode::completeDatatype(DatatypeCompleter& declList) {
-    mDatatype = declList.getVariableType(mName, mTemplateParameters);
+    mDatatype = declList.getVariableType(*this);
 }
 std::string IdentifierNode::getName() const {
     return concat(mName);
+}
+std::vector<std::string> IdentifierNode::getNameSplit() const {
+    return mName;
 }
 void IdentifierNode::compile(Compiler& comp) const {
     comp.loadVariableToStack(*this);
@@ -665,10 +668,7 @@ std::vector<DeclarationNode*> ModuleRootNode::createDeclarationList() {
     return ret;
 }
 void ModuleRootNode::completeDatatype(DatatypeCompleter& declList) {
-    auto scope = declList.openScope(mName);
-    for(auto& child : mDeclarations) {
-        child->completeDatatype(declList);
-    }
+    assert(false);
 }
 void ModuleRootNode::declareShallow(DatatypeCompleter& completer) const {
     auto scope = completer.openScope();
@@ -684,6 +684,12 @@ void ModuleRootNode::compile(Compiler& comp) const {
     for(auto& decl : mDeclarations) {
         decl->compile(comp);
     }
+}
+const std::vector<up<DeclarationNode>>& ModuleRootNode::getDeclarations() const {
+    return mDeclarations;
+}
+const std::string& ModuleRootNode::getModuleName() const {
+    return mName;
 }
 
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
@@ -708,7 +714,7 @@ void FunctionDeclarationNode::completeDatatype(DatatypeCompleter& declList) {
     mBody->completeDatatype(declList);
     auto bodyType = mBody->getDatatype();
     assert(bodyType);
-    if(bodyType != mReturnType) {
+    if(bodyType != declList.performTemplateReplacement(mReturnType)) {
         throwException("This function's declared return type (" + mReturnType.toString() + ") and actual return type (" + bodyType->toString() + ") don't match");
     }
 }
@@ -728,5 +734,18 @@ void FunctionDeclarationNode::compile(Compiler& comp) const {
     comp.compileFunction(mName, mParameters, [this] (Compiler& comp) {
         mBody->compile(comp);
     });
+}
+bool FunctionDeclarationNode::hasTemplateParameters() const {
+    for(auto& param: mParameters->getParams()) {
+        if(param.type.hasUndeterminedTemplateTypes())
+            return true;
+    }
+    return mReturnType.hasUndeterminedTemplateTypes();
+}
+std::vector<Datatype> FunctionDeclarationNode::getTemplateParameterVector() const {
+    return mName->getTemplateParameters();
+}
+const IdentifierNode* FunctionDeclarationNode::getIdentifier() const {
+    return mName.get();
 }
 }

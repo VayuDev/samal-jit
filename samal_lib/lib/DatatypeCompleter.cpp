@@ -12,12 +12,29 @@ DatatypeCompleter::ScopeChecker::~ScopeChecker() {
 }
 void DatatypeCompleter::declareModules(std::vector<up<ModuleRootNode>>& roots) {
     mTemplateInstantiationInfo = {};
-    for(auto& decl : roots) {
-        decl->declareShallow(*this);
+    for(auto& module : roots) {
+        module->declareShallow(*this);
+        for(auto& decl: module->getDeclarations()) {
+            mIdentifierToDeclaration.emplace(decl->getIdentifier(), decl.get());
+            mDeclarationToModule.emplace(decl.get(), module.get());
+        }
     }
 }
 std::map<const IdentifierNode*, TemplateInstantiationInfo> DatatypeCompleter::complete(up<ModuleRootNode>& root) {
-    root->completeDatatype(*this);
+    for(auto& decl: root->getDeclarations()) {
+        if(!decl->hasTemplateParameters()) {
+            mDeclarationsToComplete.push_back(DeclarationToComplete{.declaration = decl.get(), .templateInstantiationInfo{}});
+        }
+    }
+    while(!mDeclarationsToComplete.empty()) {
+        // open the scope of the module of the current declaration
+        auto scope = this->openScope(mDeclarationToModule.at(mDeclarationsToComplete.at(0).declaration)->getModuleName());
+
+        mCurrentTemplateReplacementsMap = createTemplateParamMap(mDeclarationsToComplete.at(0).declaration->getTemplateParameterVector(), mDeclarationsToComplete.at(0).templateInstantiationInfo);
+        mDeclarationsToComplete.at(0).declaration->completeDatatype(*this);
+        mDeclarationsToComplete.erase(mDeclarationsToComplete.cbegin());
+        mCurrentTemplateReplacementsMap.reset();
+    }
     return std::move(mTemplateInstantiationInfo);
 }
 DatatypeCompleter::ScopeChecker DatatypeCompleter::openScope(const std::string& moduleName) {
@@ -43,6 +60,10 @@ void DatatypeCompleter::declareFunction(const IdentifierNode& identifierNode, Da
     }
 }
 void DatatypeCompleter::declareVariable(const IdentifierNode& identifier, Datatype type, std::vector<Datatype> templateParameters, bool overrideable) {
+    // only perform replacements if the type has template parameters and we are inside of a template function; otherwise it could also be the declaration
+    if(type.hasUndeterminedTemplateTypes() && mCurrentTemplateReplacementsMap) {
+        type = performTemplateReplacement(type);
+    }
     if(identifier.getName().find('.') != std::string::npos) {
         throw std::runtime_error{ "The '.' character is not allowed in variable declarations" };
     }
@@ -58,12 +79,16 @@ void DatatypeCompleter::declareVariable(const IdentifierNode& identifier, Dataty
         VariableDeclaration{ .identifier = &identifier, .type = std::move(type), .templateParameters = std::move(templateParameters), .id = mIdCounter++, .overrideable = overrideable }));
     assert(insertResult.second);
 }
-std::pair<Datatype, IdentifierId> DatatypeCompleter::getVariableType(const std::vector<std::string>& name, const std::vector<Datatype>& templateParameters) {
+std::pair<Datatype, IdentifierId> DatatypeCompleter::getVariableType(const IdentifierNode& identifier) {
+    const auto& templateParameters = identifier.getTemplateParameters();
+    const auto& name = identifier.getNameSplit();
     auto returnFoundVariableDeclaration = [&] (const VariableDeclaration& value) {
         // just determine the identifier if it's not a template type
         if(value.templateParameters.empty()) {
             return std::make_pair(value.type, IdentifierId{ .variableId = value.id, .templateId = 0 });
         }
+        // we have a template type, so it's going to get messy...
+
         // don't add this call if it's just the function declaration e.g. fib<T>
         bool shouldAddToInstantiatedTemplates = true;
         for(auto& usedTemplateParam: templateParameters) {
@@ -82,8 +107,11 @@ std::pair<Datatype, IdentifierId> DatatypeCompleter::getVariableType(const std::
                 }
             }
             if(!templateIdOrNot.has_value()) {
+                // we need to add it to the list.
+                // Also add it to this list of template declarations to complete to check if it's fine.
                 templateInstantiations.push_back(templateParameters);
                 templateIdOrNot = templateInstantiations.size() - 1;
+                mDeclarationsToComplete.push_back(DeclarationToComplete{.declaration = mIdentifierToDeclaration.at(value.identifier), .templateInstantiationInfo = templateParameters});
             }
             templateId = *templateIdOrNot;
         }
@@ -111,11 +139,17 @@ std::pair<Datatype, IdentifierId> DatatypeCompleter::getVariableType(const std::
             return returnFoundVariableDeclaration(value->second);
         }
     }
-    throw std::runtime_error{ "Couldn't find a variable called " + concat(name) };
+    throw std::runtime_error{ "Couldn't find a variable called " + concat(name) + " (" + concat(fullPath) + ")" };
 }
 void DatatypeCompleter::saveModule(std::string name) {
     assert(mScope.size() == 1);
     mModules.emplace(std::make_pair(std::move(name), mScope.at(0)));
+}
+Datatype DatatypeCompleter::performTemplateReplacement(const Datatype& source) {
+    assert(mCurrentTemplateReplacementsMap);
+    if(!source.hasUndeterminedTemplateTypes())
+        return source;
+    return source.completeWithTemplateParameters(*mCurrentTemplateReplacementsMap);
 }
 
 }

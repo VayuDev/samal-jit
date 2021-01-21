@@ -26,8 +26,9 @@ public:
     void declareVariable(const IdentifierNode& name, Datatype type, std::vector<Datatype> templateParameters);
     void declareFunction(const IdentifierNode& identifier, Datatype type);
     void saveModule(std::string name);
-    [[nodiscard]] std::pair<Datatype, IdentifierId> getVariableType(const std::vector<std::string>& identifierTemplateInfo, const std::vector<Datatype>& templateParameters);
+    [[nodiscard]] std::pair<Datatype, IdentifierId> getVariableType(const IdentifierNode& identifier);
 
+    Datatype performTemplateReplacement(const Datatype& source);
 private:
     void declareVariable(const IdentifierNode& name, Datatype type, std::vector<Datatype> templateParameters, bool overrideable);
     void pushScope(const std::string&);
@@ -45,6 +46,18 @@ private:
     int32_t mIdCounter = 0;
     std::string mCurrentModule;
     std::map<const IdentifierNode*, TemplateInstantiationInfo> mTemplateInstantiationInfo;
+
+    struct DeclarationToComplete {
+        DeclarationNode *declaration;
+        std::vector<Datatype> templateInstantiationInfo;
+    };
+    std::vector<DeclarationToComplete> mDeclarationsToComplete;
+
+    // This maps all identifier modes of the declarations to the corresponding parent declaration node.
+    // This is used in getVariableType().
+    std::map<const IdentifierNode*, DeclarationNode*> mIdentifierToDeclaration;
+    std::map<const DeclarationNode*, ModuleRootNode*> mDeclarationToModule;
+    std::optional<std::map<std::string, Datatype>> mCurrentTemplateReplacementsMap;
 };
 
 }

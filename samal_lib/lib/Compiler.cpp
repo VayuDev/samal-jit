@@ -38,21 +38,25 @@ void Compiler::setVariableLocation(const up<IdentifierNode>& identifier) {
     mStackFrames.top().variables.emplace(identifier->getId()->variableId, VariableInfoOnStack{ .offsetFromTop = (size_t)mStackSize, .sizeOnStack = sizeOnStack });
 }
 void Compiler::addInstructions(Instruction insn, int32_t param) {
+    printf("Adding instruction %s %i\n", instructionToString(insn), param);
     mProgram->code.resize(mProgram->code.size() + 5);
     memcpy(&mProgram->code.at(mProgram->code.size() - 5), &insn, 1);
     memcpy(&mProgram->code.at(mProgram->code.size() - 4), &param, 4);
 }
 void Compiler::addInstructions(Instruction ins) {
+    printf("Adding instruction %s\n", instructionToString(ins));
     mProgram->code.resize(mProgram->code.size() + 1);
     memcpy(&mProgram->code.at(mProgram->code.size() - 1), &ins, 1);
 }
 void Compiler::addInstructions(Instruction insn, int32_t param1, int32_t param2) {
+    printf("Adding instruction %s %i %i\n", instructionToString(insn), param1, param2);
     mProgram->code.resize(mProgram->code.size() + 9);
     memcpy(&mProgram->code.at(mProgram->code.size() - 9), &insn, 1);
     memcpy(&mProgram->code.at(mProgram->code.size() - 8), &param1, 4);
     memcpy(&mProgram->code.at(mProgram->code.size() - 4), &param2, 4);
 }
 void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
+    printf("Adding instruction %s %i\n", instructionToString(insn), (int)param);
     mProgram->code.resize(mProgram->code.size() + 2);
     memcpy(&mProgram->code.at(mProgram->code.size() - 2), &insn, 1);
     memcpy(&mProgram->code.at(mProgram->code.size() - 1), &param, 1);
@@ -161,10 +165,6 @@ void Compiler::loadVariableToStack(const IdentifierNode& identifier) {
         if(varLocation != stackCpy.top().variables.end()) {
             assert(identifier.getId()->templateId == 0);
             addInstructions(Instruction::REPUSH_FROM_N, varLocation->second.sizeOnStack, mStackSize - varLocation->second.offsetFromTop);
-            // replace every function id with its ip at the end
-            if(identifier.getDatatype()->getCategory() == DatatypeCategory::function) {
-                mFunctionIdsInCode.push_back(mProgram->code.size() - 8);
-            }
             mStackSize += varLocation->second.sizeOnStack;
             return;
         }
@@ -249,6 +249,7 @@ void Compiler::compileFunction(const up<IdentifierNode>& identifier, const up<Pa
         // TODO won't work for lambdas I guess
         assert(mStackSize == returnTypeSize);
         mStackSize = 0;
+        printf("Resetting stack size\n");
         assert(mStackFrames.empty());
     };
 

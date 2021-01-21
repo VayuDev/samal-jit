@@ -25,6 +25,9 @@ static inline std::map<std::string, Datatype> createTemplateParamMap(const std::
     std::map<std::string, Datatype> ret;
     size_t i = 0;
     for(auto& identifierTemplateParameter : identifierTemplateInfo) {
+        if(i >= templateParameterInfo.size()) {
+            return ret;
+        }
         ret.emplace(identifierTemplateParameter.getUndeterminedIdentifierInfo(), templateParameterInfo.at(i));
         ++i;
     }

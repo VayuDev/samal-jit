@@ -12,16 +12,11 @@ int main() {
     samal::Parser parser;
     auto ast = parser.parse("Main", R"(
 fn func2(p : i32) -> i32 {
-    b = add<i64>(2i64, 7i64)
-    add<i32>(2, 7)
-}
-fn addi64(a : i64, b : i64) -> i64 {
-    a + b
-}
+    x = Templ.add<i32>(2, 7)
+    x
+})");
+    auto ast2 = parser.parse("Templ", R"(
 fn add<T>(a : T, b : T) -> T {
-    a + b
-}
-fn addi32(a : i32, b : i32) -> i32 {
     a + b
 })");
     assert(ast.first);
@@ -35,9 +30,17 @@ fn addi32(a : i32, b : i32) -> i32 {
         samal::Stopwatch stopwatch2{ "Datatype completion + dump" };
         samal::DatatypeCompleter completer;
         modules.push_back(std::move(ast.first));
+        modules.push_back(std::move(ast2.first));
         completer.declareModules(modules);
-        templates = completer.complete(modules.at(0));
+        // this loop should in theory be able to run asynchronously (each iteration in one thread)
+        for(auto& module: modules) {
+            auto completerCpy = completer;
+            auto templatesUsedByThisModule = completerCpy.complete(module);
+            // this would of course need to be synchronised
+            templates.insert(std::move_iterator(templatesUsedByThisModule.begin()), std::move_iterator(templatesUsedByThisModule.end()));
+        }
         std::cout << modules.at(0)->dump(0) << "\n";
+        std::cout << modules.at(0)->dump(1) << "\n";
     }
     //auto cpy = modules;
     samal::Program program;
