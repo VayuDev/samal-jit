@@ -7,6 +7,7 @@
 namespace samal {
 
 enum class DatatypeCategory {
+    invalid,
     i64,
     i32,
     f64,
@@ -46,6 +47,7 @@ public:
     [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams) const;
 
     [[nodiscard]] bool hasUndeterminedTemplateTypes() const;
+
 private:
     std::variant<
         std::monostate,

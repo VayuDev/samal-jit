@@ -9,7 +9,6 @@ class DeclarationNode;
 class ModuleRootNode;
 class IdentifierNode;
 class ExpressionNode;
-class DatatypeCompleter;
 class Compiler;
 class Datatype;
 class ExternalVMValue;

@@ -1,6 +1,5 @@
 #include "samal_lib/AST.hpp"
 #include "samal_lib/Compiler.hpp"
-#include "samal_lib/DatatypeCompleter.hpp"
 #include "samal_lib/ExternalVMValue.hpp"
 #include "samal_lib/Forward.hpp"
 #include "samal_lib/Parser.hpp"
@@ -23,7 +22,8 @@ fn add<T>(a : T, b : T) -> T {
     {
         samal::Stopwatch stopwatch2{ "Dumping the AST" };
         std::cout << ast.first->dump(0) << "\n";
-    }
+        std::cout << ast2.first->dump(0) << "\n";
+    }/*
     std::vector<samal::up<samal::ModuleRootNode>> modules;
     std::map<const samal::IdentifierNode*, samal::TemplateInstantiationInfo> templates;
     {
@@ -68,5 +68,5 @@ fn add<T>(a : T, b : T) -> T {
         //auto ret = vm.run("func2", { 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 2, 0, 0, 0, 0, 0, 0, 0 });
         std::cout << "func2(2)=" << ret.dump() << "\n";
     }
-#endif
+#endif*/
 }

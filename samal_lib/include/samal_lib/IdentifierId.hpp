@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include "Datatype.hpp"
+#include <cstdint>
 
 namespace samal {
 
