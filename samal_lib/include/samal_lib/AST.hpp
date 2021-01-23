@@ -28,6 +28,7 @@ public:
     [[nodiscard]] virtual std::string dump(unsigned indent) const;
     [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
     void throwException(const std::string& msg) const;
+
 private:
     SourceCodeRef mSourceCodeRef;
 };
@@ -73,6 +74,15 @@ public:
     };
     BinaryExpressionNode(SourceCodeRef source, up<ExpressionNode> left, BinaryOperator op, up<ExpressionNode> right);
     Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const auto& getLeft() const {
+        return mLeft;
+    }
+    [[nodiscard]] inline auto getOperator() const {
+        return mOperator;
+    }
+    [[nodiscard]] inline const auto& getRight() const {
+        return mRight;
+    }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "BinaryExpressionNode"; }
 
@@ -170,6 +180,7 @@ public:
     }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ScopeNode"; }
+
 private:
     std::vector<up<ExpressionNode>> mExpressions;
 };
@@ -179,6 +190,12 @@ class IfExpressionNode : public ExpressionNode {
 public:
     IfExpressionNode(SourceCodeRef source, IfExpressionChildList children, up<ScopeNode> elseBody);
     Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const auto& getChildren() const {
+        return mChildren;
+    }
+    [[nodiscard]] inline const auto& getElseBody() const {
+        return mElseBody;
+    }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "IfExpressionNode"; }
 

@@ -124,8 +124,7 @@ std::string BinaryExpressionNode::dump(unsigned int indent) const {
     return ret;
 }
 Datatype BinaryExpressionNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileBinaryExpression(*this);
 }
 
 LiteralNode::LiteralNode(SourceCodeRef source)
@@ -185,8 +184,7 @@ std::vector<std::string> IdentifierNode::getNameSplit() const {
     return mName;
 }
 Datatype IdentifierNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileIdentifierLoad(*this);
 }
 const std::vector<Datatype>& IdentifierNode::getTemplateParameters() const {
     return mTemplateParameters;
@@ -252,8 +250,7 @@ std::string IfExpressionNode::dump(unsigned int indent) const {
     return ret;
 }
 Datatype IfExpressionNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileIfExpression(*this);
 }
 
 FunctionCallExpressionNode::FunctionCallExpressionNode(SourceCodeRef source,
@@ -392,9 +389,9 @@ const IdentifierNode* FunctionDeclarationNode::getIdentifier() const {
 }
 Datatype FunctionDeclarationNode::getDatatype() const {
     std::vector<Datatype> parameterTypes;
-    for(auto& param: mParameters) {
+    for(auto& param : mParameters) {
         parameterTypes.push_back(param.type);
     }
-    return Datatype{mReturnType, std::move(parameterTypes)};
+    return Datatype{ mReturnType, std::move(parameterTypes) };
 }
 }

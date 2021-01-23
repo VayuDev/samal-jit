@@ -1,5 +1,6 @@
 #pragma once
 #include "Datatype.hpp"
+#include "Forward.hpp"
 #include <cctype>
 #include <map>
 #include <string>
@@ -12,6 +13,7 @@ struct Program {
         int32_t offset;
         int32_t len;
         Datatype type;
+        const FunctionDeclarationNode* origin { nullptr };
     };
     std::vector<uint8_t> code;
     std::map<std::string, Function> functions;

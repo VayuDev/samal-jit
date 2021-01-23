@@ -1,9 +1,9 @@
 #pragma once
 #include "Forward.hpp"
+#include "Instruction.hpp"
 #include "Program.hpp"
 #include <queue>
 #include <stack>
-#include "Instruction.hpp"
 
 namespace samal {
 
@@ -15,6 +15,10 @@ public:
     void compileFunction(const FunctionDeclarationNode& function);
     Datatype compileScope(const ScopeNode& scope);
     Datatype compileLiteralI32(int32_t value);
+    Datatype compileBinaryExpression(const BinaryExpressionNode&);
+    Datatype compileIfExpression(const IfExpressionNode&);
+    Datatype compileIdentifierLoad(const IdentifierNode&);
+
 private:
     Program mProgram;
     std::vector<up<ModuleRootNode>>& mRoots;
@@ -27,6 +31,8 @@ private:
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
 
+    int32_t addLabel(int32_t len);
+    uint8_t* labelToPtr(int32_t label);
     struct TemplateFunctionToInstantiate {
         FunctionDeclarationNode* function{ nullptr };
         // this is e.g. <i32, i64, (i32, bool)>
@@ -34,15 +40,17 @@ private:
     };
     std::queue<TemplateFunctionToInstantiate> mTemplateFunctionsToInstantiate;
     struct Declaration {
-        DeclarationNode *astNode { nullptr };
+        DeclarationNode* astNode{ nullptr };
         Datatype type;
     };
     std::unordered_map<std::string, Declaration> mDeclarations;
+    std::unordered_map<DeclarationNode*, std::string> mDeclarationNodeToModuleName;
+    std::string mCurrentModuleName;
 
     std::optional<std::map<std::string, Datatype>> mTemplateReplacementMap;
 
     struct VariableOnStack {
-        int32_t offsetFromBottom { 0 };
+        int32_t offsetFromBottom{ 0 };
         Datatype type;
     };
     struct StackFrame {
@@ -51,7 +59,13 @@ private:
     };
     std::stack<StackFrame, std::vector<StackFrame>> mStackFrames;
 
-    int32_t mStackSize { 0 };
+    int32_t mStackSize{ 0 };
+
+    struct FunctionIdInCodeToInsert {
+        int32_t label { -1 };
+        FunctionDeclarationNode* function { nullptr };
+    };
+    std::vector<FunctionIdInCodeToInsert> mLabelsToInsertFunctionIds;
 };
 
 }
