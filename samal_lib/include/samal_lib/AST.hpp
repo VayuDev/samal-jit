@@ -152,6 +152,9 @@ class TupleCreationNode : public ExpressionNode {
 public:
     explicit TupleCreationNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
     Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] const auto& getParams() const {
+        return mParams;
+    }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "TupleCreationNode"; }
 
@@ -208,21 +211,30 @@ class FunctionCallExpressionNode : public ExpressionNode {
 public:
     FunctionCallExpressionNode(SourceCodeRef source, up<ExpressionNode> name, std::vector<up<ExpressionNode>> params);
     Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const auto& getName() const {
+        return mName;
+    }
+    [[nodiscard]] inline const auto& getParams() const {
+        return mParams;
+    }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionCallExpressionNode"; }
-    void prependChainedParameter(Datatype chainedParamType);
 
 private:
     up<ExpressionNode> mName;
-    std::optional<Datatype> mPrependedChainedParameterType;
     std::vector<up<ExpressionNode>> mParams;
 };
 
 class FunctionChainExpressionNode : public ExpressionNode {
 public:
     FunctionChainExpressionNode(SourceCodeRef source, up<ExpressionNode> initialValue, up<FunctionCallExpressionNode> functionCall);
-
     Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const auto& getInitialValue() const {
+        return mInitialValue;
+    }
+    [[nodiscard]] inline const auto& getFunctionCall() const {
+        return mFunctionCall;
+    }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionChainExpressionNode"; }
 
@@ -244,8 +256,13 @@ private:
 class TupleAccessExpressionNode : public ExpressionNode {
 public:
     TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index);
-
     Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] const auto& getName() const {
+        return mName;
+    }
+    [[nodiscard]] auto getIndex() const {
+        return mIndex;
+    }
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "TupleAccessExpressionNode"; }
 

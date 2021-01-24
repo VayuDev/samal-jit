@@ -163,6 +163,21 @@ Datatype Compiler::compileLiteralI32(int32_t value) {
 #endif
     return Datatype(DatatypeCategory::i32);
 }
+Datatype Compiler::compileLiteralI64(int64_t value) {
+    mStackSize += 8;
+    addInstructions(Instruction::PUSH_8, value, value >> 32);
+    return Datatype(DatatypeCategory::i64);
+}
+Datatype Compiler::compileLiteralBool(bool value) {
+#ifdef x86_64_BIT_MODE
+    mStackSize += 8;
+    addInstructions(Instruction::PUSH_8, value, 0);
+#else
+    mStackSize += 1;
+    addInstructionOneByteParam(Instruction::PUSH_1, value);
+#endif
+    return Datatype(DatatypeCategory::bool_);
+}
 Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExpression) {
     auto lhsType = binaryExpression.getLeft()->compile(*this);
     auto rhsType = binaryExpression.getRight()->compile(*this);
@@ -276,5 +291,101 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{.label = addLabel(instructionToWidth(Instruction::PUSH_8)), .function = declarationAsFunction});
     mStackSize += 8;
     return maybeDeclaration->second.type;
+}
+Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
+    auto functionNameType = functionCall.getName()->compile(*this);
+    if(functionNameType.getCategory() != DatatypeCategory::function) {
+        functionCall.throwException("Calling non-function type " + functionNameType.toString());
+    }
+    auto& functionInfo = functionNameType.getFunctionTypeInfo();
+    if(functionCall.getParams().size() != functionInfo.second.size()) {
+        functionCall.throwException("Calling function with invalid number of arguments; function is of type "
+            + functionNameType.toString() + ", but " + std::to_string(functionCall.getParams().size()) + " arguments were passed");
+    }
+    size_t i = 0;
+    int32_t paramTypesSummedSize = 0;
+    for(auto& param: functionCall.getParams()) {
+        auto type = param->compile(*this);
+        paramTypesSummedSize += type.getSizeOnStack();
+        if(functionInfo.second.at(i) != type) {
+            functionCall.throwException("Calling function with invalid arguments; argument at index "
+                + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + type.toString());
+        }
+        ++i;
+    }
+
+    addInstructions(Instruction::CALL, paramTypesSummedSize);
+    mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
+    mStackSize += functionInfo.first->getSizeOnStack();
+
+    return Datatype{*functionInfo.first};
+}
+Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode& functionChain) {
+    auto initialValueType = functionChain.getInitialValue()->compile(*this);
+    auto& functionCall = *functionChain.getFunctionCall();
+    auto functionNameType = functionCall.getName()->compile(*this);
+    if(functionNameType.getCategory() != DatatypeCategory::function) {
+        functionCall.throwException("Calling non-function type " + functionNameType.toString());
+    }
+    auto& functionInfo = functionNameType.getFunctionTypeInfo();
+    if(functionCall.getParams().size() + 1 != functionInfo.second.size()) {
+        functionCall.throwException("Calling function with invalid number of arguments; function is of type "
+                                        + functionNameType.toString() + ", but " + std::to_string(functionCall.getParams().size() + 1) + " arguments were passed (one chained)");
+    }
+    // move initial value back to the top of the stack
+    addInstructions(Instruction::REPUSH_FROM_N, initialValueType.getSizeOnStack(), 8);
+    addInstructions(Instruction::POP_N_BELOW, initialValueType.getSizeOnStack(), 8 + initialValueType.getSizeOnStack());
+    size_t i = 1;
+    int32_t paramTypesSummedSize = initialValueType.getSizeOnStack();
+    for(auto& param: functionCall.getParams()) {
+        auto type = param->compile(*this);
+        paramTypesSummedSize += type.getSizeOnStack();
+        if(functionInfo.second.at(i) != type) {
+            functionCall.throwException("Calling function with invalid arguments; argument at index "
+                                            + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + type.toString());
+        }
+        ++i;
+    }
+
+    addInstructions(Instruction::CALL, paramTypesSummedSize);
+    mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
+    mStackSize += functionInfo.first->getSizeOnStack();
+
+    return Datatype{*functionInfo.first};
+}
+Datatype Compiler::compileTupleCreationExpression(const TupleCreationNode& tupleCreation) {
+    std::vector<Datatype> paramTypes;
+    for(auto& param: tupleCreation.getParams()) {
+        paramTypes.emplace_back(param->compile(*this));
+    }
+    return Datatype{std::move(paramTypes)};
+}
+Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode& tupleAccess) {
+    auto tupleType = tupleAccess.getName()->compile(*this);
+    if(tupleType.getCategory() != DatatypeCategory::tuple) {
+        tupleAccess.throwException("Trying to access a tuple-element of non-tuple type " + tupleType.toString());
+    }
+    auto& tupleInfo = tupleType.getTupleInfo();
+    auto& accessedType = tupleInfo.at(tupleAccess.getIndex());
+
+    size_t offsetOfAccessedType = 0;
+    for(ssize_t i = static_cast<ssize_t>(tupleInfo.size()) - 1; i > tupleAccess.getIndex(); --i) {
+        offsetOfAccessedType += tupleInfo.at(i).getSizeOnStack();
+    }
+    addInstructions(Instruction::REPUSH_FROM_N, accessedType.getSizeOnStack(), offsetOfAccessedType);
+    addInstructions(Instruction::POP_N_BELOW, tupleType.getSizeOnStack(), accessedType.getSizeOnStack());
+
+    mStackSize += accessedType.getSizeOnStack();
+    mStackSize -= tupleType.getSizeOnStack();
+    return accessedType;
+}
+Datatype Compiler::compileAssignmentExpression(const AssignmentExpression& assignment) {
+    auto rhsType = assignment.getRight()->compile(*this);
+    auto& lhs = *assignment.getLeft();
+    addInstructions(Instruction::REPUSH_FROM_N, rhsType.getSizeOnStack(), 0);
+    mStackSize += rhsType.getSizeOnStack();
+    mStackFrames.top().variables.emplace(lhs.getName(), VariableOnStack{.offsetFromBottom = mStackSize, .type = rhsType});
+    mStackFrames.top().stackFrameSize += rhsType.getSizeOnStack();
+    return rhsType;
 }
 }

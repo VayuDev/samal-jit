@@ -15,9 +15,16 @@ public:
     void compileFunction(const FunctionDeclarationNode& function);
     Datatype compileScope(const ScopeNode& scope);
     Datatype compileLiteralI32(int32_t value);
+    Datatype compileLiteralI64(int64_t value);
+    Datatype compileLiteralBool(bool value);
     Datatype compileBinaryExpression(const BinaryExpressionNode&);
     Datatype compileIfExpression(const IfExpressionNode&);
     Datatype compileIdentifierLoad(const IdentifierNode&);
+    Datatype compileFunctionCall(const FunctionCallExpressionNode&);
+    Datatype compileChainedFunctionCall(const FunctionChainExpressionNode&);
+    Datatype compileTupleCreationExpression(const TupleCreationNode&);
+    Datatype compileTupleAccessExpression(const TupleAccessExpressionNode&);
+    Datatype compileAssignmentExpression(const AssignmentExpression&);
 
 private:
     Program mProgram;

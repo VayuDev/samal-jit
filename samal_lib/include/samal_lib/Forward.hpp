@@ -13,6 +13,11 @@ class FunctionDeclarationNode;
 class ScopeNode;
 class BinaryExpressionNode;
 class IfExpressionNode;
+class FunctionCallExpressionNode;
+class FunctionChainExpressionNode;
+class TupleCreationNode;
+class TupleAccessExpressionNode;
+class AssignmentExpression;
 
 class Compiler;
 class Datatype;

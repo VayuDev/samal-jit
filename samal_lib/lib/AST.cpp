@@ -59,8 +59,7 @@ std::string AssignmentExpression::dump(unsigned int indent) const {
     return ret;
 }
 Datatype AssignmentExpression::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileAssignmentExpression(*this);
 }
 const up<IdentifierNode>& AssignmentExpression::getLeft() const {
     return mLeft;
@@ -145,8 +144,7 @@ LiteralInt64Node::LiteralInt64Node(SourceCodeRef source, int64_t val)
 : LiteralNode(std::move(source)), mValue(val) {
 }
 Datatype LiteralInt64Node::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileLiteralI64(mValue);
 }
 std::string LiteralInt64Node::dump(unsigned int indent) const {
     return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
@@ -156,8 +154,7 @@ LiteralBoolNode::LiteralBoolNode(SourceCodeRef source, bool val)
 : LiteralNode(std::move(source)), mValue(val) {
 }
 Datatype LiteralBoolNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileLiteralBool(mValue);
 }
 std::string LiteralBoolNode::dump(unsigned int indent) const {
     return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
@@ -197,8 +194,7 @@ std::string TupleCreationNode::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 Datatype TupleCreationNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileTupleCreationExpression(*this);
 }
 
 ListCreationNode::ListCreationNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
@@ -265,19 +261,13 @@ std::string FunctionCallExpressionNode::dump(unsigned int indent) const {
     return ret;
 }
 Datatype FunctionCallExpressionNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileFunctionCall(*this);
 }
-void FunctionCallExpressionNode::prependChainedParameter(Datatype chainedParamType) {
-    mPrependedChainedParameterType = std::move(chainedParamType);
-}
-
 FunctionChainExpressionNode::FunctionChainExpressionNode(SourceCodeRef source, up<ExpressionNode> initialValue, up<FunctionCallExpressionNode> functionCall)
 : ExpressionNode(std::move(source)), mInitialValue(std::move(initialValue)), mFunctionCall(std::move(functionCall)) {
 }
 Datatype FunctionChainExpressionNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileChainedFunctionCall(*this);
 }
 std::string FunctionChainExpressionNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
@@ -306,8 +296,7 @@ TupleAccessExpressionNode::TupleAccessExpressionNode(SourceCodeRef source, up<Ex
 : ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(index) {
 }
 Datatype TupleAccessExpressionNode::compile(Compiler& comp) const {
-    todo();
-    return Datatype{ DatatypeCategory::invalid };
+    return comp.compileTupleAccessExpression(*this);
 }
 std::string TupleAccessExpressionNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
@@ -345,7 +334,7 @@ void ModuleRootNode::setModuleName(std::string name) {
     mName = std::move(name);
 }
 Datatype ModuleRootNode::compile(Compiler& comp) const {
-    todo();
+    assert(false);
     return Datatype{ DatatypeCategory::invalid };
 }
 const std::vector<up<DeclarationNode>>& ModuleRootNode::getDeclarations() const {
