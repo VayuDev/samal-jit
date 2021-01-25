@@ -43,9 +43,9 @@ private:
     struct TemplateFunctionToInstantiate {
         FunctionDeclarationNode* function{ nullptr };
         // this is e.g. <i32, i64, (i32, bool)>
-        std::vector<Datatype> templateParameters;
+        std::map<std::string, Datatype> replacementMap;
     };
-    std::queue<TemplateFunctionToInstantiate> mTemplateFunctionsToInstantiate;
+    std::vector<TemplateFunctionToInstantiate> mTemplateFunctionsToInstantiate;
     struct Declaration {
         DeclarationNode* astNode{ nullptr };
         Datatype type;
@@ -54,7 +54,7 @@ private:
     std::unordered_map<DeclarationNode*, std::string> mDeclarationNodeToModuleName;
     std::string mCurrentModuleName;
 
-    std::optional<std::map<std::string, Datatype>> mTemplateReplacementMap;
+    std::map<std::string, Datatype> mTemplateReplacementMap;
 
     struct VariableOnStack {
         int32_t offsetFromBottom{ 0 };
@@ -69,8 +69,9 @@ private:
     int32_t mStackSize{ 0 };
 
     struct FunctionIdInCodeToInsert {
-        int32_t label { -1 };
-        FunctionDeclarationNode* function { nullptr };
+        int32_t label{ -1 };
+        FunctionDeclarationNode* function{ nullptr };
+        std::map<std::string, Datatype> templateParameters;
     };
     std::vector<FunctionIdInCodeToInsert> mLabelsToInsertFunctionIds;
 };

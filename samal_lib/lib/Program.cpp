@@ -5,10 +5,22 @@ namespace samal {
 
 std::string Program::disassemble() const {
     std::string ret;
-    for(auto& [name, location] : functions) {
-        ret += "Function " + name + ":\n";
-        size_t offset = location.offset;
-        while(offset < location.offset + location.len) {
+    for(auto& func : functions) {
+        ret += "Function " + func.name;
+        if(!func.templateParameters.empty()) {
+            ret += "<";
+            size_t i = 0;
+            for(auto& param : func.templateParameters) {
+                ret += param.first + " => " + param.second.toString();
+                if(++i < func.templateParameters.size()) {
+                    ret += ",";
+                }
+            }
+            ret += ">";
+        }
+        ret += "\n";
+        size_t offset = func.offset;
+        while(offset < func.offset + func.len) {
             ret += " " + std::to_string(offset) + " ";
             ret += instructionToString(static_cast<Instruction>(code.at(offset)));
             auto width = instructionToWidth(static_cast<Instruction>(code.at(offset)));

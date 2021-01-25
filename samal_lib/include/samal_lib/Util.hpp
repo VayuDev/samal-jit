@@ -25,18 +25,25 @@ public:
         mStart = std::chrono::high_resolution_clock::now();
         mName = name;
     }
-    ~Stopwatch() {
+    void stop() {
+        if(mStopped)
+            return;
         auto duration = (std::chrono::high_resolution_clock::now() - mStart).count();
         if(strlen(mName) > 0) {
             printf("%s took %0.2fµs\n", mName, duration / 1000.0);
         } else {
             printf("Something took %0.2f\nµs", duration / 1000.0);
         }
+        mStopped = true;
+    }
+    ~Stopwatch() {
+        stop();
     }
 
 private:
     const char* mName;
     std::chrono::high_resolution_clock::time_point mStart;
+    bool mStopped = false;
 };
 
 class CompilationException : public std::exception {

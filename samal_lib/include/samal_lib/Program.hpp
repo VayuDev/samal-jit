@@ -13,10 +13,12 @@ struct Program {
         int32_t offset;
         int32_t len;
         Datatype type;
-        const FunctionDeclarationNode* origin { nullptr };
+        const FunctionDeclarationNode* origin{ nullptr };
+        std::string name;
+        std::map<std::string, Datatype> templateParameters;
     };
     std::vector<uint8_t> code;
-    std::map<std::string, Function> functions;
+    std::vector<Function> functions;
     [[nodiscard]] std::string disassemble() const;
 };
 

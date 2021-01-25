@@ -30,24 +30,26 @@ Program Compiler::compile() {
     // compile all template functions
     while(!mTemplateFunctionsToInstantiate.empty()) {
         auto function = mTemplateFunctionsToInstantiate.front().function;
-        mTemplateReplacementMap = createTemplateParamMap(
-            function->getIdentifier()->getTemplateParameters(),
-            mTemplateFunctionsToInstantiate.front().templateParameters);
+        mTemplateReplacementMap = mTemplateFunctionsToInstantiate.front().replacementMap;
         mCurrentModuleName = mDeclarationNodeToModuleName.at(function);
         function->compile(*this);
-        mTemplateReplacementMap.reset();
+        mTemplateReplacementMap.clear();
+        mTemplateFunctionsToInstantiate.erase(mTemplateFunctionsToInstantiate.begin());
     }
     // insert all the function locations in the code
-    for(auto& label: mLabelsToInsertFunctionIds) {
-        for(auto& function: mProgram.functions) {
-            if(function.second.origin == label.function) {
+    for(auto& label : mLabelsToInsertFunctionIds) {
+        bool found = false;
+        for(auto& function : mProgram.functions) {
+            if(function.origin == label.function && function.templateParameters == label.templateParameters) {
                 auto ptr = labelToPtr(label.label);
                 *(reinterpret_cast<Instruction*>(ptr)) = Instruction::PUSH_8;
-                *(reinterpret_cast<int32_t*>(ptr + 1)) = function.second.offset;
+                *(reinterpret_cast<int32_t*>(ptr + 1)) = function.offset;
                 *(reinterpret_cast<int32_t*>(ptr + 5)) = 0;
-
+                found = true;
+                break;
             }
         }
+        assert(found);
     }
     return std::move(mProgram);
 }
@@ -61,13 +63,15 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
         }
     }
     assert(!fullFunctionName.empty());
+    printf("\nCompiling function %s\n", fullFunctionName.c_str());
     auto start = mProgram.code.size();
 
     pushStackFrame();
-    const auto& functionReturnType = function.getReturnType();
+    const auto& functionReturnType = function.getReturnType().completeWithTemplateParameters(mTemplateReplacementMap);
     for(auto& param : function.getParameters()) {
-        mStackSize += param.type.getSizeOnStack();
-        mStackFrames.top().variables.emplace(param.name->getName(), VariableOnStack{ .offsetFromBottom = mStackSize, .type = param.type });
+        auto type = param.type.completeWithTemplateParameters(mTemplateReplacementMap);
+        mStackSize += type.getSizeOnStack();
+        mStackFrames.top().variables.emplace(param.name->getName(), VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
     }
     mStackFrames.top().stackFrameSize = mStackSize;
     auto bodyReturnType = function.getBody()->compile(*this);
@@ -89,10 +93,13 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
     mStackSize = 0;
 
     // save the region of the function in the program object to allow locating it
-    mProgram.functions[fullFunctionName].type = function.getDatatype();
-    mProgram.functions[fullFunctionName].offset = start;
-    mProgram.functions[fullFunctionName].len = mProgram.code.size() - start;
-    mProgram.functions[fullFunctionName].origin = &function;
+    mProgram.functions.emplace_back(Program::Function{
+        .offset = static_cast<int32_t>(start),
+        .len = static_cast<int32_t>(mProgram.code.size() - start),
+        .type = function.getDatatype(),
+        .origin = &function,
+        .name = fullFunctionName,
+        .templateParameters = mTemplateReplacementMap });
 }
 Datatype Compiler::compileScope(const ScopeNode& scope) {
     auto& expressions = scope.getExpressions();
@@ -203,13 +210,33 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype{ DatatypeCategory::bool_ };
         }
+        break;
+    case DatatypeCategory::i64:
+        switch(binaryExpression.getOperator()) {
+        case BinaryExpressionNode::BinaryOperator::PLUS:
+            addInstructions(Instruction::ADD_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64);
+            return Datatype{ DatatypeCategory::i64 };
+
+        case BinaryExpressionNode::BinaryOperator::MINUS:
+            addInstructions(Instruction::SUB_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64);
+            return Datatype{ DatatypeCategory::i64 };
+
+        case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
+            addInstructions(Instruction::COMPARE_LESS_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype{ DatatypeCategory::bool_ };
+        }
+        break;
     }
     assert(false);
 }
 Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
     std::vector<int32_t> jumpToEndLabels;
     std::optional<Datatype> returnType;
-    for(auto& child: ifExpression.getChildren()) {
+    for(auto& child : ifExpression.getChildren()) {
         auto conditionType = child.first->compile(*this);
         if(conditionType.getCategory() != DatatypeCategory::bool_) {
             child.first->throwException("Condition for if-expressions must be of type bool, not " + conditionType.toString());
@@ -240,7 +267,7 @@ Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
         mStackSize -= elseBodyReturnType.getSizeOnStack();
         if(elseBodyReturnType != *returnType) {
             ifExpression.throwException("Each branch of an if-expression must return the same value; other branches returned "
-                                            + returnType->toString() + ", but the else branch returned " + elseBodyReturnType.toString());
+                + returnType->toString() + ", but the else branch returned " + elseBodyReturnType.toString());
         }
     } else {
         if(returnType != Datatype::createEmptyTuple()) {
@@ -288,8 +315,43 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     if(!declarationAsFunction) {
         identifier.throwException("Identifier is not a function");
     }
-    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{.label = addLabel(instructionToWidth(Instruction::PUSH_8)), .function = declarationAsFunction});
+    auto functionTemplateParams = declarationAsFunction->getTemplateParameterVector();
+    if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
+        identifier.throwException("Invalid number of template parameters passed (expected " + std::to_string(functionTemplateParams.size()) + ")");
+    }
+    auto declarationType = maybeDeclaration->second.type.completeWithTemplateParameters(mTemplateReplacementMap);
     mStackSize += 8;
+    if(maybeDeclaration->second.type.hasUndeterminedTemplateTypes()) {
+        // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
+        std::vector<Datatype> passedTemplateParameters;
+        for(auto& param : identifier.getTemplateParameters()) {
+            passedTemplateParameters.push_back(param.completeWithTemplateParameters(mTemplateReplacementMap));
+            if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
+                identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
+            }
+        }
+        // template function
+        auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
+        // check if we already compiled this template instantiation (or plan on compiling it) and, if not, add it for later compilation
+        bool alreadyExists = false;
+        for(auto& func : mProgram.functions) {
+            if(func.origin == declarationAsFunction && func.templateParameters == replacementMap) {
+                alreadyExists = true;
+            }
+        }
+        for(auto& plannedFunc : mTemplateFunctionsToInstantiate) {
+            if(plannedFunc.function == declarationAsFunction && plannedFunc.replacementMap == replacementMap) {
+                alreadyExists = true;
+            }
+        }
+        if(!alreadyExists) {
+            mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ declarationAsFunction, replacementMap });
+        }
+        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .function = declarationAsFunction, .templateParameters = replacementMap });
+        return maybeDeclaration->second.type.completeWithTemplateParameters(replacementMap);
+    }
+    // normal function
+    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .function = declarationAsFunction });
     return maybeDeclaration->second.type;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
@@ -304,7 +366,7 @@ Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functio
     }
     size_t i = 0;
     int32_t paramTypesSummedSize = 0;
-    for(auto& param: functionCall.getParams()) {
+    for(auto& param : functionCall.getParams()) {
         auto type = param->compile(*this);
         paramTypesSummedSize += type.getSizeOnStack();
         if(functionInfo.second.at(i) != type) {
@@ -318,7 +380,7 @@ Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functio
     mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
     mStackSize += functionInfo.first->getSizeOnStack();
 
-    return Datatype{*functionInfo.first};
+    return Datatype{ *functionInfo.first };
 }
 Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode& functionChain) {
     auto initialValueType = functionChain.getInitialValue()->compile(*this);
@@ -330,19 +392,19 @@ Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode&
     auto& functionInfo = functionNameType.getFunctionTypeInfo();
     if(functionCall.getParams().size() + 1 != functionInfo.second.size()) {
         functionCall.throwException("Calling function with invalid number of arguments; function is of type "
-                                        + functionNameType.toString() + ", but " + std::to_string(functionCall.getParams().size() + 1) + " arguments were passed (one chained)");
+            + functionNameType.toString() + ", but " + std::to_string(functionCall.getParams().size() + 1) + " arguments were passed (one chained)");
     }
     // move initial value back to the top of the stack
     addInstructions(Instruction::REPUSH_FROM_N, initialValueType.getSizeOnStack(), 8);
     addInstructions(Instruction::POP_N_BELOW, initialValueType.getSizeOnStack(), 8 + initialValueType.getSizeOnStack());
     size_t i = 1;
     int32_t paramTypesSummedSize = initialValueType.getSizeOnStack();
-    for(auto& param: functionCall.getParams()) {
+    for(auto& param : functionCall.getParams()) {
         auto type = param->compile(*this);
         paramTypesSummedSize += type.getSizeOnStack();
         if(functionInfo.second.at(i) != type) {
             functionCall.throwException("Calling function with invalid arguments; argument at index "
-                                            + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + type.toString());
+                + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + type.toString());
         }
         ++i;
     }
@@ -351,14 +413,14 @@ Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode&
     mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
     mStackSize += functionInfo.first->getSizeOnStack();
 
-    return Datatype{*functionInfo.first};
+    return Datatype{ *functionInfo.first };
 }
 Datatype Compiler::compileTupleCreationExpression(const TupleCreationNode& tupleCreation) {
     std::vector<Datatype> paramTypes;
-    for(auto& param: tupleCreation.getParams()) {
+    for(auto& param : tupleCreation.getParams()) {
         paramTypes.emplace_back(param->compile(*this));
     }
-    return Datatype{std::move(paramTypes)};
+    return Datatype{ std::move(paramTypes) };
 }
 Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode& tupleAccess) {
     auto tupleType = tupleAccess.getName()->compile(*this);
@@ -384,7 +446,7 @@ Datatype Compiler::compileAssignmentExpression(const AssignmentExpression& assig
     auto& lhs = *assignment.getLeft();
     addInstructions(Instruction::REPUSH_FROM_N, rhsType.getSizeOnStack(), 0);
     mStackSize += rhsType.getSizeOnStack();
-    mStackFrames.top().variables.emplace(lhs.getName(), VariableOnStack{.offsetFromBottom = mStackSize, .type = rhsType});
+    mStackFrames.top().variables.emplace(lhs.getName(), VariableOnStack{ .offsetFromBottom = mStackSize, .type = rhsType });
     mStackFrames.top().stackFrameSize += rhsType.getSizeOnStack();
     return rhsType;
 }

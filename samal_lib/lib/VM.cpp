@@ -378,12 +378,17 @@ VM::VM(Program program)
 ExternalVMValue VM::run(const std::string& functionName, const std::vector<uint8_t>& initialStack) {
     mStack.clear();
     mStack.push(initialStack);
-    auto functionOrNot = mProgram.functions.find(functionName);
-    if(functionOrNot == mProgram.functions.end()) {
+    Program::Function* function{ nullptr };
+    for(auto& func : mProgram.functions) {
+        if(func.name == functionName) {
+            function = &func;
+        }
+    }
+    if(!function) {
         throw std::runtime_error{ "Function " + functionName + " not found!" };
     }
-    mIp = functionOrNot->second.offset;
-    auto returnType = *functionOrNot->second.type.getFunctionTypeInfo().first;
+    mIp = function->offset;
+    auto returnType = *function->type.getFunctionTypeInfo().first;
 #ifdef _DEBUG
     auto dump = mStack.dump();
     printf("Dump:\n%s\n", dump.c_str());
