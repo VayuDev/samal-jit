@@ -214,6 +214,12 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         }
         break;
     }
+    case DatatypeCategory::tuple: {
+        for(size_t i = 0; i < getTupleInfo().size(); ++i) {
+            std::get<std::vector<Datatype>>(cpy.mFurtherInfo).at(i) = std::get<std::vector<Datatype>>(mFurtherInfo).at(i).completeWithTemplateParameters(templateParams);
+        }
+        break;
+    }
     default:
         assert(false);
     }
@@ -236,6 +242,13 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
         return false;
     case DatatypeCategory::undetermined_identifier: {
         return true;
+    }
+    case DatatypeCategory::tuple: {
+        for(auto& child: getTupleInfo()) {
+            if(child.hasUndeterminedTemplateTypes())
+                return true;
+        }
+        return false;
     }
     default:
         assert(false);

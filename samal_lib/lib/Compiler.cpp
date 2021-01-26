@@ -11,9 +11,12 @@ Program Compiler::compile() {
     // declare all functions & structs
     for(auto& module : mRoots) {
         for(auto& decl : module->getDeclarations()) {
-            mDeclarations.emplace(
+            auto emplaceResult = mDeclarations.emplace(
                 module->getModuleName() + '.' + decl->getIdentifier()->getName(),
                 Declaration{ .astNode = decl.get(), .type = decl->getDatatype() });
+            if(!emplaceResult.second) {
+                decl->throwException("Function defined twice!");
+            }
             mDeclarationNodeToModuleName.emplace(decl.get(), module->getModuleName());
         }
     }
@@ -201,6 +204,12 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype{ DatatypeCategory::bool_ };
+
+        case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
+            addInstructions(Instruction::COMPARE_MORE_THAN_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype{ DatatypeCategory::bool_ };
         }
         break;
     case DatatypeCategory::i64:
@@ -217,6 +226,12 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
             addInstructions(Instruction::COMPARE_LESS_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype{ DatatypeCategory::bool_ };
+
+        case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
+            addInstructions(Instruction::COMPARE_MORE_THAN_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype{ DatatypeCategory::bool_ };
