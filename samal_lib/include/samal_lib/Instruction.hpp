@@ -29,7 +29,8 @@ namespace samal {
     INSTRUCTION(REPUSH_FROM_N, 9)               \
     INSTRUCTION(RETURN, 5)                      \
     INSTRUCTION(CALL, 5)                        \
-    INSTRUCTION(CREATE_LAMBDA, 5)
+    INSTRUCTION(CREATE_LAMBDA, 5)               \
+    INSTRUCTION(RETURN_FROM_LAMBDA, 5)
 
 enum class Instruction : uint8_t {
 #define INSTRUCTION(name, width) name,

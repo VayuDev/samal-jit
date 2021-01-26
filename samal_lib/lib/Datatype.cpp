@@ -4,12 +4,7 @@
 namespace samal {
 
 std::string Datatype::toString() const {
-    switch(mCategory) {
-    case DatatypeCategory::i32:
-        return "i32";
-    case DatatypeCategory::i64:
-        return "i64";
-    case DatatypeCategory::function: {
+    auto funcToString = [this] {
         auto& functionInfo = getFunctionTypeInfo();
         std::string ret = "fn(";
         for(size_t i = 0; i < functionInfo.second.size(); ++i) {
@@ -20,6 +15,14 @@ std::string Datatype::toString() const {
         }
         ret += ") -> " + functionInfo.first->toString();
         return ret;
+    };
+    switch(mCategory) {
+    case DatatypeCategory::i32:
+        return "i32";
+    case DatatypeCategory::i64:
+        return "i64";
+    case DatatypeCategory::function: {
+        return funcToString();
     }
     case DatatypeCategory::tuple: {
         auto& tupleInfo = getTupleInfo();

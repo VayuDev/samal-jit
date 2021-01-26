@@ -80,7 +80,7 @@ public:
         //    adjust rsp
         sub(rsp, stackSize);
 
-        std();
+        cld();
         auto jumpWithIp = [&] {
             jmp(ptr[tableRegister + ip * sizeof(void*)]);
         };
@@ -258,7 +258,36 @@ public:
                 int32_t callInfoOffset = *(uint32_t*)&instructions.at(i + 1);
                 mov(rax, rsp);
                 add(rax, callInfoOffset);
+                // rax points to the location of the function id/ptr
                 mov(rbx, qword[rax]);
+                // rbx contains the new ip if it's a normal function and a ptr if it's a lambda
+                test(bl, 1);
+                Xbyak::Label normalFunctionLocation;
+                Xbyak::Label end;
+                jnz(normalFunctionLocation);
+                // lambda
+                // setup rsi
+                mov(rsi, rbx);
+                add(rsi, 8);
+                // rsi points to the start of the buffer in ram
+                // extract length & ip
+                mov(ecx, dword[rbx]);
+                // rcx contains the length of the lambda data
+                mov(ebx, dword[rbx + 4]);
+                // rbx contains the ip we should jump to
+                sub(rsp, rcx);
+                mov(rdi, rsp);
+                // rdi points to the end of destination on the stack
+                rep();
+                movsb();
+
+                jmp(end);
+
+                L(normalFunctionLocation);
+                // normal function
+                sar(rbx, 32);
+
+                L(end);
                 add(ip, instructionToWidth(ins));
                 mov(qword[rax], ip);
 
@@ -630,9 +659,30 @@ bool VM::interpretInstruction() {
     }
     case Instruction::CALL: {
         auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
-        auto newIp = *(int32_t*)mStack.get(offset + 8);
-        // save old values to stack
-        *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
+        int32_t newIp{ -1 };
+        if(*(int32_t*)mStack.get(offset + 8) % 2 == 0) {
+            // it's a lambda function call
+            // save old values to stack
+            auto* lambdaParams = *(uint8_t**)mStack.get(offset + 8);
+            auto lambdaParamsLen = ((int32_t*)lambdaParams)[0];
+            newIp = ((int32_t*)lambdaParams)[1];
+
+            // save old values to stack
+            *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
+            *(int32_t*)mStack.get(offset + 4) = 0;
+
+            uint8_t buffer[lambdaParamsLen];
+            memcpy(buffer, lambdaParams + 8, lambdaParamsLen);
+            mStack.push(buffer, lambdaParamsLen);
+        } else {
+            // it's a default function call
+            newIp = *(int32_t*)mStack.get(offset + 4);
+
+            // save old values to stack
+            *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
+            *(int32_t*)mStack.get(offset + 4) = 0;
+        }
+
         mIp = newIp;
         incIp = false;
         break;
@@ -640,6 +690,27 @@ bool VM::interpretInstruction() {
     case Instruction::RETURN: {
         auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
         mIp = *(int32_t*)mStack.get(offset + 8);
+        mStack.popBelow(offset, 8);
+        incIp = false;
+        if(mIp == mProgram.code.size()) {
+            return false;
+        }
+        break;
+    }
+    case Instruction::CREATE_LAMBDA: {
+        auto functionIdOffset = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto* dataOnHeap = (uint8_t*)malloc(functionIdOffset + 8);
+        // store length of buffer & ip of the function on the stack
+        ((int32_t*)dataOnHeap)[0] = functionIdOffset;
+        ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIdOffset + 8);
+        memcpy(dataOnHeap + 8, mStack.get(functionIdOffset), functionIdOffset);
+        mStack.pop(functionIdOffset + 8);
+        mStack.push(&dataOnHeap, 8);
+        break;
+    }
+    case Instruction::RETURN_FROM_LAMBDA: {
+        auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
+        mIp = *(int64_t*)mStack.get(offset + 8);
         mStack.popBelow(offset, 8);
         incIp = false;
         if(mIp == mProgram.code.size()) {

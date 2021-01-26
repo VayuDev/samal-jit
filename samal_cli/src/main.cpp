@@ -11,14 +11,16 @@ int main() {
     samal::Parser parser;
     samal::Stopwatch parserStopwatch{ "Parsing" };
     auto ast = parser.parse("Main", R"(
-fn func2(p : i32) -> i32 {
-    x = 5
-    l = fn(i : i32) -> i32 {
-        i + x
+fn func2(p : i32) -> i64 {
+    lambda = makeLambda<i32>(5)
+    lambda2 = makeLambda<i64>(24i64)
+    lambda2(10i64)
+}
+
+fn makeLambda<T>(p : T) -> fn(T) -> T {
+    fn(p2: T) -> T {
+        p + p2
     }
-    i = Templ.add<i64>(10i64, 3i64)
-    y = Templ.add<i32>(10, 3)
-    Templ.addAndFib<i32>(10, 3)
 })");
     auto ast2 = parser.parse("Templ", R"(
 fn fib<T>(a : T) -> T {

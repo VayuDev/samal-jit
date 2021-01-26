@@ -55,9 +55,9 @@ Program Compiler::compile() {
         mTemplateReplacementMap = mTemplateFunctionsToInstantiate.front().replacementMap;
         mCurrentModuleName = mDeclarationNodeToModuleName.at(function);
         function->compile(*this);
-        mTemplateReplacementMap.clear();
         mTemplateFunctionsToInstantiate.erase(mTemplateFunctionsToInstantiate.begin());
         compileLambdaFunctions();
+        mTemplateReplacementMap.clear();
     }
     // insert all the function locations in the code
     for(auto& label : mLabelsToInsertFunctionIds) {
@@ -66,8 +66,9 @@ Program Compiler::compile() {
             if(function.name == label.fullFunctionName && function.templateParameters == label.templateParameters) {
                 auto ptr = labelToPtr(label.label);
                 *(reinterpret_cast<Instruction*>(ptr)) = Instruction::PUSH_8;
-                *(reinterpret_cast<int32_t*>(ptr + 1)) = function.offset;
-                *(reinterpret_cast<int32_t*>(ptr + 5)) = 0;
+                // the makes it clear to the vm that this is a function, not a lambda
+                *(reinterpret_cast<int32_t*>(ptr + 1)) = 1;
+                *(reinterpret_cast<int32_t*>(ptr + 5)) = function.offset;
                 found = true;
                 break;
             }
@@ -90,7 +91,7 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
     for(auto& param : function.getParameters()) {
         functionParams.emplace_back(param.name->getName(), param.type);
     }
-    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), std::move(functionParams), *function.getBody());
+    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), std::move(functionParams), *function.getBody(), IsLambda::No);
 }
 Datatype Compiler::compileScope(const ScopeNode& scope) {
     auto& expressions = scope.getExpressions();
@@ -477,23 +478,25 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
     // create the lambda, moving all previously copied parameters to the heap and storing the pointer in the
     // upper 4 bytes of the ip of the lambda (we only need for, but reserve 8)
     addInstructions(Instruction::CREATE_LAMBDA, sizeOfCopiedScopeValues);
-    mStackSize -= sizeOfCopiedScopeValues;
+    mStackSize -= sizeOfCopiedScopeValues + 8;
+    mStackSize += 8;
     mLambdasToCompile.emplace(LambdaToCompile{ .lambda = &node, .copiedParameters = std::move(usedIdentifiersWithType) });
 
     std::vector<Datatype> paramTypes;
     for(auto& param : node.getParameters()) {
         paramTypes.push_back(param.type);
     }
-    return Datatype{ node.getReturnType(), std::move(paramTypes) };
+    return Datatype(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mTemplateReplacementMap);
 }
 Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
-    std::vector<std::pair<std::string, Datatype>> parameters = lambdaToCompile.copiedParameters;
+    std::vector<std::pair<std::string, Datatype>> parameters;
     for(auto& realParam : lambdaToCompile.lambda->getParameters()) {
         parameters.emplace_back(realParam.name->getName(), realParam.type);
     }
-    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), parameters, *lambdaToCompile.lambda->getBody());
+    parameters.insert(parameters.end(), lambdaToCompile.copiedParameters.begin(), lambdaToCompile.copiedParameters.end());
+    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), parameters, *lambdaToCompile.lambda->getBody(), IsLambda::Yes);
 }
-Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body) {
+Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body, IsLambda isLambda) {
     printf("\nCompiling function %s\n", fullFunctionName.c_str());
     auto start = mProgram.code.size();
     pushStackFrame();
@@ -519,7 +522,11 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         mStackFrames.pop();
     }
     assert(mStackSize == static_cast<int32_t>(functionReturnType.getSizeOnStack()));
-    addInstructions(Instruction::RETURN, functionReturnType.getSizeOnStack());
+    if(isLambda == IsLambda::Yes) {
+        addInstructions(Instruction::RETURN_FROM_LAMBDA, functionReturnType.getSizeOnStack());
+    } else {
+        addInstructions(Instruction::RETURN, functionReturnType.getSizeOnStack());
+    }
     mStackSize = 0;
 
     // figure out type of function

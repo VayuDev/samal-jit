@@ -48,7 +48,11 @@ private:
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
 
-    Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body);
+    enum class IsLambda {
+        Yes,
+        No
+    };
+    Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body, IsLambda);
 
     int32_t addLabel(int32_t len);
     uint8_t* labelToPtr(int32_t label);
