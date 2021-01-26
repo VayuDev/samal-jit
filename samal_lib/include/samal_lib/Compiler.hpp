@@ -2,6 +2,7 @@
 #include "Forward.hpp"
 #include "Instruction.hpp"
 #include "Program.hpp"
+#include <unordered_map>
 #include <queue>
 #include <stack>
 
