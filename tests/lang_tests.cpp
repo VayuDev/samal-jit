@@ -59,3 +59,20 @@ fn testTuple() -> i32 {
     auto vmRet = vm.run("Main.testTuple", std::vector<samal::ExternalVMValue>{});
     REQUIRE(vmRet.dump() == "{type: i32, value: 12}");
 }
+
+TEST_CASE("Ensure that lambda templates work", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn test() -> i64 {
+    lambda = makeLambda<i32>(5)
+    lambda2 = makeLambda<i64>(24i64)
+    lambda2(10i64)
+}
+
+fn makeLambda<T>(p : T) -> fn(T) -> T {
+    fn(p2: T) -> T {
+        p + p2
+    }
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{});
+    REQUIRE(vmRet.dump() == "{type: i64, value: 34}");
+}
