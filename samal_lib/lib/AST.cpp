@@ -67,6 +67,10 @@ const up<IdentifierNode>& AssignmentExpression::getLeft() const {
 const up<ExpressionNode>& AssignmentExpression::getRight() const {
     return mRight;
 }
+void AssignmentExpression::findUsedVariables(VariableSearcher& searcher) const {
+    mLeft->findUsedVariables(searcher);
+    mRight->findUsedVariables(searcher);
+}
 
 BinaryExpressionNode::BinaryExpressionNode(SourceCodeRef source,
     up<ExpressionNode> left,
@@ -125,6 +129,10 @@ std::string BinaryExpressionNode::dump(unsigned int indent) const {
 Datatype BinaryExpressionNode::compile(Compiler& comp) const {
     return comp.compileBinaryExpression(*this);
 }
+void BinaryExpressionNode::findUsedVariables(VariableSearcher& searcher) const {
+    mLeft->findUsedVariables(searcher);
+    mRight->findUsedVariables(searcher);
+}
 
 LiteralNode::LiteralNode(SourceCodeRef source)
 : ExpressionNode(source) {
@@ -139,6 +147,8 @@ std::string LiteralInt32Node::dump(unsigned int indent) const {
 Datatype LiteralInt32Node::compile(Compiler& comp) const {
     return comp.compileLiteralI32(mValue);
 }
+void LiteralInt32Node::findUsedVariables(VariableSearcher&) const {
+}
 
 LiteralInt64Node::LiteralInt64Node(SourceCodeRef source, int64_t val)
 : LiteralNode(std::move(source)), mValue(val) {
@@ -149,6 +159,8 @@ Datatype LiteralInt64Node::compile(Compiler& comp) const {
 std::string LiteralInt64Node::dump(unsigned int indent) const {
     return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
 }
+void LiteralInt64Node::findUsedVariables(VariableSearcher&) const {
+}
 
 LiteralBoolNode::LiteralBoolNode(SourceCodeRef source, bool val)
 : LiteralNode(std::move(source)), mValue(val) {
@@ -158,6 +170,8 @@ Datatype LiteralBoolNode::compile(Compiler& comp) const {
 }
 std::string LiteralBoolNode::dump(unsigned int indent) const {
     return createIndent(indent) + getClassName() + ": " + std::to_string(mValue) + "\n";
+}
+void LiteralBoolNode::findUsedVariables(VariableSearcher&) const {
 }
 
 IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters)
@@ -186,6 +200,9 @@ Datatype IdentifierNode::compile(Compiler& comp) const {
 const std::vector<Datatype>& IdentifierNode::getTemplateParameters() const {
     return mTemplateParameters;
 }
+void IdentifierNode::findUsedVariables(VariableSearcher& searcher) const {
+    searcher.identifierFound(*this);
+}
 
 TupleCreationNode::TupleCreationNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
 : ExpressionNode(std::move(source)), mParams(std::move(params)) {
@@ -195,6 +212,11 @@ std::string TupleCreationNode::dump(unsigned int indent) const {
 }
 Datatype TupleCreationNode::compile(Compiler& comp) const {
     return comp.compileTupleCreationExpression(*this);
+}
+void TupleCreationNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& param : mParams) {
+        param->findUsedVariables(searcher);
+    }
 }
 
 ListCreationNode::ListCreationNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
@@ -213,6 +235,30 @@ std::string ListCreationNode::dump(unsigned int indent) const {
     }
     return ret;
 }
+void ListCreationNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& param : mParams) {
+        param->findUsedVariables(searcher);
+    }
+}
+
+LambdaCreationNode::LambdaCreationNode(SourceCodeRef source, std::vector<Parameter> parameters, Datatype returnType, up<ScopeNode> body)
+: ExpressionNode(std::move(source)), mReturnType(std::move(returnType)), mParameters(std::move(parameters)), mBody(std::move(body)) {
+}
+Datatype LambdaCreationNode::compile(Compiler& comp) const {
+    return comp.compileLambdaCreationExpression(*this);
+}
+std::string LambdaCreationNode::dump(unsigned int indent) const {
+    auto ret = ASTNode::dump(indent);
+    ret += createIndent(indent + 1) + "Returns: " + mReturnType.toString() + "\n";
+    ret += createIndent(indent + 1) + "Params: \n" + dumpParameterVector(indent + 2, mParameters);
+    ret += createIndent(indent + 1) + "Body: \n" + mBody->dump(indent + 2);
+    return ret;
+}
+void LambdaCreationNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& param : mParameters) {
+        param.name->findUsedVariables(searcher);
+    }
+}
 
 ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions)
 : ExpressionNode(std::move(source)), mExpressions(std::move(expressions)) {
@@ -226,6 +272,11 @@ std::string ScopeNode::dump(unsigned int indent) const {
 }
 Datatype ScopeNode::compile(Compiler& comp) const {
     return comp.compileScope(*this);
+}
+void ScopeNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& child : mExpressions) {
+        child->findUsedVariables(searcher);
+    }
 }
 
 IfExpressionNode::IfExpressionNode(SourceCodeRef source, IfExpressionChildList children, up<ScopeNode> elseBody)
@@ -248,6 +299,15 @@ std::string IfExpressionNode::dump(unsigned int indent) const {
 Datatype IfExpressionNode::compile(Compiler& comp) const {
     return comp.compileIfExpression(*this);
 }
+void IfExpressionNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& child : mChildren) {
+        child.first->findUsedVariables(searcher);
+        child.second->findUsedVariables(searcher);
+    }
+    if(mElseBody) {
+        mElseBody->findUsedVariables(searcher);
+    }
+}
 
 FunctionCallExpressionNode::FunctionCallExpressionNode(SourceCodeRef source,
     up<ExpressionNode> name,
@@ -263,6 +323,8 @@ std::string FunctionCallExpressionNode::dump(unsigned int indent) const {
 Datatype FunctionCallExpressionNode::compile(Compiler& comp) const {
     return comp.compileFunctionCall(*this);
 }
+void FunctionCallExpressionNode::findUsedVariables(VariableSearcher&) const {
+}
 FunctionChainExpressionNode::FunctionChainExpressionNode(SourceCodeRef source, up<ExpressionNode> initialValue, up<FunctionCallExpressionNode> functionCall)
 : ExpressionNode(std::move(source)), mInitialValue(std::move(initialValue)), mFunctionCall(std::move(functionCall)) {
 }
@@ -276,6 +338,10 @@ std::string FunctionChainExpressionNode::dump(unsigned int indent) const {
     ret += createIndent(indent + 1) + "Function:\n";
     ret += mFunctionCall->dump(indent + 2);
     return ret;
+}
+void FunctionChainExpressionNode::findUsedVariables(VariableSearcher& searcher) const {
+    mInitialValue->findUsedVariables(searcher);
+    mFunctionCall->findUsedVariables(searcher);
 }
 
 ListAccessExpressionNode::ListAccessExpressionNode(SourceCodeRef source,
@@ -291,6 +357,9 @@ std::string ListAccessExpressionNode::dump(unsigned int indent) const {
     ret += mIndex->dump(indent + 2);
     return ret;
 }
+void ListAccessExpressionNode::findUsedVariables(VariableSearcher&) const {
+    todo();
+}
 
 TupleAccessExpressionNode::TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index)
 : ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(index) {
@@ -305,6 +374,9 @@ std::string TupleAccessExpressionNode::dump(unsigned int indent) const {
     ret += createIndent(indent + 1) + "Index:";
     ret += std::to_string(mIndex) + "\n";
     return ret;
+}
+void TupleAccessExpressionNode::findUsedVariables(VariableSearcher& searcher) const {
+    mName->findUsedVariables(searcher);
 }
 
 DeclarationNode::DeclarationNode(SourceCodeRef source)
@@ -343,6 +415,11 @@ const std::vector<up<DeclarationNode>>& ModuleRootNode::getDeclarations() const 
 const std::string& ModuleRootNode::getModuleName() const {
     return mName;
 }
+void ModuleRootNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& decl : mDeclarations) {
+        decl->findUsedVariables(searcher);
+    }
+}
 
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
     auto ret = ASTNode::dump(indent);
@@ -377,10 +454,21 @@ const IdentifierNode* FunctionDeclarationNode::getIdentifier() const {
     return mName.get();
 }
 Datatype FunctionDeclarationNode::getDatatype() const {
-    std::vector<Datatype> parameterTypes;
+    return getFunctionType(mReturnType, mParameters);
+}
+void FunctionDeclarationNode::findUsedVariables(VariableSearcher& searcher) const {
+    mName->findUsedVariables(searcher);
     for(auto& param : mParameters) {
+        param.name->findUsedVariables(searcher);
+    }
+    mBody->findUsedVariables(searcher);
+}
+Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params) {
+    std::vector<Datatype> parameterTypes;
+    parameterTypes.reserve(params.size());
+    for(auto& param : params) {
         parameterTypes.push_back(param.type);
     }
-    return Datatype{ mReturnType, std::move(parameterTypes) };
+    return Datatype{ returnType, std::move(parameterTypes) };
 }
 }

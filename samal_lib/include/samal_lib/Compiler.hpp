@@ -7,6 +7,15 @@
 
 namespace samal {
 
+class VariableSearcher {
+public:
+    explicit VariableSearcher(std::vector<const IdentifierNode*>& identifiers);
+    void identifierFound(const IdentifierNode& identifier);
+
+private:
+    std::vector<const IdentifierNode*>& mIdentifiers;
+};
+
 class Compiler {
 public:
     explicit Compiler(std::vector<up<ModuleRootNode>>& roots);
@@ -25,6 +34,7 @@ public:
     Datatype compileTupleCreationExpression(const TupleCreationNode&);
     Datatype compileTupleAccessExpression(const TupleAccessExpressionNode&);
     Datatype compileAssignmentExpression(const AssignmentExpression&);
+    Datatype compileLambdaCreationExpression(const LambdaCreationNode&);
 
 private:
     Program mProgram;
@@ -37,6 +47,8 @@ private:
     void addInstructions(Instruction insn, int32_t param);
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
+
+    Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body);
 
     int32_t addLabel(int32_t len);
     uint8_t* labelToPtr(int32_t label);
@@ -70,10 +82,24 @@ private:
 
     struct FunctionIdInCodeToInsert {
         int32_t label{ -1 };
-        FunctionDeclarationNode* function{ nullptr };
+        std::string fullFunctionName;
         std::map<std::string, Datatype> templateParameters;
     };
     std::vector<FunctionIdInCodeToInsert> mLabelsToInsertFunctionIds;
+
+    struct LambdaIdInCodeToInsert {
+        int32_t label{ -1 };
+        const LambdaCreationNode* lambda{ nullptr };
+    };
+    std::vector<LambdaIdInCodeToInsert> mLabelsToInsertLambdaIds;
+
+    struct LambdaToCompile {
+        const LambdaCreationNode* lambda{ nullptr };
+        std::vector<std::pair<std::string, Datatype>> copiedParameters;
+    };
+    std::queue<LambdaToCompile> mLambdasToCompile;
+
+    Program::Function& compileLambda(const LambdaToCompile&);
 };
 
 }

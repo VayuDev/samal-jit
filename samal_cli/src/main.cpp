@@ -12,6 +12,10 @@ int main() {
     samal::Stopwatch parserStopwatch{ "Parsing" };
     auto ast = parser.parse("Main", R"(
 fn func2(p : i32) -> i32 {
+    x = 5
+    l = fn(i : i32) -> i32 {
+        i + x
+    }
     i = Templ.add<i64>(10i64, 3i64)
     y = Templ.add<i32>(10, 3)
     Templ.addAndFib<i32>(10, 3)

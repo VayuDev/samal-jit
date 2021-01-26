@@ -276,7 +276,7 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionVector
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["LiteralExpression"] << "~sws~(~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             if(res[0][1].subs.empty()) {
@@ -297,15 +297,24 @@ Parser::Parser() {
         case 4:
             return ListCreationNode(toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>());
         case 5:
-        case 8:
-            return std::move(res[0].result);
         case 6:
-            return std::move(res[0][1].result);
+        case 9:
+            return std::move(res[0].result);
         case 7:
+            return std::move(res[0][1].result);
+        case 8:
             return TupleCreationNode{ toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>() };
         default:
             assert(false);
         }
+    };
+    mPegParser["LambdaCreationExpression"] << "'fn' '(' ParameterVector ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+        return LambdaCreationNode{
+            toRef(res),
+            std::vector<Parameter>{ res[2].result.moveValue<std::vector<Parameter>>() },
+            res[5].result.moveValue<Datatype>(),
+            up<ScopeNode>{ res[6].result.move<ScopeNode*>() }
+        };
     };
     mPegParser["IfExpression"] << "'if' Expression ScopeExpression ('else' 'if' Expression ScopeExpression)* ('else' ScopeExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
         IfExpressionChildList list;

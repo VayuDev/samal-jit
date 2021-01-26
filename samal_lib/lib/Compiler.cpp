@@ -18,12 +18,34 @@ Program Compiler::compile() {
         }
     }
     // FIXME 'compile' (declare) structs in between these two steps
+
+    auto compileLambdaFunctions = [this] {
+        while(!mLambdasToCompile.empty()) {
+            auto& compiledLambda = compileLambda(mLambdasToCompile.front());
+            // find all labels that refer to the lambda we just compiled
+            for(auto itr = mLabelsToInsertLambdaIds.begin(); itr != mLabelsToInsertLambdaIds.end();) {
+                if(itr->lambda == mLambdasToCompile.front().lambda) {
+                    auto ptr = labelToPtr(itr->label);
+                    *(reinterpret_cast<Instruction*>(ptr)) = Instruction::PUSH_8;
+                    *(reinterpret_cast<int32_t*>(ptr + 1)) = compiledLambda.offset;
+                    *(reinterpret_cast<int32_t*>(ptr + 5)) = 0;
+                    mLabelsToInsertLambdaIds.erase(itr);
+                } else {
+                    itr++;
+                }
+            }
+            mLambdasToCompile.pop();
+        }
+        assert(mLambdasToCompile.empty());
+        assert(mLabelsToInsertLambdaIds.empty());
+    };
     // compile all normal functions
     for(auto& module : mRoots) {
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
                 mCurrentModuleName = module->getModuleName();
                 decl->compile(*this);
+                compileLambdaFunctions();
             }
         }
     }
@@ -35,12 +57,13 @@ Program Compiler::compile() {
         function->compile(*this);
         mTemplateReplacementMap.clear();
         mTemplateFunctionsToInstantiate.erase(mTemplateFunctionsToInstantiate.begin());
+        compileLambdaFunctions();
     }
     // insert all the function locations in the code
     for(auto& label : mLabelsToInsertFunctionIds) {
         bool found = false;
         for(auto& function : mProgram.functions) {
-            if(function.origin == label.function && function.templateParameters == label.templateParameters) {
+            if(function.name == label.fullFunctionName && function.templateParameters == label.templateParameters) {
                 auto ptr = labelToPtr(label.label);
                 *(reinterpret_cast<Instruction*>(ptr)) = Instruction::PUSH_8;
                 *(reinterpret_cast<int32_t*>(ptr + 1)) = function.offset;
@@ -63,43 +86,11 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
         }
     }
     assert(!fullFunctionName.empty());
-    printf("\nCompiling function %s\n", fullFunctionName.c_str());
-    auto start = mProgram.code.size();
-
-    pushStackFrame();
-    const auto& functionReturnType = function.getReturnType().completeWithTemplateParameters(mTemplateReplacementMap);
+    std::vector<std::pair<std::string, Datatype>> functionParams;
     for(auto& param : function.getParameters()) {
-        auto type = param.type.completeWithTemplateParameters(mTemplateReplacementMap);
-        mStackSize += type.getSizeOnStack();
-        mStackFrames.top().variables.emplace(param.name->getName(), VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
+        functionParams.emplace_back(param.name->getName(), param.type);
     }
-    mStackFrames.top().stackFrameSize = mStackSize;
-    auto bodyReturnType = function.getBody()->compile(*this);
-    if(bodyReturnType != functionReturnType) {
-        function.throwException("Function's declared return type " + functionReturnType.toString() + " and actual return type " + bodyReturnType.toString() + " don't match");
-    }
-
-    // pop all parameters of the stack
-    {
-        auto bytesToPop = mStackFrames.top().stackFrameSize;
-        if(bytesToPop > 0) {
-            addInstructions(Instruction::POP_N_BELOW, bytesToPop, functionReturnType.getSizeOnStack());
-            mStackSize -= bytesToPop;
-        }
-        mStackFrames.pop();
-    }
-    assert(mStackSize == static_cast<int32_t>(functionReturnType.getSizeOnStack()));
-    addInstructions(Instruction::RETURN, functionReturnType.getSizeOnStack());
-    mStackSize = 0;
-
-    // save the region of the function in the program object to allow locating it
-    mProgram.functions.emplace_back(Program::Function{
-        .offset = static_cast<int32_t>(start),
-        .len = static_cast<int32_t>(mProgram.code.size() - start),
-        .type = function.getDatatype(),
-        .origin = &function,
-        .name = fullFunctionName,
-        .templateParameters = mTemplateReplacementMap });
+    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), std::move(functionParams), *function.getBody());
 }
 Datatype Compiler::compileScope(const ScopeNode& scope) {
     auto& expressions = scope.getExpressions();
@@ -311,6 +302,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     if(maybeDeclaration == mDeclarations.end()) {
         identifier.throwException("Identifier not found");
     }
+    std::string fullFunctionName = maybeDeclaration->first;
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(maybeDeclaration->second.astNode);
     if(!declarationAsFunction) {
         identifier.throwException("Identifier is not a function");
@@ -335,7 +327,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
         // check if we already compiled this template instantiation (or plan on compiling it) and, if not, add it for later compilation
         bool alreadyExists = false;
         for(auto& func : mProgram.functions) {
-            if(func.origin == declarationAsFunction && func.templateParameters == replacementMap) {
+            if(func.name == fullFunctionName && func.templateParameters == replacementMap) {
                 alreadyExists = true;
             }
         }
@@ -347,11 +339,11 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
         if(!alreadyExists) {
             mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ declarationAsFunction, replacementMap });
         }
-        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .function = declarationAsFunction, .templateParameters = replacementMap });
+        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
         return maybeDeclaration->second.type.completeWithTemplateParameters(replacementMap);
     }
     // normal function
-    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .function = declarationAsFunction });
+    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .fullFunctionName = fullFunctionName });
     return maybeDeclaration->second.type;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
@@ -449,5 +441,109 @@ Datatype Compiler::compileAssignmentExpression(const AssignmentExpression& assig
     mStackFrames.top().variables.emplace(lhs.getName(), VariableOnStack{ .offsetFromBottom = mStackSize, .type = rhsType });
     mStackFrames.top().stackFrameSize += rhsType.getSizeOnStack();
     return rhsType;
+}
+Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& node) {
+    std::vector<const IdentifierNode*> usedIdentifiersInLambda;
+    VariableSearcher searcher{ usedIdentifiersInLambda };
+    node.getBody()->findUsedVariables(searcher);
+
+    // push ip of lambda
+    mLabelsToInsertLambdaIds.emplace_back(LambdaIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .lambda = &node });
+    mStackSize += 8;
+
+    // push lambda parameters outside of this scope
+    std::vector<std::pair<std::string, Datatype>> usedIdentifiersWithType;
+    int32_t sizeOfCopiedScopeValues = 0;
+    for(auto& identifier : usedIdentifiersInLambda) {
+        // check if the identifier is a parameter of the lambda
+        bool isParameter = false;
+        for(auto& param : node.getParameters()) {
+            if(param.name->getName() == identifier->getName()) {
+                isParameter = true;
+            }
+        }
+        // if not, check in the surrounding scope
+        if(!isParameter) {
+            try {
+                auto identifierType = compileIdentifierLoad(*identifier);
+                sizeOfCopiedScopeValues += identifierType.getSizeOnStack();
+                usedIdentifiersWithType.emplace_back(identifier->getName(), identifierType);
+            } catch(std::exception& e) {
+                node.throwException("While looking for the identifiers used, the following exception occurred:\n" + std::string{ e.what() });
+            }
+        }
+    }
+
+    // create the lambda, moving all previously copied parameters to the heap and storing the pointer in the
+    // upper 4 bytes of the ip of the lambda (we only need for, but reserve 8)
+    addInstructions(Instruction::CREATE_LAMBDA, sizeOfCopiedScopeValues);
+    mStackSize -= sizeOfCopiedScopeValues;
+    mLambdasToCompile.emplace(LambdaToCompile{ .lambda = &node, .copiedParameters = std::move(usedIdentifiersWithType) });
+
+    std::vector<Datatype> paramTypes;
+    for(auto& param : node.getParameters()) {
+        paramTypes.push_back(param.type);
+    }
+    return Datatype{ node.getReturnType(), std::move(paramTypes) };
+}
+Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
+    std::vector<std::pair<std::string, Datatype>> parameters = lambdaToCompile.copiedParameters;
+    for(auto& realParam : lambdaToCompile.lambda->getParameters()) {
+        parameters.emplace_back(realParam.name->getName(), realParam.type);
+    }
+    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), parameters, *lambdaToCompile.lambda->getBody());
+}
+Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body) {
+    printf("\nCompiling function %s\n", fullFunctionName.c_str());
+    auto start = mProgram.code.size();
+    pushStackFrame();
+    const auto& functionReturnType = returnType.completeWithTemplateParameters(mTemplateReplacementMap);
+    for(auto& param : params) {
+        auto type = param.second.completeWithTemplateParameters(mTemplateReplacementMap);
+        mStackSize += type.getSizeOnStack();
+        mStackFrames.top().variables.emplace(param.first, VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
+    }
+    mStackFrames.top().stackFrameSize = mStackSize;
+    auto bodyReturnType = body.compile(*this);
+    if(bodyReturnType != functionReturnType) {
+        throw std::runtime_error{ "Function's declared return type " + functionReturnType.toString() + " and actual return type " + bodyReturnType.toString() + " don't match" };
+    }
+
+    // pop all parameters of the stack
+    {
+        auto bytesToPop = mStackFrames.top().stackFrameSize;
+        if(bytesToPop > 0) {
+            addInstructions(Instruction::POP_N_BELOW, bytesToPop, functionReturnType.getSizeOnStack());
+            mStackSize -= bytesToPop;
+        }
+        mStackFrames.pop();
+    }
+    assert(mStackSize == static_cast<int32_t>(functionReturnType.getSizeOnStack()));
+    addInstructions(Instruction::RETURN, functionReturnType.getSizeOnStack());
+    mStackSize = 0;
+
+    // figure out type of function
+    std::vector<Datatype> parameterTypes;
+    parameterTypes.reserve(params.size());
+    for(auto& param : params) {
+        parameterTypes.emplace_back(param.second);
+    }
+    Datatype functionType{ returnType, std::move(parameterTypes) };
+
+    // save the region of the function in the program object to allow locating it
+    auto& entry = mProgram.functions.emplace_back(Program::Function{
+        .offset = static_cast<int32_t>(start),
+        .len = static_cast<int32_t>(mProgram.code.size() - start),
+        .type = functionType,
+        .name = fullFunctionName,
+        .templateParameters = mTemplateReplacementMap });
+    return entry;
+}
+
+VariableSearcher::VariableSearcher(std::vector<const IdentifierNode*>& identifiers)
+: mIdentifiers(identifiers) {
+}
+void VariableSearcher::identifierFound(const IdentifierNode& identifier) {
+    mIdentifiers.push_back(&identifier);
 }
 }

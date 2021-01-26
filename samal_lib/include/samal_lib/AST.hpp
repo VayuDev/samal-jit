@@ -25,6 +25,7 @@ public:
     virtual Datatype compile(Compiler& comp) const {
         return Datatype{ DatatypeCategory::invalid };
     };
+    virtual void findUsedVariables(VariableSearcher&) const = 0;
     [[nodiscard]] virtual std::string dump(unsigned indent) const;
     [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
     void throwException(const std::string& msg) const;
@@ -45,8 +46,9 @@ class AssignmentExpression : public ExpressionNode {
 public:
     AssignmentExpression(SourceCodeRef source, up<IdentifierNode> left, up<ExpressionNode> right);
     Datatype compile(Compiler& comp) const override;
-    const up<IdentifierNode>& getLeft() const;
-    const up<ExpressionNode>& getRight() const;
+    [[nodiscard]] const up<IdentifierNode>& getLeft() const;
+    [[nodiscard]] const up<ExpressionNode>& getRight() const;
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "AssignmentExpression"; }
 
@@ -83,6 +85,7 @@ public:
     [[nodiscard]] inline const auto& getRight() const {
         return mRight;
     }
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "BinaryExpressionNode"; }
 
@@ -104,6 +107,7 @@ class LiteralInt32Node : public LiteralNode {
 public:
     explicit LiteralInt32Node(SourceCodeRef source, int32_t val);
     Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "LiteralInt32Node"; }
 
@@ -115,6 +119,7 @@ class LiteralInt64Node : public LiteralNode {
 public:
     explicit LiteralInt64Node(SourceCodeRef source, int64_t val);
     Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "LiteralInt64Node"; }
 
@@ -126,6 +131,7 @@ class LiteralBoolNode : public LiteralNode {
 public:
     explicit LiteralBoolNode(SourceCodeRef source, bool val);
     Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "LiteralBoolNode"; }
 
@@ -140,6 +146,7 @@ public:
     [[nodiscard]] std::string getName() const;
     [[nodiscard]] std::vector<std::string> getNameSplit() const;
     [[nodiscard]] const std::vector<Datatype>& getTemplateParameters() const;
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "IdentifierNode"; }
 
@@ -155,6 +162,7 @@ public:
     [[nodiscard]] const auto& getParams() const {
         return mParams;
     }
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "TupleCreationNode"; }
 
@@ -166,12 +174,36 @@ class ListCreationNode : public ExpressionNode {
 public:
     explicit ListCreationNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
     explicit ListCreationNode(SourceCodeRef source, Datatype baseType);
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ListCreationNode"; }
 
 private:
     std::optional<Datatype> mBaseType;
     std::vector<up<ExpressionNode>> mParams;
+};
+
+class LambdaCreationNode : public ExpressionNode {
+public:
+    LambdaCreationNode(SourceCodeRef source, std::vector<Parameter> parameters, Datatype returnType, up<ScopeNode> body);
+    Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const auto& getReturnType() const {
+        return mReturnType;
+    }
+    [[nodiscard]] inline const auto& getParameters() const {
+        return mParameters;
+    }
+    [[nodiscard]] inline const auto& getBody() const {
+        return mBody;
+    }
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "LambdaCreationNode"; }
+
+private:
+    Datatype mReturnType;
+    std::vector<Parameter> mParameters;
+    up<ScopeNode> mBody;
 };
 
 class ScopeNode : public ExpressionNode {
@@ -181,6 +213,7 @@ public:
     [[nodiscard]] inline const std::vector<up<ExpressionNode>>& getExpressions() const {
         return mExpressions;
     }
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ScopeNode"; }
 
@@ -199,6 +232,7 @@ public:
     [[nodiscard]] inline const auto& getElseBody() const {
         return mElseBody;
     }
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "IfExpressionNode"; }
 
@@ -217,6 +251,7 @@ public:
     [[nodiscard]] inline const auto& getParams() const {
         return mParams;
     }
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionCallExpressionNode"; }
 
@@ -235,6 +270,7 @@ public:
     [[nodiscard]] inline const auto& getFunctionCall() const {
         return mFunctionCall;
     }
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionChainExpressionNode"; }
 
@@ -246,6 +282,7 @@ private:
 class ListAccessExpressionNode : public ExpressionNode {
 public:
     ListAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, up<ExpressionNode> index);
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ListAccessExpressionNode"; }
 
@@ -263,6 +300,7 @@ public:
     [[nodiscard]] auto getIndex() const {
         return mIndex;
     }
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "TupleAccessExpressionNode"; }
 
@@ -289,6 +327,7 @@ public:
     explicit ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>>&& declarations);
     Datatype compile(Compiler& comp) const override;
     [[nodiscard]] const std::vector<up<DeclarationNode>>& getDeclarations() const;
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ModuleRootNode"; }
     std::vector<DeclarationNode*> createDeclarationList();
@@ -317,6 +356,7 @@ public:
     }
     [[nodiscard]] Datatype getDatatype() const override;
     Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "FunctionDeclarationNode"; }
 
@@ -326,5 +366,7 @@ private:
     Datatype mReturnType;
     up<ScopeNode> mBody;
 };
+
+Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params);
 
 }

@@ -18,10 +18,12 @@ class FunctionChainExpressionNode;
 class TupleCreationNode;
 class TupleAccessExpressionNode;
 class AssignmentExpression;
+class LambdaCreationNode;
 
 class Compiler;
 class Datatype;
 class ExternalVMValue;
 class VM;
+class VariableSearcher;
 
 }
