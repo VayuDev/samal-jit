@@ -80,7 +80,6 @@ public:
         //    adjust rsp
         sub(rsp, stackSize);
 
-        cld();
         auto jumpWithIp = [&] {
             jmp(ptr[tableRegister + ip * sizeof(void*)]);
         };
@@ -231,6 +230,7 @@ public:
                 mov(rdi, rsp);
                 add(rdi, popOffset + popLen - 8);
 
+                std();
                 //    copy
                 for(int j = 0; j < popOffset / 8; ++j) {
                     movsq();
@@ -278,6 +278,7 @@ public:
                 sub(rsp, rcx);
                 mov(rdi, rsp);
                 // rdi points to the end of destination on the stack
+                cld();
                 rep();
                 movsb();
 
