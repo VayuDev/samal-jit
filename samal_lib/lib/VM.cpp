@@ -404,7 +404,7 @@ VM::VM(Program program)
     mCompiledCode = std::make_unique<JitCode>(mProgram.code);
 #endif
 }
-ExternalVMValue VM::run(const std::string& functionName, const std::vector<uint8_t>& initialStack) {
+ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> initialStack) {
     mStack.clear();
     mStack.push(initialStack);
     Program::Function* function{ nullptr };
