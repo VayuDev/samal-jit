@@ -10,11 +10,6 @@ set(CMAKE_C_FLAGS_RELEASE "-O3 -g -march=native -mtune=native -fno-strict-aliasi
 file(GLOB_RECURSE SOURCES
         "${PROJECT_SOURCE_DIR}/*.cpp")
 
-if(SAMAL_ENABLE_JIT)
-    message(STATUS "Enable JIT")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dx86_64_BIT_MODE -DSAMAL_ENABLE_JIT")
-endif()
-
 include_directories(include)
 include_directories(../third_party)
 include_directories(../peg_parser/include)

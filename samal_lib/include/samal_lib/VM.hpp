@@ -49,9 +49,7 @@ private:
     Stack mStack;
     Program mProgram;
     uint32_t mIp = 0;
-#ifdef SAMAL_ENABLE_JIT
     up<class JitCode> mCompiledCode;
-#endif
 };
 
 }

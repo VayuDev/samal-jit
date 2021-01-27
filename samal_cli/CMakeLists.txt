@@ -8,11 +8,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -fno-strict-aliasing -D_DEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -march=native -mtune=native -fno-strict-aliasing")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -g -march=native -mtune=native -fno-strict-aliasing")
 
-if(SAMAL_ENABLE_JIT)
-    message(STATUS "Enable JIT")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dx86_64_BIT_MODE -DSAMAL_ENABLE_JIT")
-endif()
-
 file(GLOB_RECURSE HEADERS
         "${PROJECT_SOURCE_DIR}/include/*.hpp")
 
