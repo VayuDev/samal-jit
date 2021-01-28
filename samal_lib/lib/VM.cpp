@@ -397,6 +397,10 @@ public:
         ret();
     }
 };
+#else
+class JitCode {
+
+};
 #endif
 
 VM::VM(Program program)

@@ -44,7 +44,7 @@ public:
     const Stack& getStack() const;
 
 private:
-    inline bool interpretInstruction();
+    __always_inline bool interpretInstruction();
 
     Stack mStack;
     Program mProgram;
