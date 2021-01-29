@@ -1,7 +1,10 @@
 #include "samal_lib/Program.hpp"
 #include "samal_lib/Instruction.hpp"
+#include "samal_lib/StackInformationTree.hpp"
 
 namespace samal {
+
+Program::Function::~Function() = default;
 
 std::string Program::disassemble() const {
     std::string ret;
@@ -39,5 +42,4 @@ std::string Program::disassemble() const {
     }
     return ret;
 }
-
 }

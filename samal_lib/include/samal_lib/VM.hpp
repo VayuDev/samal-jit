@@ -43,12 +43,14 @@ public:
     ExternalVMValue run(const std::string& functionName, const std::vector<ExternalVMValue>& params);
     const Stack& getStack() const;
 
+    std::string dumpVariablesOnStack();
+
 private:
     __always_inline bool interpretInstruction();
 
     Stack mStack;
     Program mProgram;
-    uint32_t mIp = 0;
+    int32_t mIp = 0;
     up<class JitCode> mCompiledCode;
 };
 

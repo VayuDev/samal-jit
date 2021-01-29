@@ -1,6 +1,7 @@
 #include "samal_lib/VM.hpp"
 #include "samal_lib/ExternalVMValue.hpp"
 #include "samal_lib/Instruction.hpp"
+#include "samal_lib/StackInformationTree.hpp"
 #include "samal_lib/Util.hpp"
 #include <cassert>
 #include <cstdlib>
@@ -399,7 +400,6 @@ public:
 };
 #else
 class JitCode {
-
 };
 #endif
 
@@ -457,8 +457,8 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
         // TODO run multiple instructions at once if multiple instructions in a row can't be jitted
         auto ret = interpretInstruction();
 #ifdef _DEBUG
-        auto dump = mStack.dump();
-        printf("Dump:\n%s\n", dump.c_str());
+        auto stackDump = mStack.dump();
+        printf("Stack:\n%s\n", stackDump.c_str());
 #endif
         if(!ret) {
             return ExternalVMValue::wrapStackedValue(returnType, *this, 0);
@@ -469,6 +469,9 @@ bool VM::interpretInstruction() {
     bool incIp = true;
     auto ins = static_cast<Instruction>(mProgram.code.at(mIp));
 #ifdef _DEBUG
+    // dump
+    auto varDump = dumpVariablesOnStack();
+    printf("Variables: %s", varDump.c_str());
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
     switch(ins) {
@@ -743,6 +746,40 @@ ExternalVMValue VM::run(const std::string& functionName, const std::vector<Exter
 }
 const Stack& VM::getStack() const {
     return mStack;
+}
+std::string VM::dumpVariablesOnStack() {
+    std::string ret;
+    Program::Function* currentFunction = nullptr;
+    for(auto& func : mProgram.functions) {
+        if(mIp >= func.offset && mIp < func.offset + func.len) {
+            currentFunction = &func;
+            break;
+        }
+    }
+    if(!currentFunction) {
+        return ret;
+    }
+    auto virtualStackSize = currentFunction->stackSizePerIp.at(mIp);
+    auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(mIp);
+    assert(stackInfo);
+    while(stackInfo) {
+        if(stackInfo->isAtPopInstruction()) {
+            stackInfo = stackInfo->getParent();
+            continue;
+        }
+        auto variable = stackInfo->getVarEntry();
+        if(variable) {
+            ret += variable->name + ": " + ExternalVMValue::wrapStackedValue(variable->type, *this, virtualStackSize - stackInfo->getStackSize()).dump() + "\n";
+        }
+
+        if(stackInfo->getPrevSibling()) {
+            stackInfo = stackInfo->getPrevSibling();
+        } else {
+            stackInfo = stackInfo->getParent();
+        }
+    }
+
+    return ret;
 }
 VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t>& data) {

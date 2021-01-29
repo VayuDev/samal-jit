@@ -16,7 +16,7 @@ public:
 
 private:
     Datatype mType;
-    std::variant<int32_t, int64_t> mValue;
+    std::variant<std::monostate, int32_t, int64_t> mValue;
 
     explicit ExternalVMValue(Datatype type, decltype(mValue) val);
 };

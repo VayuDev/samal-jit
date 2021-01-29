@@ -48,19 +48,20 @@ std::string ExternalVMValue::dump() const {
         ret += std::to_string(std::get<int64_t>(mValue));
         break;
     default:
-        assert(false);
+        ret += "<unknown>";
     }
     ret += "}";
     return ret;
 }
 ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t stackOffset) {
+    auto stackEnd = vm.getStack().getBasePtr() + vm.getStack().getSize();
     switch(type.getCategory()) {
     case DatatypeCategory::i32:
-        return ExternalVMValue{ std::move(type), *(int32_t*)(vm.getStack().getBasePtr() + stackOffset) };
+        return ExternalVMValue{ type, *(int32_t*)(stackEnd - stackOffset - type.getSizeOnStack()) };
     case DatatypeCategory::i64:
-        return ExternalVMValue{ std::move(type), *(int64_t*)(vm.getStack().getBasePtr() + stackOffset) };
+        return ExternalVMValue{ type, *(int64_t*)(stackEnd - stackOffset - type.getSizeOnStack()) };
     default:
-        assert(false);
+        return ExternalVMValue{ type, std::monostate{} };
     }
 }
 }

@@ -11,15 +11,19 @@ int main() {
     samal::Parser parser;
     samal::Stopwatch parserStopwatch{ "Parsing" };
     auto ast = parser.parse("Main", R"(
-fn func2(p : i32) -> i64 {
-    lambda = makeLambda<i32>(5)
-    lambda2 = makeLambda<i64>(24i64)
-    lambda2(10i64)
+fn func2(p : i32) -> i32 {
+    x = if(p < 2) {
+        5
+    } else {
+        77
+    }
+    l = makeLambda<i32>(x)
+    x
 }
 
-fn makeLambda<T>(p : T) -> fn(T) -> T {
+fn makeLambda<T>(v : T) -> fn(T) -> T {
     fn(p2: T) -> T {
-        p + p2
+        v + p2
     }
 })");
     auto ast2 = parser.parse("Templ", R"(
@@ -38,6 +42,7 @@ fn addAndFib<T>(a : T, b : T) -> T {
 })");
     parserStopwatch.stop();
     assert(ast.first);
+    assert(ast2.first);
     {
         samal::Stopwatch stopwatch2{ "Dumping the AST" };
         std::cout << ast.first->dump(0) << "\n";

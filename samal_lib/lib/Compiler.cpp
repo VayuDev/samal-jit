@@ -1,11 +1,14 @@
 #include "samal_lib/Compiler.hpp"
 #include "samal_lib/AST.hpp"
+#include "samal_lib/StackInformationTree.hpp"
 
 namespace samal {
 
 Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots)
 : mRoots(roots) {
 }
+Compiler::~Compiler() = default;
+
 Program Compiler::compile() {
     mProgram = {};
     // declare all functions & structs
@@ -113,6 +116,9 @@ Datatype Compiler::compileScope(const ScopeNode& scope) {
 }
 void Compiler::pushStackFrame() {
     mStackFrames.push({});
+    if(mCurrentStackInfoTreeNode) {
+        mCurrentStackInfoTreeNode = mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::No));
+    }
 }
 void Compiler::popStackFrame(const Datatype& frameReturnType) {
     auto returnTypeSize = frameReturnType.getSizeOnStack();
@@ -122,20 +128,25 @@ void Compiler::popStackFrame(const Datatype& frameReturnType) {
         mStackSize -= bytesToPop;
     }
     mStackFrames.pop();
+    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::Yes));
+    mCurrentStackInfoTreeNode = mCurrentStackInfoTreeNode->getParent();
 }
 
 void Compiler::addInstructions(Instruction insn, int32_t param) {
+    saveCurrentStackSizeToDebugInfo();
     printf("Adding instruction %s %i\n", instructionToString(insn), param);
     mProgram.code.resize(mProgram.code.size() + 5);
     memcpy(&mProgram.code.at(mProgram.code.size() - 5), &insn, 1);
     memcpy(&mProgram.code.at(mProgram.code.size() - 4), &param, 4);
 }
 void Compiler::addInstructions(Instruction ins) {
+    saveCurrentStackSizeToDebugInfo();
     printf("Adding instruction %s\n", instructionToString(ins));
     mProgram.code.resize(mProgram.code.size() + 1);
     memcpy(&mProgram.code.at(mProgram.code.size() - 1), &ins, 1);
 }
 void Compiler::addInstructions(Instruction insn, int32_t param1, int32_t param2) {
+    saveCurrentStackSizeToDebugInfo();
     printf("Adding instruction %s %i %i\n", instructionToString(insn), param1, param2);
     mProgram.code.resize(mProgram.code.size() + 9);
     memcpy(&mProgram.code.at(mProgram.code.size() - 9), &insn, 1);
@@ -143,12 +154,15 @@ void Compiler::addInstructions(Instruction insn, int32_t param1, int32_t param2)
     memcpy(&mProgram.code.at(mProgram.code.size() - 4), &param2, 4);
 }
 void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
+    saveCurrentStackSizeToDebugInfo();
     printf("Adding instruction %s %i\n", instructionToString(insn), (int)param);
     mProgram.code.resize(mProgram.code.size() + 2);
     memcpy(&mProgram.code.at(mProgram.code.size() - 2), &insn, 1);
     memcpy(&mProgram.code.at(mProgram.code.size() - 1), &param, 1);
 }
-int32_t Compiler::addLabel(int32_t len) {
+int32_t Compiler::addLabel(Instruction insn) {
+    saveCurrentStackSizeToDebugInfo();
+    auto len = instructionToWidth(insn);
     mProgram.code.resize(mProgram.code.size() + len);
     return mProgram.code.size() - len;
 }
@@ -157,26 +171,26 @@ uint8_t* Compiler::labelToPtr(int32_t label) {
 }
 Datatype Compiler::compileLiteralI32(int32_t value) {
 #ifdef x86_64_BIT_MODE
-    mStackSize += 8;
     addInstructions(Instruction::PUSH_8, value, 0);
+    mStackSize += 8;
 #else
-    mStackSize += 4;
     addInstructions(Instruction::PUSH_4, value);
+    mStackSize += 4;
 #endif
     return Datatype(DatatypeCategory::i32);
 }
 Datatype Compiler::compileLiteralI64(int64_t value) {
-    mStackSize += 8;
     addInstructions(Instruction::PUSH_8, value, value >> 32);
+    mStackSize += 8;
     return Datatype(DatatypeCategory::i64);
 }
 Datatype Compiler::compileLiteralBool(bool value) {
 #ifdef x86_64_BIT_MODE
-    mStackSize += 8;
     addInstructions(Instruction::PUSH_8, value, 0);
+    mStackSize += 8;
 #else
-    mStackSize += 1;
     addInstructionOneByteParam(Instruction::PUSH_1, value);
+    mStackSize += 1;
 #endif
     return Datatype(DatatypeCategory::bool_);
 }
@@ -248,20 +262,20 @@ Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
         if(conditionType.getCategory() != DatatypeCategory::bool_) {
             child.first->throwException("Condition for if-expressions must be of type bool, not " + conditionType.toString());
         }
-        auto jumpToNextLabel = addLabel(instructionToWidth(Instruction::JUMP_IF_FALSE));
+        auto jumpToNextLabel = addLabel(Instruction::JUMP_IF_FALSE);
         mStackSize -= getSimpleSize(DatatypeCategory::bool_);
 
         auto bodyReturnType = child.second->compile(*this);
-        mStackSize -= bodyReturnType.getSizeOnStack();
         if(returnType) {
             if(*returnType != bodyReturnType) {
                 ifExpression.throwException("Each branch of an if-expression must return the same value; other branches returned "
                     + returnType->toString() + ", but one returned " + bodyReturnType.toString());
             }
         } else {
-            returnType = std::move(bodyReturnType);
+            returnType = bodyReturnType;
         }
-        jumpToEndLabels.push_back(addLabel(instructionToWidth(Instruction::JUMP)));
+        jumpToEndLabels.push_back(addLabel(Instruction::JUMP));
+        mStackSize -= bodyReturnType.getSizeOnStack();
 
         auto labelPtr = labelToPtr(jumpToNextLabel);
         *(Instruction*)labelPtr = Instruction::JUMP_IF_FALSE;
@@ -355,11 +369,11 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
         if(!alreadyExists) {
             mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ declarationAsFunction, replacementMap });
         }
-        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
+        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
         return maybeDeclaration->second.type.completeWithTemplateParameters(replacementMap);
     }
     // normal function
-    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .fullFunctionName = fullFunctionName });
+    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
     return maybeDeclaration->second.type;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
@@ -454,7 +468,7 @@ Datatype Compiler::compileAssignmentExpression(const AssignmentExpression& assig
     auto& lhs = *assignment.getLeft();
     addInstructions(Instruction::REPUSH_FROM_N, rhsType.getSizeOnStack(), 0);
     mStackSize += rhsType.getSizeOnStack();
-    mStackFrames.top().variables.emplace(lhs.getName(), VariableOnStack{ .offsetFromBottom = mStackSize, .type = rhsType });
+    saveVariableLocation(lhs.getName(), rhsType);
     mStackFrames.top().stackFrameSize += rhsType.getSizeOnStack();
     return rhsType;
 }
@@ -464,7 +478,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
     node.getBody()->findUsedVariables(searcher);
 
     // push ip of lambda
-    mLabelsToInsertLambdaIds.emplace_back(LambdaIdInCodeToInsert{ .label = addLabel(instructionToWidth(Instruction::PUSH_8)), .lambda = &node });
+    mLabelsToInsertLambdaIds.emplace_back(LambdaIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .lambda = &node });
     mStackSize += 8;
 
     // push lambda parameters outside of this scope
@@ -513,13 +527,18 @@ Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompil
 }
 Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body, IsLambda isLambda) {
     printf("\nCompiling function %s\n", fullFunctionName.c_str());
+
     auto start = mProgram.code.size();
     pushStackFrame();
+
+    mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
+    mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
+
     const auto& functionReturnType = returnType.completeWithTemplateParameters(mTemplateReplacementMap);
-    for(auto& param : params) {
+    for(const auto& param : params) {
         auto type = param.second.completeWithTemplateParameters(mTemplateReplacementMap);
         mStackSize += type.getSizeOnStack();
-        mStackFrames.top().variables.emplace(param.first, VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
+        saveVariableLocation(param.first, type);
     }
     mStackFrames.top().stackFrameSize = mStackSize;
     auto bodyReturnType = body.compile(*this);
@@ -534,6 +553,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
             addInstructions(Instruction::POP_N_BELOW, bytesToPop, functionReturnType.getSizeOnStack());
             mStackSize -= bytesToPop;
         }
+        mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::Yes));
         mStackFrames.pop();
     }
     assert(mStackSize == static_cast<int32_t>(functionReturnType.getSizeOnStack()));
@@ -558,8 +578,21 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         .len = static_cast<int32_t>(mProgram.code.size() - start),
         .type = functionType,
         .name = fullFunctionName,
-        .templateParameters = mTemplateReplacementMap });
+        .templateParameters = mTemplateReplacementMap,
+        .stackInformation = std::move(mCurrentStackInfoTree),
+        .stackSizePerIp = std::move(mIpToStackSize) });
+    assert(mCurrentStackInfoTreeNode);
+    assert(mCurrentStackInfoTreeNode->getParent() == nullptr);
+    mCurrentStackInfoTreeNode = nullptr;
+    mIpToStackSize = {};
     return entry;
+}
+void Compiler::saveVariableLocation(std::string name, Datatype type) {
+    mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
+    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, name, std::move(type)));
+}
+void Compiler::saveCurrentStackSizeToDebugInfo() {
+    mIpToStackSize.emplace(mProgram.code.size(), mStackSize);
 }
 
 VariableSearcher::VariableSearcher(std::vector<const IdentifierNode*>& identifiers)

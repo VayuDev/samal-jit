@@ -19,6 +19,7 @@ class TupleCreationNode;
 class TupleAccessExpressionNode;
 class AssignmentExpression;
 class LambdaCreationNode;
+class StackInformationTree;
 
 class Compiler;
 class Datatype;

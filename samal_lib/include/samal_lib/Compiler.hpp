@@ -2,9 +2,9 @@
 #include "Forward.hpp"
 #include "Instruction.hpp"
 #include "Program.hpp"
-#include <unordered_map>
 #include <queue>
 #include <stack>
+#include <unordered_map>
 
 namespace samal {
 
@@ -17,9 +17,10 @@ private:
     std::vector<const IdentifierNode*>& mIdentifiers;
 };
 
-class Compiler {
+class Compiler final {
 public:
     explicit Compiler(std::vector<up<ModuleRootNode>>& roots);
+    ~Compiler();
     Program compile();
 
     void compileFunction(const FunctionDeclarationNode& function);
@@ -49,13 +50,16 @@ private:
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
 
+    void saveVariableLocation(std::string name, Datatype type);
+    void saveCurrentStackSizeToDebugInfo();
+
     enum class IsLambda {
         Yes,
         No
     };
     Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body, IsLambda);
 
-    int32_t addLabel(int32_t len);
+    int32_t addLabel(Instruction futureInstruction);
     uint8_t* labelToPtr(int32_t label);
     struct TemplateFunctionToInstantiate {
         FunctionDeclarationNode* function{ nullptr };
@@ -103,6 +107,10 @@ private:
         std::vector<std::pair<std::string, Datatype>> copiedParameters;
     };
     std::queue<LambdaToCompile> mLambdasToCompile;
+
+    up<StackInformationTree> mCurrentStackInfoTree;
+    StackInformationTree* mCurrentStackInfoTreeNode{ nullptr };
+    std::unordered_map<int32_t, int32_t> mIpToStackSize;
 
     Program::Function& compileLambda(const LambdaToCompile&);
 };

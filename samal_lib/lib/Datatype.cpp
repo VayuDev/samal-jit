@@ -244,7 +244,7 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
         return true;
     }
     case DatatypeCategory::tuple: {
-        for(auto& child: getTupleInfo()) {
+        for(auto& child : getTupleInfo()) {
             if(child.hasUndeterminedTemplateTypes())
                 return true;
         }
