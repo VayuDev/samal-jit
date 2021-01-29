@@ -25,6 +25,8 @@ class Compiler;
 class Datatype;
 class ExternalVMValue;
 class VM;
+class Stack;
+class Program;
 class VariableSearcher;
 
 }

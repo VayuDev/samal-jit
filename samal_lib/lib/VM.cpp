@@ -707,7 +707,7 @@ bool VM::interpretInstruction() {
     }
     case Instruction::CREATE_LAMBDA: {
         auto functionIdOffset = *(int32_t*)&mProgram.code.at(mIp + 1);
-        auto* dataOnHeap = (uint8_t*)malloc(functionIdOffset + 8);
+        auto* dataOnHeap = (uint8_t*)mGC.alloc(functionIdOffset + 8);
         // store length of buffer & ip of the function on the stack
         ((int32_t*)dataOnHeap)[0] = functionIdOffset;
         ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIdOffset + 8);

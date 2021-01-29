@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Forward.hpp"
+#include "GC.hpp"
 #include "Program.hpp"
 #include "Util.hpp"
 #ifdef SAMAL_ENABLE_JIT
@@ -52,6 +53,7 @@ private:
     Program mProgram;
     int32_t mIp = 0;
     up<class JitCode> mCompiledCode;
+    GC mGC;
 };
 
 }
