@@ -52,7 +52,7 @@ public:
 
         // ip
         const auto& ip = r11;
-        const auto& ip32 = r11d;
+        [[maybe_unused]] const auto& ip32 = r11d;
         mov(ip, rdi);
         // stack ptr
         const auto& stackPtr = r12;
@@ -439,7 +439,7 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
             mStack.setSize(ret.stackSize);
             mIp = ret.ip;
             std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
-            if(mIp == mProgram.code.size()) {
+            if(mIp == static_cast<int32_t>(mProgram.code.size())) {
 #    ifdef _DEBUG
                 auto dump = mStack.dump();
                 printf("Dump:\n%s\n", dump.c_str());
@@ -700,7 +700,7 @@ bool VM::interpretInstruction() {
         mIp = *(int32_t*)mStack.get(offset + 8);
         mStack.popBelow(offset, 8);
         incIp = false;
-        if(mIp == mProgram.code.size()) {
+        if(mIp == static_cast<int32_t>(mProgram.code.size())) {
             return false;
         }
         break;
@@ -721,7 +721,7 @@ bool VM::interpretInstruction() {
         mIp = *(int64_t*)mStack.get(offset + 8);
         mStack.popBelow(offset, 8);
         incIp = false;
-        if(mIp == mProgram.code.size()) {
+        if(mIp == static_cast<int32_t>(mProgram.code.size())) {
             return false;
         }
         break;

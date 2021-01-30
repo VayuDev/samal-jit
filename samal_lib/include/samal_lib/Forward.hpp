@@ -26,7 +26,7 @@ class Datatype;
 class ExternalVMValue;
 class VM;
 class Stack;
-class Program;
+struct Program;
 class VariableSearcher;
 
 }

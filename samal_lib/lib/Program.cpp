@@ -22,7 +22,7 @@ std::string Program::disassemble() const {
             ret += ">";
         }
         ret += "\n";
-        size_t offset = func.offset;
+        int32_t offset = func.offset;
         while(offset < func.offset + func.len) {
             ret += " " + std::to_string(offset) + " ";
             ret += instructionToString(static_cast<Instruction>(code.at(offset)));
