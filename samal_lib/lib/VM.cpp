@@ -11,8 +11,8 @@ namespace samal {
 
 #ifdef SAMAL_ENABLE_JIT
 struct JitReturn {
-    int32_t ip;        // lower 4 bytes of rax
-    int32_t stackSize; // upper 4 bytes of rax
+    int32_t ip;                   // lower 4 bytes of rax
+    int32_t stackSize;            // upper 4 bytes of rax
     int32_t nativeFunctionToCall; // lower 4 bytes of rdx
 };
 
@@ -272,40 +272,40 @@ public:
                 Xbyak::Label normalOrNativeFunctionLocation;
                 Xbyak::Label end;
                 jnz(normalOrNativeFunctionLocation);
-                    // lambda
-                    // setup rsi
-                    mov(rsi, rbx);
-                    add(rsi, 8);
-                    // rsi points to the start of the buffer in ram
-                    // extract length & ip
-                    mov(ecx, dword[rbx]);
-                    // rcx contains the length of the lambda data
-                    mov(ebx, dword[rbx + 4]);
-                    // rbx contains the ip we should jump to
-                    sub(rsp, rcx);
-                    mov(rdi, rsp);
-                    // rdi points to the end of destination on the stack
-                    cld();
-                    rep();
-                    movsb();
+                // lambda
+                // setup rsi
+                mov(rsi, rbx);
+                add(rsi, 8);
+                // rsi points to the start of the buffer in ram
+                // extract length & ip
+                mov(ecx, dword[rbx]);
+                // rcx contains the length of the lambda data
+                mov(ebx, dword[rbx + 4]);
+                // rbx contains the ip we should jump to
+                sub(rsp, rcx);
+                mov(rdi, rsp);
+                // rdi points to the end of destination on the stack
+                cld();
+                rep();
+                movsb();
 
-                    jmp(end);
+                jmp(end);
 
                 L(normalOrNativeFunctionLocation);
-                    // normal function or native function
-                    Xbyak::Label normalFunctionLocation;
-                    cmp(bl, 3);
-                    jne(normalFunctionLocation);
-                        // native function
-                        sar(rbx, 32);
-                        mov(nativeFunctionIdRegister, rbx);
-                        inc(nativeFunctionIdRegister);
-                        add(ip, instructionToWidth(ins));
-                        jmp("AfterJumpTable");
-                        // note: we never actually execute the code below because of the jmp
-                    L(normalFunctionLocation);
-                        // normal/default function
-                        sar(rbx, 32);
+                // normal function or native function
+                Xbyak::Label normalFunctionLocation;
+                cmp(bl, 3);
+                jne(normalFunctionLocation);
+                // native function
+                sar(rbx, 32);
+                mov(nativeFunctionIdRegister, rbx);
+                inc(nativeFunctionIdRegister);
+                add(ip, instructionToWidth(ins));
+                jmp("AfterJumpTable");
+                // note: we never actually execute the code below because of the jmp
+                L(normalFunctionLocation);
+                // normal/default function
+                sar(rbx, 32);
                 L(end);
                 add(ip, instructionToWidth(ins));
                 mov(qword[rax], ip);
