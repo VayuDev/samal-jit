@@ -792,6 +792,7 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
     auto& nativeFunc = mProgram.nativeFunctions.at(nativeFuncId);
     auto returnTypeSize = nativeFunc.returnType.getSizeOnStack();
     std::vector<ExternalVMValue> params;
+    params.reserve(nativeFunc.paramTypes.size());
     size_t sizeOfParams = 0;
     for(auto& paramType : nativeFunc.paramTypes) {
         params.emplace_back(ExternalVMValue::wrapStackedValue(paramType, *this, sizeOfParams));
