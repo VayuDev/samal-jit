@@ -11,8 +11,9 @@ namespace samal {
 
 #ifdef SAMAL_ENABLE_JIT
 struct JitReturn {
-    int32_t ip;        // lower 4 bytes
-    int32_t stackSize; // upper 4 bytes
+    int32_t ip;        // lower 4 bytes of rax
+    int32_t stackSize; // upper 4 bytes of rax
+    int32_t nativeFunctionToCall; // lower 4 bytes of rdx
 };
 
 [[maybe_unused]] static constexpr bool isJittable(Instruction i) {
@@ -44,6 +45,8 @@ public:
         // prelude
         push(rbx);
         push(rbp);
+        push(r10);
+        push(r11);
         push(r12);
         push(r13);
         push(r14);
@@ -67,6 +70,9 @@ public:
 
         const auto& tableRegister = r9;
         mov(tableRegister, "JumpTable");
+
+        const auto& nativeFunctionIdRegister = r10;
+        mov(nativeFunctionIdRegister, 0);
 
         // copy stack in
         //    init copy
@@ -263,32 +269,43 @@ public:
                 mov(rbx, qword[rax]);
                 // rbx contains the new ip if it's a normal function and a ptr if it's a lambda
                 test(bl, 1);
-                Xbyak::Label normalFunctionLocation;
+                Xbyak::Label normalOrNativeFunctionLocation;
                 Xbyak::Label end;
-                jnz(normalFunctionLocation);
-                // lambda
-                // setup rsi
-                mov(rsi, rbx);
-                add(rsi, 8);
-                // rsi points to the start of the buffer in ram
-                // extract length & ip
-                mov(ecx, dword[rbx]);
-                // rcx contains the length of the lambda data
-                mov(ebx, dword[rbx + 4]);
-                // rbx contains the ip we should jump to
-                sub(rsp, rcx);
-                mov(rdi, rsp);
-                // rdi points to the end of destination on the stack
-                cld();
-                rep();
-                movsb();
+                jnz(normalOrNativeFunctionLocation);
+                    // lambda
+                    // setup rsi
+                    mov(rsi, rbx);
+                    add(rsi, 8);
+                    // rsi points to the start of the buffer in ram
+                    // extract length & ip
+                    mov(ecx, dword[rbx]);
+                    // rcx contains the length of the lambda data
+                    mov(ebx, dword[rbx + 4]);
+                    // rbx contains the ip we should jump to
+                    sub(rsp, rcx);
+                    mov(rdi, rsp);
+                    // rdi points to the end of destination on the stack
+                    cld();
+                    rep();
+                    movsb();
 
-                jmp(end);
+                    jmp(end);
 
-                L(normalFunctionLocation);
-                // normal function
-                sar(rbx, 32);
-
+                L(normalOrNativeFunctionLocation);
+                    // normal function or native function
+                    Xbyak::Label normalFunctionLocation;
+                    cmp(bl, 3);
+                    jne(normalFunctionLocation);
+                        // native function
+                        sar(rbx, 32);
+                        mov(nativeFunctionIdRegister, rbx);
+                        inc(nativeFunctionIdRegister);
+                        add(ip, instructionToWidth(ins));
+                        jmp("AfterJumpTable");
+                        // note: we never actually execute the code below because of the jmp
+                    L(normalFunctionLocation);
+                        // normal/default function
+                        sar(rbx, 32);
                 L(end);
                 add(ip, instructionToWidth(ins));
                 mov(qword[rax], ip);
@@ -380,12 +397,15 @@ public:
         //    adjust rsp
         add(rsp, stackSize);
 
-        // do some magic to put but stackSize and ip in the rax register
+        // do some magic to put but stackSize and ip in the rdx register
         mov(rax, stackSize);
         sal(rax, 32);
         mov(rbx, ip);
         mov(ebx, ebx);
         or_(rax, rbx);
+
+        // put native function id in the rax register
+        mov(rdx, nativeFunctionIdRegister);
 
         // restore registers & stack
         mov(rsp, r15);
@@ -393,6 +413,8 @@ public:
         pop(r14);
         pop(r13);
         pop(r12);
+        pop(r11);
+        pop(r10);
         pop(rbp);
         pop(rbx);
         ret();
@@ -451,6 +473,12 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
             printf("New ip: %u\n", mIp);
             printf("Dump:\n%s\n", dump.c_str());
 #    endif
+            if(ret.nativeFunctionToCall) {
+                auto newIp = mIp;
+                execNativeFunction(ret.nativeFunctionToCall - 1);
+                mIp = newIp;
+                continue;
+            }
         }
 #endif
         // then run one through the interpreter
@@ -687,25 +715,10 @@ bool VM::interpretInstruction() {
             // it's a default function call or a native function call
             if(firstHalfOfParam == 3) {
                 // native
-                auto& nativeFunc = mProgram.nativeFunctions.at(*(int32_t*)mStack.get(offset + 4));
 
                 // save old values
                 newIp = mIp + instructionToWidth(Instruction::CALL);
-
-                auto returnTypeSize = nativeFunc.returnType.getSizeOnStack();
-                std::vector<ExternalVMValue> params;
-                size_t sizeOfParams = 0;
-                for(auto& paramType : nativeFunc.paramTypes) {
-                    params.emplace_back(ExternalVMValue::wrapStackedValue(paramType, *this, sizeOfParams));
-                    sizeOfParams += paramType.getSizeOnStack();
-                }
-                mStack.pop(sizeOfParams);
-                std::reverse(params.begin(), params.end());
-                auto returnValue = nativeFunc.callback(params);
-                assert(returnValue.getDatatype() == nativeFunc.returnType);
-                auto returnValueBytes = returnValue.toStackValue(*this);
-                mStack.push(returnValueBytes.data(), returnValueBytes.size());
-                mStack.popBelow(returnTypeSize, 8);
+                execNativeFunction(*(int32_t*)mStack.get(offset + 4));
             } else {
                 // default
                 newIp = *(int32_t*)mStack.get(offset + 4);
@@ -805,6 +818,23 @@ std::string VM::dumpVariablesOnStack() {
     }
 
     return ret;
+}
+void VM::execNativeFunction(int32_t nativeFuncId) {
+    auto& nativeFunc = mProgram.nativeFunctions.at(nativeFuncId);
+    auto returnTypeSize = nativeFunc.returnType.getSizeOnStack();
+    std::vector<ExternalVMValue> params;
+    size_t sizeOfParams = 0;
+    for(auto& paramType : nativeFunc.paramTypes) {
+        params.emplace_back(ExternalVMValue::wrapStackedValue(paramType, *this, sizeOfParams));
+        sizeOfParams += paramType.getSizeOnStack();
+    }
+    mStack.pop(sizeOfParams);
+    std::reverse(params.begin(), params.end());
+    auto returnValue = nativeFunc.callback(params);
+    assert(returnValue.getDatatype() == nativeFunc.returnType);
+    auto returnValueBytes = returnValue.toStackValue(*this);
+    mStack.push(returnValueBytes.data(), returnValueBytes.size());
+    mStack.popBelow(returnTypeSize, 8);
 }
 VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t>& data) {

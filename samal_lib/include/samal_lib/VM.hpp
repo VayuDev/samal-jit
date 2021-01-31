@@ -48,6 +48,7 @@ public:
 
 private:
     __always_inline bool interpretInstruction();
+    void execNativeFunction(int32_t id);
 
     Stack mStack;
     Program mProgram;

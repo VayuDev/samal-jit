@@ -14,7 +14,7 @@ samal::VM compileSimple(const char* code) {
     REQUIRE(ast.first);
     std::vector<samal::up<samal::ModuleRootNode>> modules;
     modules.emplace_back(std::move(ast.first));
-    samal::Compiler comp{modules};
+    samal::Compiler comp{ modules, {}};
     auto program = comp.compile();
     return samal::VM{ std::move(program) };
 }

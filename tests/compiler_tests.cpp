@@ -1,27 +1,27 @@
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include "samal_lib/AST.hpp"
-#include "samal_lib/Parser.hpp"
 #include "samal_lib/Compiler.hpp"
+#include "samal_lib/Parser.hpp"
 #include <catch2/catch.hpp>
 #include <charconv>
 #include <iostream>
 
-static void checkThatCompilationFails(const char *code) {
+static void checkThatCompilationFails(const char* code) {
     samal::Parser parser;
     auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     std::vector<samal::up<samal::ModuleRootNode>> modules;
     modules.emplace_back(std::move(ast.first));
-    samal::Compiler comp{modules};
+    samal::Compiler comp{ modules, {} };
     REQUIRE_THROWS_AS(comp.compile(), samal::CompilationException);
 }
-static void checkThatCompilationSucceeds(const char *code) {
+static void checkThatCompilationSucceeds(const char* code) {
     samal::Parser parser;
     auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
     std::vector<samal::up<samal::ModuleRootNode>> modules;
     modules.emplace_back(std::move(ast.first));
-    samal::Compiler comp{modules};
+    samal::Compiler comp{ modules, {} };
     comp.compile();
 }
 

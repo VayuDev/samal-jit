@@ -11,13 +11,12 @@ int main() {
     samal::Parser parser;
     samal::Stopwatch parserStopwatch{ "Parsing" };
     auto ast = parser.parse("Main", R"(
+native fn print(p: i32) -> ()
+
 fn func2(p : i32) -> i32 {
-    x = if(p < 2) {
-        5
-    } else {
-        77
-    }
-    l = makeLambda<i32>(x)
+    l = makeLambda<i32>(5)
+    x = l(1)
+    print(x)
     x
 }
 
@@ -28,6 +27,7 @@ fn makeLambda<T>(v : T) -> fn(T) -> T {
 })");
     auto ast2 = parser.parse("Templ", R"(
 fn fib<T>(a : T) -> T {
+    Main.print(a)
     if a < 2 {
         a
     } else {
@@ -52,7 +52,16 @@ fn addAndFib<T>(a : T, b : T) -> T {
     std::vector<samal::up<samal::ModuleRootNode>> modules;
     modules.emplace_back(std::move(ast.first));
     modules.emplace_back(std::move(ast2.first));
-    samal::Compiler compiler{ modules };
+    std::vector<samal::NativeFunction> nativeFunctions;
+    nativeFunctions.emplace_back(samal::NativeFunction{
+        "Main.print",
+        samal::Datatype::createEmptyTuple(),
+        { samal::Datatype{ samal::DatatypeCategory::i32 } },
+        [](const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
+            printf("[Code] %i\n", params.at(0).as<int32_t>());
+            return samal::ExternalVMValue::wrapEmptyTuple();
+        } });
+    samal::Compiler compiler{ modules, std::move(nativeFunctions) };
     auto program = compiler.compile();
     std::cout << "Code dump:\n" + program.disassemble();
     compilerStopwatch.stop();
