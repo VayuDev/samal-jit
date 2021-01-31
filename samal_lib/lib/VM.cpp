@@ -16,27 +16,6 @@ struct JitReturn {
     int32_t nativeFunctionToCall; // lower 4 bytes of rdx
 };
 
-[[maybe_unused]] static constexpr bool isJittable(Instruction i) {
-    switch(i) {
-    case Instruction::PUSH_8:
-    case Instruction::ADD_I32:
-    case Instruction::SUB_I32:
-    case Instruction::COMPARE_LESS_THAN_I32:
-    case Instruction::COMPARE_LESS_EQUAL_THAN_I32:
-    case Instruction::COMPARE_MORE_THAN_I32:
-    case Instruction::COMPARE_MORE_EQUAL_THAN_I32:
-    case Instruction::REPUSH_FROM_N:
-    case Instruction::JUMP:
-    case Instruction::JUMP_IF_FALSE:
-    case Instruction::POP_N_BELOW:
-    case Instruction::CALL:
-    case Instruction::RETURN:
-        return true;
-    default:
-        return false;
-    }
-}
-
 class JitCode : public Xbyak::CodeGenerator {
 public:
     explicit JitCode(const std::vector<uint8_t>& instructions)
