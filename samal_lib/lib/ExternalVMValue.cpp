@@ -62,6 +62,7 @@ std::string ExternalVMValue::dump() const {
             ret += ", ";
         }
         ret += ")";
+        break;
     default:
         ret += "<unknown>";
     }
@@ -75,6 +76,20 @@ ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t 
         return ExternalVMValue{ type, *(int32_t*)(stackEnd - stackOffset - type.getSizeOnStack()) };
     case DatatypeCategory::i64:
         return ExternalVMValue{ type, *(int64_t*)(stackEnd - stackOffset - type.getSizeOnStack()) };
+    case DatatypeCategory::tuple: {
+        std::vector<ExternalVMValue> children;
+        auto reversedTypes = type.getTupleInfo();
+        std::reverse(reversedTypes.begin(), reversedTypes.end());
+
+        size_t totalSizeOnStack = stackOffset;
+        children.reserve(reversedTypes.size());
+        for(auto& childType: reversedTypes) {
+            children.emplace_back(ExternalVMValue::wrapStackedValue(childType, vm, totalSizeOnStack));
+            totalSizeOnStack += childType.getSizeOnStack();
+        }
+        std::reverse(children.begin(), children.end());
+        return ExternalVMValue{ type, std::move(children) };
+    }
     default:
         return ExternalVMValue{ type, std::monostate{} };
     }
