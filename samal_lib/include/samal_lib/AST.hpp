@@ -339,7 +339,13 @@ private:
     std::string mName;
 };
 
-class FunctionDeclarationNode : public DeclarationNode {
+class CallableDeclarationNode : public DeclarationNode {
+public:
+    explicit CallableDeclarationNode(SourceCodeRef source);
+    [[nodiscard]] inline const char* getClassName() const override { return "CallableDeclarationNode"; }
+};
+
+class FunctionDeclarationNode : public CallableDeclarationNode {
 public:
     FunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> params, Datatype returnType, up<ScopeNode> body);
     [[nodiscard]] bool hasTemplateParameters() const override;
@@ -365,6 +371,30 @@ private:
     std::vector<Parameter> mParameters;
     Datatype mReturnType;
     up<ScopeNode> mBody;
+};
+
+class NativeFunctionDeclarationNode : public CallableDeclarationNode {
+public:
+    NativeFunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> params, Datatype returnType);
+    [[nodiscard]] bool hasTemplateParameters() const override;
+    [[nodiscard]] std::vector<Datatype> getTemplateParameterVector() const override;
+    [[nodiscard]] const IdentifierNode* getIdentifier() const override;
+    [[nodiscard]] inline const std::vector<Parameter>& getParameters() const {
+        return mParameters;
+    }
+    [[nodiscard]] inline const Datatype& getReturnType() const {
+        return mReturnType;
+    }
+    [[nodiscard]] Datatype getDatatype() const override;
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "NativeFunctionDeclarationNode"; }
+
+private:
+    up<IdentifierNode> mName;
+    std::vector<Parameter> mParameters;
+    Datatype mReturnType;
 };
 
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params);

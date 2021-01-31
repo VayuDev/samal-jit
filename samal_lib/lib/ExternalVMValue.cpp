@@ -32,6 +32,14 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
         auto val = std::get<int64_t>(mValue);
         return std::vector<uint8_t>{ (uint8_t)(val >> 0), (uint8_t)(val >> 8), (uint8_t)(val >> 16), (uint8_t)(val >> 24), (uint8_t)(val >> 32), (uint8_t)(val >> 40), (uint8_t)(val >> 48), (uint8_t)(val >> 56) };
     }
+    case DatatypeCategory::tuple: {
+        std::vector<uint8_t> bytes;
+        for(auto& child : std::get<std::vector<ExternalVMValue>>(mValue)) {
+            auto childBytes = child.toStackValue(vm);
+            bytes.insert(bytes.end(), childBytes.begin(), childBytes.end());
+        }
+        return bytes;
+    }
     default:
         assert(false);
     }
@@ -47,6 +55,13 @@ std::string ExternalVMValue::dump() const {
     case DatatypeCategory::i64:
         ret += std::to_string(std::get<int64_t>(mValue));
         break;
+    case DatatypeCategory::tuple:
+        ret += "(";
+        for(auto& child : std::get<std::vector<ExternalVMValue>>(mValue)) {
+            ret += child.dump();
+            ret += ", ";
+        }
+        ret += ")";
     default:
         ret += "<unknown>";
     }
@@ -63,5 +78,8 @@ ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t 
     default:
         return ExternalVMValue{ type, std::monostate{} };
     }
+}
+ExternalVMValue ExternalVMValue::wrapEmptyTuple() {
+    return ExternalVMValue(Datatype::createEmptyTuple(), std::vector<ExternalVMValue>{});
 }
 }

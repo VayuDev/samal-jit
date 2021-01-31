@@ -40,6 +40,10 @@ std::string Program::disassemble() const {
         }
         ret += "\n";
     }
+    for(auto& nfunc : nativeFunctions) {
+        ret += "Native function " + nfunc.fullName + "\n";
+    }
+    ret += "\n";
     return ret;
 }
 }

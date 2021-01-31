@@ -19,12 +19,12 @@ Parser::Parser() {
     mPegParser["Start"] << "Declaration+" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<up<DeclarationNode>> decls;
         for(auto& d : res.subs) {
-            decls.emplace_back(dynamic_cast<FunctionDeclarationNode*>(d.result.move<ASTNode*>()));
+            decls.emplace_back(d.result.move<DeclarationNode*>());
         }
         return ModuleRootNode{ toRef(res), std::move(decls) };
     };
-    mPegParser["Declaration"] << "FunctionDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
-        return std::move(res.result);
+    mPegParser["Declaration"] << "FunctionDeclaration | NativeFunctionDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
+        return std::move(res[0].result);
     };
     mPegParser["FunctionDeclaration"] << "'fn' IdentifierWithTemplate '(' ParameterVector ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         return FunctionDeclarationNode(
@@ -33,6 +33,13 @@ Parser::Parser() {
             std::vector<Parameter>{ res.subs.at(3).result.moveValue<std::vector<Parameter>>() },
             res.subs.at(6).result.moveValue<Datatype>(),
             up<ScopeNode>{ res.subs.at(7).result.move<ScopeNode*>() });
+    };
+    mPegParser["NativeFunctionDeclaration"] << "'native' 'fn' IdentifierWithTemplate '(' ParameterVector ')' '->' Datatype" >> [](peg::MatchInfo& res) -> peg::Any {
+        return NativeFunctionDeclarationNode(
+            toRef(res),
+            up<IdentifierNode>{ res[2].result.move<IdentifierNode*>() },
+            std::vector<Parameter>{ res[4].result.moveValue<std::vector<Parameter>>() },
+            res[7].result.moveValue<Datatype>());
     };
     mPegParser["ParameterVector"] << "ParameterVectorRec?" >> [](peg::MatchInfo& res) -> peg::Any {
         if(res.subs.empty())

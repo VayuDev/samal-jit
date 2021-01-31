@@ -20,6 +20,8 @@ class TupleAccessExpressionNode;
 class AssignmentExpression;
 class LambdaCreationNode;
 class StackInformationTree;
+class CallableDeclarationNode;
+class NativeFunctionDeclarationNode;
 
 class Compiler;
 class Datatype;

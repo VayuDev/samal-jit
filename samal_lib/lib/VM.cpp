@@ -668,7 +668,8 @@ bool VM::interpretInstruction() {
     case Instruction::CALL: {
         auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
         int32_t newIp{ -1 };
-        if(*(int32_t*)mStack.get(offset + 8) % 2 == 0) {
+        auto firstHalfOfParam = *(int32_t*)mStack.get(offset + 8);
+        if(firstHalfOfParam % 2 == 0) {
             // it's a lambda function call
             // save old values to stack
             auto* lambdaParams = *(uint8_t**)mStack.get(offset + 8);
@@ -683,12 +684,36 @@ bool VM::interpretInstruction() {
             memcpy(buffer, lambdaParams + 8, lambdaParamsLen);
             mStack.push(buffer, lambdaParamsLen);
         } else {
-            // it's a default function call
-            newIp = *(int32_t*)mStack.get(offset + 4);
+            // it's a default function call or a native function call
+            if(firstHalfOfParam == 3) {
+                // native
+                auto& nativeFunc = mProgram.nativeFunctions.at(*(int32_t*)mStack.get(offset + 4));
 
-            // save old values to stack
-            *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
-            *(int32_t*)mStack.get(offset + 4) = 0;
+                // save old values
+                newIp = mIp + instructionToWidth(Instruction::CALL);
+
+                auto returnTypeSize = nativeFunc.returnType.getSizeOnStack();
+                std::vector<ExternalVMValue> params;
+                size_t sizeOfParams = 0;
+                for(auto& paramType : nativeFunc.paramTypes) {
+                    params.emplace_back(ExternalVMValue::wrapStackedValue(paramType, *this, sizeOfParams));
+                    sizeOfParams += paramType.getSizeOnStack();
+                }
+                mStack.pop(sizeOfParams);
+                std::reverse(params.begin(), params.end());
+                auto returnValue = nativeFunc.callback(params);
+                assert(returnValue.getDatatype() == nativeFunc.returnType);
+                auto returnValueBytes = returnValue.toStackValue(*this);
+                mStack.push(returnValueBytes.data(), returnValueBytes.size());
+                mStack.popBelow(returnTypeSize, 8);
+            } else {
+                // default
+                newIp = *(int32_t*)mStack.get(offset + 4);
+
+                // save old values to stack
+                *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
+                *(int32_t*)mStack.get(offset + 4) = 0;
+            }
         }
 
         mIp = newIp;

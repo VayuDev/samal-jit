@@ -421,6 +421,10 @@ void ModuleRootNode::findUsedVariables(VariableSearcher& searcher) const {
     }
 }
 
+CallableDeclarationNode::CallableDeclarationNode(SourceCodeRef source)
+: DeclarationNode(source) {
+}
+
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
     auto ret = ASTNode::dump(indent);
     ret += createIndent(indent + 1) + "Name:\n" + mName->dump(indent + 2);
@@ -434,7 +438,7 @@ FunctionDeclarationNode::FunctionDeclarationNode(SourceCodeRef source,
     std::vector<Parameter> params,
     Datatype returnType,
     up<ScopeNode> body)
-: DeclarationNode(std::move(source)), mName(std::move(name)), mParameters(std::move(params)), mReturnType(std::move(returnType)), mBody(std::move(body)) {
+: CallableDeclarationNode(std::move(source)), mName(std::move(name)), mParameters(std::move(params)), mReturnType(std::move(returnType)), mBody(std::move(body)) {
 }
 Datatype FunctionDeclarationNode::compile(Compiler& comp) const {
     comp.compileFunction(*this);
@@ -463,6 +467,43 @@ void FunctionDeclarationNode::findUsedVariables(VariableSearcher& searcher) cons
     }
     mBody->findUsedVariables(searcher);
 }
+
+NativeFunctionDeclarationNode::NativeFunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> params, Datatype returnType)
+: CallableDeclarationNode(std::move(source)), mName(std::move(name)), mParameters(std::move(params)), mReturnType(std::move(returnType)) {
+}
+bool NativeFunctionDeclarationNode::hasTemplateParameters() const {
+    for(auto& param : mParameters) {
+        if(param.type.hasUndeterminedTemplateTypes())
+            return true;
+    }
+    return mReturnType.hasUndeterminedTemplateTypes();
+}
+std::vector<Datatype> NativeFunctionDeclarationNode::getTemplateParameterVector() const {
+    return mName->getTemplateParameters();
+}
+const IdentifierNode* NativeFunctionDeclarationNode::getIdentifier() const {
+    return mName.get();
+}
+Datatype NativeFunctionDeclarationNode::getDatatype() const {
+    return getFunctionType(mReturnType, mParameters);
+}
+Datatype NativeFunctionDeclarationNode::compile(Compiler& comp) const {
+    assert(false);
+}
+void NativeFunctionDeclarationNode::findUsedVariables(VariableSearcher& searcher) const {
+    mName->findUsedVariables(searcher);
+    for(auto& param : mParameters) {
+        param.name->findUsedVariables(searcher);
+    }
+}
+std::string NativeFunctionDeclarationNode::dump(unsigned int indent) const {
+    auto ret = ASTNode::dump(indent);
+    ret += createIndent(indent + 1) + "Name:\n" + mName->dump(indent + 2);
+    ret += createIndent(indent + 1) + "Returns: " + mReturnType.toString() + "\n";
+    ret += createIndent(indent + 1) + "Params: \n" + dumpParameterVector(indent + 2, mParameters);
+    return ret;
+}
+
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params) {
     std::vector<Datatype> parameterTypes;
     parameterTypes.reserve(params.size());

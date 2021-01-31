@@ -4,8 +4,8 @@
 
 namespace samal {
 
-Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots)
-: mRoots(roots) {
+Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots, std::vector<NativeFunction>&& nativeFunctions)
+: mRoots(roots), mNativeFunctions(std::move(nativeFunctions)) {
 }
 Compiler::~Compiler() = default;
 
@@ -23,7 +23,7 @@ Program Compiler::compile() {
             mDeclarationNodeToModuleName.emplace(decl.get(), module->getModuleName());
         }
     }
-    // FIXME 'compile' (declare) structs in between these two steps
+    // TODO 'compile' (declare) structs in between these two steps
 
     auto compileLambdaFunctions = [this] {
         while(!mLambdasToCompile.empty()) {
@@ -47,9 +47,9 @@ Program Compiler::compile() {
     };
     // compile all normal functions
     for(auto& module : mRoots) {
+        mCurrentModuleName = module->getModuleName();
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
-                mCurrentModuleName = module->getModuleName();
                 decl->compile(*this);
                 compileLambdaFunctions();
             }
@@ -81,6 +81,7 @@ Program Compiler::compile() {
         }
         assert(found);
     }
+    mProgram.nativeFunctions = mNativeFunctions;
     return std::move(mProgram);
 }
 void Compiler::compileFunction(const FunctionDeclarationNode& function) {
@@ -333,16 +334,31 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
         identifier.throwException("Identifier not found");
     }
     std::string fullFunctionName = maybeDeclaration->first;
+    auto declarationType = maybeDeclaration->second.type.completeWithTemplateParameters(mTemplateReplacementMap);
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(maybeDeclaration->second.astNode);
     if(!declarationAsFunction) {
-        identifier.throwException("Identifier is not a function");
+        // not a normal function, but maybe a native function?
+        auto declarationAsNativeFunction = dynamic_cast<NativeFunctionDeclarationNode*>(maybeDeclaration->second.astNode);
+        if(!declarationAsNativeFunction) {
+            identifier.throwException("Identifier is not a function");
+        }
+        bool found = false;
+        int32_t i = 0;
+        for(auto& nativeFunctions : mNativeFunctions) {
+            if(nativeFunctions.fullName == fullFunctionName) {
+                found = true;
+                addInstructions(Instruction::PUSH_8, 3, i);
+                mStackSize += 8;
+            }
+            ++i;
+        }
+        assert(found);
+        return declarationType;
     }
     auto functionTemplateParams = declarationAsFunction->getTemplateParameterVector();
     if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
         identifier.throwException("Invalid number of template parameters passed (expected " + std::to_string(functionTemplateParams.size()) + ")");
     }
-    auto declarationType = maybeDeclaration->second.type.completeWithTemplateParameters(mTemplateReplacementMap);
-    mStackSize += 8;
     if(maybeDeclaration->second.type.hasUndeterminedTemplateTypes()) {
         // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
         std::vector<Datatype> passedTemplateParameters;
@@ -370,10 +386,12 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
             mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ declarationAsFunction, replacementMap });
         }
         mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
+        mStackSize += 8;
         return maybeDeclaration->second.type.completeWithTemplateParameters(replacementMap);
     }
     // normal function
     mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
+    mStackSize += 8;
     return maybeDeclaration->second.type;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {

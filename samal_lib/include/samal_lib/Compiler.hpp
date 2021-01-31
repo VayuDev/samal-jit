@@ -19,11 +19,12 @@ private:
 
 class Compiler final {
 public:
-    explicit Compiler(std::vector<up<ModuleRootNode>>& roots);
+    explicit Compiler(std::vector<up<ModuleRootNode>>& roots, std::vector<NativeFunction>&& nativeFunctions);
     ~Compiler();
     Program compile();
 
     void compileFunction(const FunctionDeclarationNode& function);
+    void compileNativeFunction(const NativeFunctionDeclarationNode& function);
     Datatype compileScope(const ScopeNode& scope);
     Datatype compileLiteralI32(int32_t value);
     Datatype compileLiteralI64(int64_t value);
@@ -41,6 +42,7 @@ public:
 private:
     Program mProgram;
     std::vector<up<ModuleRootNode>>& mRoots;
+    std::vector<NativeFunction> mNativeFunctions;
 
     void pushStackFrame();
     void popStackFrame(const Datatype& frameReturnType);
