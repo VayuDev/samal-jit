@@ -575,11 +575,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         mStackFrames.pop();
     }
     assert(mStackSize == static_cast<int32_t>(functionReturnType.getSizeOnStack()));
-    if(isLambda == IsLambda::Yes) {
-        addInstructions(Instruction::RETURN_FROM_LAMBDA, functionReturnType.getSizeOnStack());
-    } else {
-        addInstructions(Instruction::RETURN, functionReturnType.getSizeOnStack());
-    }
+    addInstructions(Instruction::RETURN, functionReturnType.getSizeOnStack());
     mStackSize = 0;
 
     // figure out type of function

@@ -754,16 +754,6 @@ bool VM::interpretInstruction() {
         mStack.push(&dataOnHeap, 8);
         break;
     }
-    case Instruction::RETURN_FROM_LAMBDA: {
-        auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
-        mIp = *(int64_t*)mStack.get(offset + 8);
-        mStack.popBelow(offset, 8);
-        incIp = false;
-        if(mIp == static_cast<int32_t>(mProgram.code.size())) {
-            return false;
-        }
-        break;
-    }
     default:
         fprintf(stderr, "Unhandled instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
         assert(false);
