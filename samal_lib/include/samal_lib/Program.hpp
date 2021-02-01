@@ -13,6 +13,9 @@ struct NativeFunction {
     Datatype returnType;
     std::vector<Datatype> paramTypes;
     mutable std::function<ExternalVMValue(const std::vector<ExternalVMValue>&)> callback;
+    [[nodiscard]] inline Datatype getType() const {
+        return Datatype{returnType, paramTypes};
+    }
 };
 
 struct Program final {

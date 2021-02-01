@@ -336,26 +336,42 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     std::string fullFunctionName = maybeDeclaration->first;
     auto declarationType = maybeDeclaration->second.type.completeWithTemplateParameters(mTemplateReplacementMap);
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(maybeDeclaration->second.astNode);
+    auto functionTemplateParams = maybeDeclaration->second.astNode->getTemplateParameterVector();
     if(!declarationAsFunction) {
         // not a normal function, but maybe a native function?
         auto declarationAsNativeFunction = dynamic_cast<NativeFunctionDeclarationNode*>(maybeDeclaration->second.astNode);
         if(!declarationAsNativeFunction) {
+            // not any kind of function
             identifier.throwException("Identifier is not a function");
+        }
+        // it's a native function, maybe it is a template-native function?
+        if(maybeDeclaration->second.type.hasUndeterminedTemplateTypes()) {
+            // we have a templated native function, so we need to build a replacement map to get the correct type
+            std::vector<Datatype> passedTemplateParameters;
+            for(auto& param : identifier.getTemplateParameters()) {
+                passedTemplateParameters.push_back(param.completeWithTemplateParameters(mTemplateReplacementMap));
+                if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
+                    identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
+                }
+            }
+            auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
+            declarationType = declarationType.completeWithTemplateParameters(replacementMap);
         }
         bool found = false;
         int32_t i = 0;
         for(auto& nativeFunctions : mNativeFunctions) {
-            if(nativeFunctions.fullName == fullFunctionName) {
+            if(nativeFunctions.fullName == fullFunctionName && nativeFunctions.getType() == declarationType) {
                 found = true;
                 addInstructions(Instruction::PUSH_8, 3, i);
                 mStackSize += 8;
             }
             ++i;
         }
-        assert(found);
+        if(!found) {
+            identifier.throwException("No native function was found that matches the name " + fullFunctionName + " and type " + declarationType.toString());
+        }
         return declarationType;
     }
-    auto functionTemplateParams = declarationAsFunction->getTemplateParameterVector();
     if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
         identifier.throwException("Invalid number of template parameters passed (expected " + std::to_string(functionTemplateParams.size()) + ")");
     }
