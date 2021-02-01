@@ -332,19 +332,31 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     if(maybeDeclaration == mDeclarations.end()) {
         identifier.throwException("Identifier not found");
     }
-    std::string fullFunctionName = maybeDeclaration->first;
-    auto completedDeclarationType = maybeDeclaration->second.type.completeWithTemplateParameters(mTemplateReplacementMap);
-    auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(maybeDeclaration->second.astNode);
-    auto functionTemplateParams = maybeDeclaration->second.astNode->getTemplateParameterVector();
+    auto& declaration = *maybeDeclaration;
+    std::string fullFunctionName = declaration.first;
+    if(!declaration.second.type.hasUndeterminedTemplateTypes()) {
+        // normal function
+        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
+        mStackSize += 8;
+        return declaration.second.type;
+    }
+    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mTemplateReplacementMap);
+    auto functionTemplateParams = declaration.second.astNode->getTemplateParameterVector();
+    auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
+
+    // check parameter count for template arguments
+    if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
+        identifier.throwException("Invalid number of template parameters passed (expected " + std::to_string(functionTemplateParams.size()) + ")");
+    }
     if(!declarationAsFunction) {
-        // not a normal function, but maybe a native function?
-        auto declarationAsNativeFunction = dynamic_cast<NativeFunctionDeclarationNode*>(maybeDeclaration->second.astNode);
+        // it's not a normal function, but maybe a native function?
+        auto declarationAsNativeFunction = dynamic_cast<NativeFunctionDeclarationNode*>(declaration.second.astNode);
         if(!declarationAsNativeFunction) {
             // not any kind of function
             identifier.throwException("Identifier is not a function");
         }
         // it's a native function, maybe it is a template-native function?
-        if(maybeDeclaration->second.type.hasUndeterminedTemplateTypes()) {
+        if(declaration.second.type.hasUndeterminedTemplateTypes()) {
             // we have a templated native function, so we need to build a replacement map to get the correct type
             std::vector<Datatype> passedTemplateParameters;
             for(auto& param : identifier.getTemplateParameters()) {
@@ -364,7 +376,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
             if(nativeFunction.fullName == fullFunctionName) {
                 if(nativeFunction.functionType == completedDeclarationType) {
                     found = true;
-                } else if(nativeFunction.hasTemplateParams() && nativeFunction.functionType == maybeDeclaration->second.type) {
+                } else if(nativeFunction.hasTemplateParams() && nativeFunction.functionType == declaration.second.type) {
                     found = true;
                     auto cpy = mProgram.nativeFunctions.at(i);
                     cpy.functionType = completedDeclarationType;
@@ -383,43 +395,35 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
         }
         return completedDeclarationType;
     }
-    if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
-        identifier.throwException("Invalid number of template parameters passed (expected " + std::to_string(functionTemplateParams.size()) + ")");
+    // template function
+    // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
+    std::vector<Datatype> passedTemplateParameters;
+    for(auto& param : identifier.getTemplateParameters()) {
+        passedTemplateParameters.push_back(param.completeWithTemplateParameters(mTemplateReplacementMap));
+        if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
+            identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
+        }
     }
-    if(maybeDeclaration->second.type.hasUndeterminedTemplateTypes()) {
-        // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
-        std::vector<Datatype> passedTemplateParameters;
-        for(auto& param : identifier.getTemplateParameters()) {
-            passedTemplateParameters.push_back(param.completeWithTemplateParameters(mTemplateReplacementMap));
-            if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
-                identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
-            }
+    // template function
+    auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
+    // check if we already compiled this template instantiation (or plan on compiling it) and, if not, add it for later compilation
+    bool alreadyExists = false;
+    for(auto& func : mProgram.functions) {
+        if(func.name == fullFunctionName && func.templateParameters == replacementMap) {
+            alreadyExists = true;
         }
-        // template function
-        auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
-        // check if we already compiled this template instantiation (or plan on compiling it) and, if not, add it for later compilation
-        bool alreadyExists = false;
-        for(auto& func : mProgram.functions) {
-            if(func.name == fullFunctionName && func.templateParameters == replacementMap) {
-                alreadyExists = true;
-            }
-        }
-        for(auto& plannedFunc : mTemplateFunctionsToInstantiate) {
-            if(plannedFunc.function == declarationAsFunction && plannedFunc.replacementMap == replacementMap) {
-                alreadyExists = true;
-            }
-        }
-        if(!alreadyExists) {
-            mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ declarationAsFunction, replacementMap });
-        }
-        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
-        mStackSize += 8;
-        return maybeDeclaration->second.type.completeWithTemplateParameters(replacementMap);
     }
-    // normal function
-    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
+    for(auto& plannedFunc : mTemplateFunctionsToInstantiate) {
+        if(plannedFunc.function == declarationAsFunction && plannedFunc.replacementMap == replacementMap) {
+            alreadyExists = true;
+        }
+    }
+    if(!alreadyExists) {
+        mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ declarationAsFunction, replacementMap });
+    }
+    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
     mStackSize += 8;
-    return maybeDeclaration->second.type;
+    return declaration.second.type.completeWithTemplateParameters(replacementMap);
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
     auto functionNameType = functionCall.getName()->compile(*this);
