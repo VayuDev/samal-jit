@@ -10,11 +10,10 @@ namespace samal {
 
 struct NativeFunction {
     std::string fullName;
-    Datatype returnType;
-    std::vector<Datatype> paramTypes;
+    Datatype functionType;
     mutable std::function<ExternalVMValue(const std::vector<ExternalVMValue>&)> callback;
-    [[nodiscard]] inline Datatype getType() const {
-        return Datatype{returnType, paramTypes};
+    [[nodiscard]] inline bool hasTemplateParams() const {
+        return functionType.hasUndeterminedTemplateTypes();
     }
 };
 

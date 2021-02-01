@@ -42,7 +42,6 @@ public:
 private:
     Program mProgram;
     std::vector<up<ModuleRootNode>>& mRoots;
-    std::vector<NativeFunction> mNativeFunctions;
 
     void pushStackFrame();
     void popStackFrame(const Datatype& frameReturnType);

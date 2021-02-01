@@ -5,12 +5,12 @@
 namespace samal {
 
 Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots, std::vector<NativeFunction>&& nativeFunctions)
-: mRoots(roots), mNativeFunctions(std::move(nativeFunctions)) {
+: mRoots(roots) {
+    mProgram.nativeFunctions = std::move(nativeFunctions);
 }
 Compiler::~Compiler() = default;
 
 Program Compiler::compile() {
-    mProgram = {};
     // declare all functions & structs
     for(auto& module : mRoots) {
         for(auto& decl : module->getDeclarations()) {
@@ -81,7 +81,6 @@ Program Compiler::compile() {
         }
         assert(found);
     }
-    mProgram.nativeFunctions = mNativeFunctions;
     return std::move(mProgram);
 }
 void Compiler::compileFunction(const FunctionDeclarationNode& function) {
@@ -334,7 +333,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
         identifier.throwException("Identifier not found");
     }
     std::string fullFunctionName = maybeDeclaration->first;
-    auto declarationType = maybeDeclaration->second.type.completeWithTemplateParameters(mTemplateReplacementMap);
+    auto completedDeclarationType = maybeDeclaration->second.type.completeWithTemplateParameters(mTemplateReplacementMap);
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(maybeDeclaration->second.astNode);
     auto functionTemplateParams = maybeDeclaration->second.astNode->getTemplateParameterVector();
     if(!declarationAsFunction) {
@@ -355,22 +354,34 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
                 }
             }
             auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
-            declarationType = declarationType.completeWithTemplateParameters(replacementMap);
+            completedDeclarationType = completedDeclarationType.completeWithTemplateParameters(replacementMap);
         }
         bool found = false;
-        int32_t i = 0;
-        for(auto& nativeFunctions : mNativeFunctions) {
-            if(nativeFunctions.fullName == fullFunctionName && nativeFunctions.getType() == declarationType) {
-                found = true;
-                addInstructions(Instruction::PUSH_8, 3, i);
-                mStackSize += 8;
+        // iterate backwards so that we find specified (filled-in) template functions first and the raw undetermined-identifier versions later
+        for(int32_t i = mProgram.nativeFunctions.size() - 1; i >= 0; --i) {
+            const auto& nativeFunction = mProgram.nativeFunctions.at(i);
+            // the name has to match and either the full completed type, or, if the native function accepts any types, at least those incomplete types have to match
+            if(nativeFunction.fullName == fullFunctionName) {
+                if(nativeFunction.functionType == completedDeclarationType) {
+                    found = true;
+                } else if(nativeFunction.hasTemplateParams() && nativeFunction.functionType == maybeDeclaration->second.type) {
+                    found = true;
+                    auto cpy = mProgram.nativeFunctions.at(i);
+                    cpy.functionType = completedDeclarationType;
+                    mProgram.nativeFunctions.emplace_back(std::move(cpy));
+                    i = mProgram.nativeFunctions.size() - 1;
+                }
+                if(found) {
+                    addInstructions(Instruction::PUSH_8, 3, i);
+                    mStackSize += 8;
+                    break;
+                }
             }
-            ++i;
         }
         if(!found) {
-            identifier.throwException("No native function was found that matches the name " + fullFunctionName + " and type " + declarationType.toString());
+            identifier.throwException("No native function was found that matches the name " + fullFunctionName + " and type " + completedDeclarationType.toString());
         }
-        return declarationType;
+        return completedDeclarationType;
     }
     if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
         identifier.throwException("Invalid number of template parameters passed (expected " + std::to_string(functionTemplateParams.size()) + ")");

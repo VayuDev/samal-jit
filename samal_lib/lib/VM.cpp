@@ -790,18 +790,19 @@ std::string VM::dumpVariablesOnStack() {
 }
 void VM::execNativeFunction(int32_t nativeFuncId) {
     auto& nativeFunc = mProgram.nativeFunctions.at(nativeFuncId);
-    auto returnTypeSize = nativeFunc.returnType.getSizeOnStack();
+    const auto& functionTypeInfo = nativeFunc.functionType.getFunctionTypeInfo();
+    auto returnTypeSize = functionTypeInfo.first->getSizeOnStack();
     std::vector<ExternalVMValue> params;
-    params.reserve(nativeFunc.paramTypes.size());
+    params.reserve(functionTypeInfo.second.size());
     size_t sizeOfParams = 0;
-    for(auto& paramType : nativeFunc.paramTypes) {
+    for(auto& paramType : functionTypeInfo.second) {
         params.emplace_back(ExternalVMValue::wrapStackedValue(paramType, *this, sizeOfParams));
         sizeOfParams += paramType.getSizeOnStack();
     }
     mStack.pop(sizeOfParams);
     std::reverse(params.begin(), params.end());
     auto returnValue = nativeFunc.callback(params);
-    assert(returnValue.getDatatype() == nativeFunc.returnType);
+    assert(returnValue.getDatatype() == *functionTypeInfo.first);
     auto returnValueBytes = returnValue.toStackValue(*this);
     mStack.push(returnValueBytes.data(), returnValueBytes.size());
     mStack.popBelow(returnTypeSize, 8);
