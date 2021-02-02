@@ -332,11 +332,12 @@ public:
             }
             case Instruction::LIST_GET_HEAD: {
                 auto sizeOfElement = *(int32_t*)&instructions.at(i + 1);
-                pop(rax);
-                cmp(rax, 0);
+
+                cmp(qword[rsp], 0);
                 Xbyak::Label after;
                 je("AfterJumpTable");
 
+                pop(rax);
                 assert(sizeOfElement % 8 == 0);
                 for(int32_t i = 0; i < sizeOfElement / 8; ++i) {
                     mov(rbx, qword[rax + (8 * (i + 1))]);
