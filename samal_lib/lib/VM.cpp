@@ -773,8 +773,8 @@ bool VM::interpretInstruction() {
     case Instruction::CREATE_LIST: {
         auto elementSize = *(int32_t*)&mProgram.code.at(mIp + 1);
         auto elementCount = *(int32_t*)&mProgram.code.at(mIp + 5);
-        uint8_t *firstPtr = nullptr;
-        uint8_t * ptrToPreviousElement = nullptr;
+        uint8_t* firstPtr = nullptr;
+        uint8_t* ptrToPreviousElement = nullptr;
         for(int i = 0; i < elementCount; ++i) {
             int32_t elementOffset = (elementCount - i) * elementSize;
             auto* dataOnHeap = (uint8_t*)mGC.alloc(elementSize + 8);
@@ -805,7 +805,7 @@ bool VM::interpretInstruction() {
         auto ptr = *(uint8_t**)mStack.get(8);
         if(ptr == nullptr) {
             // TODO throw some kind of language-internal exception
-            throw std::runtime_error{"Trying to access :head of empty list"};
+            throw std::runtime_error{ "Trying to access :head of empty list" };
         }
         mStack.pop(8);
         char buffer[size];
@@ -851,7 +851,7 @@ bool VM::interpretInstruction() {
     }
     case Instruction::LIST_PREPEND: {
         auto datatypeLength = *(int32_t*)&mProgram.code.at(mIp + 1);
-        uint8_t *allocation = mGC.alloc(datatypeLength + 8);
+        uint8_t* allocation = mGC.alloc(datatypeLength + 8);
         memcpy(allocation, mStack.get(8), 8);
         memcpy(allocation + 8, mStack.get(datatypeLength + 8), datatypeLength);
         mStack.pop(datatypeLength + 8);

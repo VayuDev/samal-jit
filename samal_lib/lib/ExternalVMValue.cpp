@@ -73,7 +73,7 @@ std::string ExternalVMValue::dump() const {
     }
     case DatatypeCategory::list: {
         ret += "[";
-        auto *current = std::get<const uint8_t*>(mValue);
+        auto* current = std::get<const uint8_t*>(mValue);
         while(current != nullptr) {
             ret += ExternalVMValue::wrapFromPtr(mType.getListInfo(), *mVM, current + 8).dump();
             current = *(uint8_t**)current;
@@ -99,7 +99,7 @@ ExternalVMValue ExternalVMValue::wrapEmptyTuple(VM& vm) {
 ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr) {
     switch(type.getCategory()) {
     case DatatypeCategory::i32:
-        return ExternalVMValue{vm, type, *(int32_t*)(ptr) };
+        return ExternalVMValue{ vm, type, *(int32_t*)(ptr) };
     case DatatypeCategory::function:
     case DatatypeCategory::i64:
         return ExternalVMValue{ vm, type, *(int64_t*)(ptr) };

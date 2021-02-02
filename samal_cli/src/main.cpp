@@ -15,7 +15,7 @@ native fn print<T>(p: T) -> ()
 native fn identity<T>(p: T) -> T
 
 fn len<T>(l : [T]) -> i32 {
-    if l == [:T] {
+    if l == [] {
         0
     } else {
         1 + len<T>(l:tail)
@@ -23,7 +23,7 @@ fn len<T>(l : [T]) -> i32 {
 }
 
 fn concat<T>(l1 : [T], l2 : [T]) -> [T] {
-    if l1 == [:T] {
+    if l1 == [] {
         l2
     } else {
         l1:head + concat<T>(l1:tail, l2)
@@ -31,29 +31,41 @@ fn concat<T>(l1 : [T], l2 : [T]) -> [T] {
 }
 
 fn map<T, S>(l : [T], callback : fn(T) -> S) -> [S] {
-    if l == [:T] {
+    if l == [] {
         [:S]
     } else {
         callback(l:head) + map<T, S>(l:tail, callback)
     }
 }
 
-fn createList<T>(limit: T) -> [T] {
+
+fn seqRec<T>(index : T, limit: T) -> [T] {
     if limit < 1 {
         [:T]
     } else {
-        limit + createList<T>(limit - 1)
+        index + seqRec<T>(index + 1, limit - 1)
     }
 }
 
-fn func2(p : i32) -> [i32] {
-    l1 = createList<i32>(1000)
-    l2 = createList<i32>(1000)
+fn seq<T>(limit: T) -> [T] {
+    seqRec<T>(0, limit)
+}
+
+fn func2(p : i32) -> i32 {
+    l1 = seq<i32>(50)
+    l2 = seq<i32>(50)
+    same = l1 == l2
+    h = [:i32]:head
     combined = concat<i32>(l1, l2)
     lambda = fn(p2 : i32) -> i32 {
-        p2 + 1
+        p2
     }
     added = map<i32, i32>(combined, lambda)
+    if same {
+        1
+    } else {
+        0
+    }
 }
 
 fn makeLambda<T>(v : T) -> fn(T) -> T {
@@ -92,28 +104,28 @@ fn addAndFib<T>(a : T, b : T) -> T {
     std::vector<samal::NativeFunction> nativeFunctions;
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.print",
-        samal::Datatype{samal::Datatype::createEmptyTuple(), { samal::Datatype("T")}},
+        samal::Datatype{ samal::Datatype::createEmptyTuple(), { samal::Datatype("T") } },
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             std::cout << "[Code] " << params.at(0).dump() << "\n";
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.print",
-        samal::Datatype{samal::Datatype::createEmptyTuple(), { samal::Datatype{ samal::DatatypeCategory::i32 } }},
+        samal::Datatype{ samal::Datatype::createEmptyTuple(), { samal::Datatype{ samal::DatatypeCategory::i32 } } },
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             printf("[Code i32] %i\n", params.at(0).as<int32_t>());
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.print",
-        samal::Datatype{samal::Datatype::createEmptyTuple(), { samal::Datatype{ samal::DatatypeCategory::i64 } }},
+        samal::Datatype{ samal::Datatype::createEmptyTuple(), { samal::Datatype{ samal::DatatypeCategory::i64 } } },
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             printf("[Code i64] %li\n", params.at(0).as<int64_t>());
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.identity",
-        samal::Datatype{samal::Datatype("T"), { samal::Datatype("T") }},
+        samal::Datatype{ samal::Datatype("T"), { samal::Datatype("T") } },
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             std::cout << "Identity function called on " << params.at(0).dump() << "\n";
             return params.at(0);

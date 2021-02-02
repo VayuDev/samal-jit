@@ -267,11 +267,11 @@ Parser::Parser() {
                 break;
             }
             case 2: {
-                ret = ListPropertyAccessExpression{toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, ListPropertyAccessExpression::ListProperty::HEAD};
+                ret = ListPropertyAccessExpression{ toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, ListPropertyAccessExpression::ListProperty::HEAD };
                 break;
             }
             case 3: {
-                ret = ListPropertyAccessExpression{toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, ListPropertyAccessExpression::ListProperty::TAIL};
+                ret = ListPropertyAccessExpression{ toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, ListPropertyAccessExpression::ListProperty::TAIL };
                 break;
             }
             default:

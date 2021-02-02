@@ -203,7 +203,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::IS_LIST_EMPTY);
             mStackSize -= lhsType.getSizeOnStack();
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{DatatypeCategory::bool_};
+            return Datatype{ DatatypeCategory::bool_ };
         }
     }
 
@@ -275,7 +275,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, mProgram.auxiliaryDatatypes.size() - 1);
             mStackSize -= lhsType.getSizeOnStack() * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{DatatypeCategory::bool_};
+            return Datatype{ DatatypeCategory::bool_ };
         }
         break;
     }
@@ -601,7 +601,7 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
     if(elementType) {
         elementType = elementType->completeWithTemplateParameters(mTemplateReplacementMap);
     }
-    for(auto& param: node.getParams()) {
+    for(auto& param : node.getParams()) {
         auto paramType = param->compile(*this);
         if(elementType) {
             if(paramType != *elementType) {

@@ -11,7 +11,7 @@ public:
     static ExternalVMValue wrapInt64(VM& vm, int64_t);
     static ExternalVMValue wrapEmptyTuple(VM& vm);
     static ExternalVMValue wrapStackedValue(Datatype type, VM& vm, size_t stackOffset);
-    static ExternalVMValue wrapFromPtr(Datatype type, VM& vm, const uint8_t *ptr);
+    static ExternalVMValue wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr);
     [[nodiscard]] const Datatype& getDatatype() const&;
     std::vector<uint8_t> toStackValue(VM& vm) const;
     [[nodiscard]] std::string dump() const;

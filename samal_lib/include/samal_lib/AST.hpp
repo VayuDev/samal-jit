@@ -186,6 +186,7 @@ public:
 
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ListCreationNode"; }
+
 private:
     std::optional<Datatype> mBaseType;
     std::vector<up<ExpressionNode>> mParams;
