@@ -364,6 +364,19 @@ void ListAccessExpressionNode::findUsedVariables(VariableSearcher&) const {
     todo();
 }
 
+ListPropertyAccessExpression::ListPropertyAccessExpression(SourceCodeRef source, up<ExpressionNode> list, ListPropertyAccessExpression::ListProperty property)
+: ExpressionNode(source), mList(std::move(list)), mProperty(std::move(property)) {
+}
+Datatype ListPropertyAccessExpression::compile(Compiler& comp) const {
+    return comp.compileListPropertyAccess(*this);
+}
+void ListPropertyAccessExpression::findUsedVariables(VariableSearcher& searcher) const {
+    mList->findUsedVariables(searcher);
+}
+std::string ListPropertyAccessExpression::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
 TupleAccessExpressionNode::TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index)
 : ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(index) {
 }

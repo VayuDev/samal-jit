@@ -298,6 +298,29 @@ private:
     up<ExpressionNode> mName, mIndex;
 };
 
+class ListPropertyAccessExpression : public ExpressionNode {
+public:
+    enum class ListProperty {
+        HEAD,
+        TAIL
+    };
+    ListPropertyAccessExpression(SourceCodeRef source, up<ExpressionNode> list, ListProperty property);
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] const auto& getList() const {
+        return mList;
+    }
+    [[nodiscard]] const auto& getProperty() const {
+        return mProperty;
+    }
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "ListPropertyAccessExpression"; }
+
+private:
+    up<ExpressionNode> mList;
+    ListProperty mProperty;
+};
+
 class TupleAccessExpressionNode : public ExpressionNode {
 public:
     TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index);

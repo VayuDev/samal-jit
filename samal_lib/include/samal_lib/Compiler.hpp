@@ -39,6 +39,7 @@ public:
     Datatype compileAssignmentExpression(const AssignmentExpression&);
     Datatype compileLambdaCreationExpression(const LambdaCreationNode&);
     Datatype compileListCreation(const ListCreationNode&);
+    Datatype compileListPropertyAccess(const ListPropertyAccessExpression&);
 
 private:
     Program mProgram;

@@ -757,6 +757,25 @@ bool VM::interpretInstruction() {
         mStack.push(&firstPtr, 8);
         break;
     }
+    case Instruction::LIST_GET_TAIL: {
+        if(*(void**)mStack.get(8) != nullptr) {
+            *(uint8_t**)mStack.get(8) = **(uint8_t***)mStack.get(8);
+        }
+        break;
+    }
+    case Instruction::LIST_GET_HEAD: {
+        auto size = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto ptr = *(uint8_t**)mStack.get(8);
+        if(ptr == nullptr) {
+            // TODO throw some kind of language-internal exception
+            throw std::runtime_error{"Trying to access :head of empty list"};
+        }
+        mStack.pop(8);
+        char buffer[size];
+        memcpy(buffer, ptr + 8, size);
+        mStack.push(buffer, size);
+        break;
+    }
     default:
         fprintf(stderr, "Unhandled instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
         assert(false);

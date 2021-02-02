@@ -252,6 +252,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         }
         break;
     }
+    binaryExpression.throwException("Unable to perform the operation between lhs type " + lhsType.toString() + " and rhs type " + rhsType.toString());
     assert(false);
 }
 Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
@@ -570,6 +571,9 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
     if(node.getParams().empty() && !elementType) {
         node.throwException("Unable to infer list type; if you want to create an empty list, use the following syntax: [:i32]");
     }
+    if(elementType) {
+        elementType = elementType->completeWithTemplateParameters(mTemplateReplacementMap);
+    }
     for(auto& param: node.getParams()) {
         auto paramType = param->compile(*this);
         if(elementType) {
@@ -581,10 +585,32 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
         }
     }
     assert(elementType);
-    addInstructions(Instruction::CREATE_LIST, elementType->getSizeOnStack(), node.getParams().size());
-    mStackSize -= elementType->getSizeOnStack() * node.getParams().size();
+    if(node.getParams().empty()) {
+        addInstructions(Instruction::PUSH_8, 0, 0);
+    } else {
+        addInstructions(Instruction::CREATE_LIST, elementType->getSizeOnStack(), node.getParams().size());
+        mStackSize -= elementType->getSizeOnStack() * node.getParams().size();
+    }
     mStackSize += 8;
     return Datatype::createListType(std::move(*elementType));
+}
+Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression& node) {
+    auto listType = node.getList()->compile(*this);
+    if(listType.getCategory() != DatatypeCategory::list) {
+        node.throwException("Trying to access list-property of type " + listType.toString());
+    }
+    if(node.getProperty() == ListPropertyAccessExpression::ListProperty::HEAD) {
+        addInstructions(Instruction::LIST_GET_HEAD, listType.getListInfo().getSizeOnStack());
+        mStackSize += listType.getListInfo().getSizeOnStack();
+        mStackSize -= 8;
+        return listType.getListInfo();
+    }
+
+    if(node.getProperty() == ListPropertyAccessExpression::ListProperty::TAIL) {
+        addInstructions(Instruction::LIST_GET_TAIL);
+        return listType;
+    }
+    assert(false);
 }
 Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
     std::vector<std::pair<std::string, Datatype>> parameters;

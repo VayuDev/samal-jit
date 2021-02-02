@@ -23,6 +23,7 @@ class StackInformationTree;
 class CallableDeclarationNode;
 class NativeFunctionDeclarationNode;
 class ListCreationNode;
+class ListPropertyAccessExpression;
 
 class Compiler;
 class Datatype;
