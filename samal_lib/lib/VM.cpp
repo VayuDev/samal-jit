@@ -321,12 +321,12 @@ public:
                 break;
             }
             case Instruction::LIST_GET_TAIL: {
-                pop(rax);
-                cmp(rax, 0);
+                cmp(qword[rsp], 0);
                 Xbyak::Label after;
                 je(after);
+                mov(rax, qword[rsp]);
                 mov(rax, qword[rax]);
-                push(rax);
+                mov(qword[rsp], rax);
                 L(after);
                 break;
             }
