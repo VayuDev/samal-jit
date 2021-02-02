@@ -679,6 +679,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     return entry;
 }
 void Compiler::saveVariableLocation(std::string name, Datatype type) {
+    mStackFrames.top().variables.erase(name);
     mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
     mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, name, std::move(type)));
 }
