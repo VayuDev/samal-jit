@@ -220,6 +220,10 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         }
         break;
     }
+    case DatatypeCategory::list: {
+        std::get<sp<Datatype>>(cpy.mFurtherInfo) = std::make_shared<Datatype>(getListInfo().completeWithTemplateParameters(templateParams));
+        break;
+    }
     default:
         assert(false);
     }
@@ -249,6 +253,9 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
                 return true;
         }
         return false;
+    }
+    case DatatypeCategory::list: {
+        return getListInfo().hasUndeterminedTemplateTypes();
     }
     default:
         assert(false);

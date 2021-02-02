@@ -7,14 +7,14 @@ namespace samal {
 
 ExternalVMValue::~ExternalVMValue() = default;
 
-ExternalVMValue::ExternalVMValue(Datatype type, decltype(mValue) val)
-: mType(std::move(type)), mValue(std::move(val)) {
+ExternalVMValue::ExternalVMValue(VM& vm, Datatype type, decltype(mValue) val)
+: mVM(&vm), mType(std::move(type)), mValue(std::move(val)) {
 }
-ExternalVMValue ExternalVMValue::wrapInt32(int32_t val) {
-    return ExternalVMValue(Datatype{ DatatypeCategory::i32 }, val);
+ExternalVMValue ExternalVMValue::wrapInt32(VM& vm, int32_t val) {
+    return ExternalVMValue(vm, Datatype{ DatatypeCategory::i32 }, val);
 }
-ExternalVMValue ExternalVMValue::wrapInt64(int64_t val) {
-    return ExternalVMValue(samal::Datatype(DatatypeCategory::i64), val);
+ExternalVMValue ExternalVMValue::wrapInt64(VM& vm, int64_t val) {
+    return ExternalVMValue(vm, samal::Datatype(DatatypeCategory::i64), val);
 }
 const Datatype& ExternalVMValue::getDatatype() const& {
     return mType;
@@ -71,6 +71,18 @@ std::string ExternalVMValue::dump() const {
         ret += ss.str();
         break;
     }
+    case DatatypeCategory::list: {
+        ret += "[";
+        auto *current = std::get<const uint8_t*>(mValue);
+        while(current != nullptr) {
+            ret += ExternalVMValue::wrapFromPtr(mType.getListInfo(), *mVM, current + 8).dump();
+            current = *(uint8_t**)current;
+            if(current != nullptr)
+                ret += ", ";
+        }
+        ret += "]";
+        break;
+    }
     default:
         ret += "<unknown>";
     }
@@ -79,31 +91,36 @@ std::string ExternalVMValue::dump() const {
 }
 ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t stackOffset) {
     auto stackEnd = vm.getStack().getBasePtr() + vm.getStack().getSize();
+    return wrapFromPtr(type, vm, stackEnd - stackOffset - type.getSizeOnStack());
+}
+ExternalVMValue ExternalVMValue::wrapEmptyTuple(VM& vm) {
+    return ExternalVMValue(vm, Datatype::createEmptyTuple(), std::vector<ExternalVMValue>{});
+}
+ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr) {
     switch(type.getCategory()) {
     case DatatypeCategory::i32:
-        return ExternalVMValue{ type, *(int32_t*)(stackEnd - stackOffset - type.getSizeOnStack()) };
+        return ExternalVMValue{vm, type, *(int32_t*)(ptr) };
     case DatatypeCategory::function:
     case DatatypeCategory::i64:
-        return ExternalVMValue{ type, *(int64_t*)(stackEnd - stackOffset - type.getSizeOnStack()) };
+        return ExternalVMValue{ vm, type, *(int64_t*)(ptr) };
     case DatatypeCategory::tuple: {
         std::vector<ExternalVMValue> children;
         auto reversedTypes = type.getTupleInfo();
         std::reverse(reversedTypes.begin(), reversedTypes.end());
 
-        size_t totalSizeOnStack = stackOffset;
         children.reserve(reversedTypes.size());
         for(auto& childType : reversedTypes) {
-            children.emplace_back(ExternalVMValue::wrapStackedValue(childType, vm, totalSizeOnStack));
-            totalSizeOnStack += childType.getSizeOnStack();
+            children.emplace_back(ExternalVMValue::wrapFromPtr(childType, vm, ptr));
+            ptr += childType.getSizeOnStack();
         }
         std::reverse(children.begin(), children.end());
-        return ExternalVMValue{ type, std::move(children) };
+        return ExternalVMValue{ vm, type, std::move(children) };
+    }
+    case DatatypeCategory::list: {
+        return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };
     }
     default:
-        return ExternalVMValue{ type, std::monostate{} };
+        return ExternalVMValue{ vm, type, std::monostate{} };
     }
-}
-ExternalVMValue ExternalVMValue::wrapEmptyTuple() {
-    return ExternalVMValue(Datatype::createEmptyTuple(), std::vector<ExternalVMValue>{});
 }
 }

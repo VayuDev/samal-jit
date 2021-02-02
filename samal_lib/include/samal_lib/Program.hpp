@@ -11,7 +11,7 @@ namespace samal {
 struct NativeFunction {
     std::string fullName;
     Datatype functionType;
-    mutable std::function<ExternalVMValue(const std::vector<ExternalVMValue>&)> callback;
+    mutable std::function<ExternalVMValue(VM&, const std::vector<ExternalVMValue>&)> callback;
     [[nodiscard]] inline bool hasTemplateParams() const {
         return functionType.hasUndeterminedTemplateTypes();
     }

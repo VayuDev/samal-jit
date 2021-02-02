@@ -240,6 +240,9 @@ void ListCreationNode::findUsedVariables(VariableSearcher& searcher) const {
         param->findUsedVariables(searcher);
     }
 }
+Datatype ListCreationNode::compile(Compiler& comp) const {
+    return comp.compileListCreation(*this);
+}
 
 LambdaCreationNode::LambdaCreationNode(SourceCodeRef source, std::vector<Parameter> parameters, Datatype returnType, up<ScopeNode> body)
 : ExpressionNode(std::move(source)), mReturnType(std::move(returnType)), mParameters(std::move(parameters)), mBody(std::move(body)) {

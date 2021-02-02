@@ -174,10 +174,18 @@ class ListCreationNode : public ExpressionNode {
 public:
     explicit ListCreationNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
     explicit ListCreationNode(SourceCodeRef source, Datatype baseType);
+    Datatype compile(Compiler& comp) const override;
     void findUsedVariables(VariableSearcher&) const override;
+
+    [[nodiscard]] const auto& getBaseType() const {
+        return mBaseType;
+    }
+    [[nodiscard]] const auto& getParams() const {
+        return mParams;
+    }
+
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "ListCreationNode"; }
-
 private:
     std::optional<Datatype> mBaseType;
     std::vector<up<ExpressionNode>> mParams;

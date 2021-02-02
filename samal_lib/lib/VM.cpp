@@ -723,14 +723,38 @@ bool VM::interpretInstruction() {
         break;
     }
     case Instruction::CREATE_LAMBDA: {
-        auto functionIdOffset = *(int32_t*)&mProgram.code.at(mIp + 1);
-        auto* dataOnHeap = (uint8_t*)mGC.alloc(functionIdOffset + 8);
+        auto functionIp = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto* dataOnHeap = (uint8_t*)mGC.alloc(functionIp + 8);
         // store length of buffer & ip of the function on the stack
-        ((int32_t*)dataOnHeap)[0] = functionIdOffset;
-        ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIdOffset + 8);
-        memcpy(dataOnHeap + 8, mStack.get(functionIdOffset), functionIdOffset);
-        mStack.pop(functionIdOffset + 8);
+        ((int32_t*)dataOnHeap)[0] = functionIp;
+        ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIp + 8);
+        memcpy(dataOnHeap + 8, mStack.get(functionIp), functionIp);
+        mStack.pop(functionIp + 8);
         mStack.push(&dataOnHeap, 8);
+        break;
+    }
+    case Instruction::CREATE_LIST: {
+        auto elementSize = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto elementCount = *(int32_t*)&mProgram.code.at(mIp + 5);
+        uint8_t *firstPtr = nullptr;
+        uint8_t * ptrToPreviousElement = nullptr;
+        for(int i = 0; i < elementCount; ++i) {
+            int32_t elementOffset = (elementCount - i) * elementSize;
+            auto* dataOnHeap = (uint8_t*)mGC.alloc(elementSize + 8);
+            if(firstPtr == nullptr)
+                firstPtr = dataOnHeap;
+
+            memcpy(dataOnHeap + 8, mStack.get(elementOffset), elementSize);
+            if(ptrToPreviousElement) {
+                memcpy(ptrToPreviousElement, &dataOnHeap, 8);
+            }
+            ptrToPreviousElement = dataOnHeap;
+        }
+        // let the last element point to nullptr
+        if(ptrToPreviousElement)
+            memset(ptrToPreviousElement, 0, 8);
+        mStack.pop(elementSize * elementCount);
+        mStack.push(&firstPtr, 8);
         break;
     }
     default:
@@ -801,7 +825,7 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
     }
     mStack.pop(sizeOfParams);
     std::reverse(params.begin(), params.end());
-    auto returnValue = nativeFunc.callback(params);
+    auto returnValue = nativeFunc.callback(*this, params);
     assert(returnValue.getDatatype() == *functionTypeInfo.first);
     auto returnValueBytes = returnValue.toStackValue(*this);
     mStack.push(returnValueBytes.data(), returnValueBytes.size());

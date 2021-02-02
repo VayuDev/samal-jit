@@ -38,6 +38,7 @@ public:
     Datatype compileTupleAccessExpression(const TupleAccessExpressionNode&);
     Datatype compileAssignmentExpression(const AssignmentExpression&);
     Datatype compileLambdaCreationExpression(const LambdaCreationNode&);
+    Datatype compileListCreation(const ListCreationNode&);
 
 private:
     Program mProgram;

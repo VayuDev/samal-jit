@@ -22,6 +22,7 @@ class LambdaCreationNode;
 class StackInformationTree;
 class CallableDeclarationNode;
 class NativeFunctionDeclarationNode;
+class ListCreationNode;
 
 class Compiler;
 class Datatype;

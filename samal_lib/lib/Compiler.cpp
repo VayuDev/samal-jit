@@ -553,8 +553,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
         }
     }
 
-    // create the lambda, moving all previously copied parameters to the heap and storing the pointer in the
-    // upper 4 bytes of the ip of the lambda (we only need for, but reserve 8)
+    // create the lambda, moving all previously copied parameters to the heap and storing the pointer (always 8 bytes) to the stack
     addInstructions(Instruction::CREATE_LAMBDA, sizeOfCopiedScopeValues);
     mStackSize -= sizeOfCopiedScopeValues + 8;
     mStackSize += 8;
@@ -565,6 +564,27 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
         paramTypes.push_back(param.type);
     }
     return Datatype(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mTemplateReplacementMap);
+}
+Datatype Compiler::compileListCreation(const ListCreationNode& node) {
+    std::optional<Datatype> elementType = node.getBaseType();
+    if(node.getParams().empty() && !elementType) {
+        node.throwException("Unable to infer list type; if you want to create an empty list, use the following syntax: [:i32]");
+    }
+    for(auto& param: node.getParams()) {
+        auto paramType = param->compile(*this);
+        if(elementType) {
+            if(paramType != *elementType) {
+                node.throwException("Not all elements in the list have the same type; previous elements had the type " + elementType->toString() + ", but one has type " + paramType.toString());
+            }
+        } else {
+            elementType = paramType;
+        }
+    }
+    assert(elementType);
+    addInstructions(Instruction::CREATE_LIST, elementType->getSizeOnStack(), node.getParams().size());
+    mStackSize -= elementType->getSizeOnStack() * node.getParams().size();
+    mStackSize += 8;
+    return Datatype::createListType(std::move(*elementType));
 }
 Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
     std::vector<std::pair<std::string, Datatype>> parameters;
