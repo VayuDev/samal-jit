@@ -251,6 +251,16 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             return Datatype{ DatatypeCategory::bool_ };
         }
         break;
+    case DatatypeCategory::list:
+        if(binaryExpression.getOperator() == BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS) {
+            // TODO check if already in list
+            mProgram.auxiliaryDatatypes.push_back(lhsType);
+            addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, mProgram.auxiliaryDatatypes.size() - 1);
+            mStackSize -= lhsType.getSizeOnStack() * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype{DatatypeCategory::bool_};
+        }
+        break;
     }
     binaryExpression.throwException("Unable to perform the operation between lhs type " + lhsType.toString() + " and rhs type " + rhsType.toString());
     assert(false);

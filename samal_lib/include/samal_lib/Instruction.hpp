@@ -33,7 +33,7 @@ namespace samal {
     INSTRUCTION(CREATE_LIST, 9)                 \
     INSTRUCTION(LIST_GET_HEAD, 5)               \
     INSTRUCTION(LIST_GET_TAIL, 1)               \
-    INSTRUCTION(COMPARE_COMPLEX_EQUALITY, 9)
+    INSTRUCTION(COMPARE_COMPLEX_EQUALITY, 5)
 
 enum class Instruction : uint8_t {
 #define INSTRUCTION(name, width) name,

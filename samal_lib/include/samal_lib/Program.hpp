@@ -30,6 +30,7 @@ struct Program final {
     };
     std::vector<uint8_t> code;
     std::vector<Function> functions;
+    std::vector<Datatype> auxiliaryDatatypes;
     std::vector<NativeFunction> nativeFunctions;
     [[nodiscard]] std::string disassemble() const;
 };

@@ -474,6 +474,11 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
 bool VM::interpretInstruction() {
     bool incIp = true;
     auto ins = static_cast<Instruction>(mProgram.code.at(mIp));
+#ifdef x86_64_BIT_MODE
+    constexpr int32_t BOOL_SIZE = 8;
+#else
+    constexpr int32_t BOOL_SIZE = 1;
+#endif
 #ifdef _DEBUG
     // dump
     auto varDump = dumpVariablesOnStack();
@@ -638,32 +643,32 @@ bool VM::interpretInstruction() {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        bool res = lhs < rhs;
-        mStack.push(&res, 1);
+        int64_t res = lhs < rhs;
+        mStack.push(&res, BOOL_SIZE);
         break;
     }
     case Instruction::COMPARE_MORE_THAN_I64: {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        bool res = lhs > rhs;
-        mStack.push(&res, 1);
+        int64_t res = lhs > rhs;
+        mStack.push(&res, BOOL_SIZE);
         break;
     }
     case Instruction::COMPARE_LESS_EQUAL_THAN_I64: {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        bool res = lhs <= rhs;
-        mStack.push(&res, 1);
+        int64_t res = lhs <= rhs;
+        mStack.push(&res, BOOL_SIZE);
         break;
     }
     case Instruction::COMPARE_MORE_EQUAL_THAN_I64: {
         auto lhs = *(int64_t*)mStack.get(16);
         auto rhs = *(int64_t*)mStack.get(8);
         mStack.pop(16);
-        bool res = lhs >= rhs;
-        mStack.push(&res, 1);
+        int64_t res = lhs >= rhs;
+        mStack.push(&res, BOOL_SIZE);
         break;
     }
     case Instruction::POP_N_BELOW: {
@@ -773,6 +778,42 @@ bool VM::interpretInstruction() {
         char buffer[size];
         memcpy(buffer, ptr + 8, size);
         mStack.push(buffer, size);
+        break;
+    }
+    case Instruction::COMPARE_COMPLEX_EQUALITY: {
+        auto datatypeIndex = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto& datatype = mProgram.auxiliaryDatatypes.at(datatypeIndex);
+        auto datatypeSize = datatype.getSizeOnStack();
+        std::function<bool(const Datatype&, uint8_t*, uint8_t*)> isEqual = [&](const Datatype& type, uint8_t* a, uint8_t* b) -> bool {
+            switch(type.getCategory()) {
+            case DatatypeCategory::list: {
+                uint8_t* lhsPtr = *(uint8_t**)a;
+                uint8_t* rhsPtr = *(uint8_t**)b;
+                while(true) {
+                    if(!lhsPtr && !rhsPtr) {
+                        return true;
+                    }
+                    if(!lhsPtr && rhsPtr) {
+                        return false;
+                    }
+                    if(lhsPtr && !rhsPtr) {
+                        return false;
+                    }
+                    if(!isEqual(type.getListInfo(), lhsPtr + 8, rhsPtr + 8)) {
+                        return false;
+                    }
+                    lhsPtr = *(uint8_t**)lhsPtr;
+                    rhsPtr = *(uint8_t**)rhsPtr;
+                }
+            }
+            case DatatypeCategory::i32:
+                return *(int32_t*)a == *(int32_t*)b;
+            }
+            todo();
+        };
+        int64_t result = isEqual(datatype, (uint8_t*)mStack.get(datatypeSize), (uint8_t*)mStack.get(datatypeSize * 2));
+        mStack.pop(datatypeSize * 2);
+        mStack.push(&result, BOOL_SIZE);
         break;
     }
     default:
