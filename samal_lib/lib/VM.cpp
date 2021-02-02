@@ -57,14 +57,13 @@ public:
         //    init copy
         mov(rcx, stackSize);
         mov(rsi, stackPtr);
+        //    adjust rsp
+        sub(rsp, stackSize);
         mov(rdi, rsp);
-        sub(rdi, stackSize);
         cld(); // up
         //    copy
         rep();
         movsb();
-        //    adjust rsp
-        sub(rsp, stackSize);
 
         auto jumpWithIp = [&] {
             jmp(ptr[tableRegister + ip * sizeof(void*)]);
