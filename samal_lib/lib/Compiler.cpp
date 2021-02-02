@@ -196,6 +196,17 @@ Datatype Compiler::compileLiteralBool(bool value) {
 }
 Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExpression) {
     auto lhsType = binaryExpression.getLeft()->compile(*this);
+    // check if we are comparing with an empty list, in which case we can optimize
+    if(lhsType.getCategory() == DatatypeCategory::list) {
+        auto* rhsListCreation = dynamic_cast<ListCreationNode*>(binaryExpression.getRight().get());
+        if(rhsListCreation && rhsListCreation->getParams().empty()) {
+            addInstructions(Instruction::IS_LIST_EMPTY);
+            mStackSize -= lhsType.getSizeOnStack();
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype{DatatypeCategory::bool_};
+        }
+    }
+
     auto rhsType = binaryExpression.getRight()->compile(*this);
     if(rhsType.getCategory() == DatatypeCategory::list && rhsType.getListInfo() == lhsType) {
         // prepend to list

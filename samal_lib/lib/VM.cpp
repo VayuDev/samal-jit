@@ -320,6 +320,38 @@ public:
                 jumpWithIp();
                 break;
             }
+            case Instruction::LIST_GET_TAIL: {
+                pop(rax);
+                cmp(rax, 0);
+                Xbyak::Label after;
+                je(after);
+                mov(rax, qword[rax]);
+                push(rax);
+                L(after);
+                break;
+            }
+            case Instruction::LIST_GET_HEAD: {
+                auto sizeOfElement = *(int32_t*)&instructions.at(i + 1);
+                pop(rax);
+                cmp(rax, 0);
+                Xbyak::Label after;
+                je("AfterJumpTable");
+
+                assert(sizeOfElement % 8 == 0);
+                for(int32_t i = 0; i < sizeOfElement / 8; ++i) {
+                    mov(rbx, qword[rax + (8 * (i + 1))]);
+                    push(rbx);
+                }
+                L(after);
+                break;
+            }
+            case Instruction::IS_LIST_EMPTY: {
+                mov(rbx, 0);
+                cmp(qword[rsp], 0);
+                cmove(rbx, oneRegister);
+                mov(qword[rsp], rbx);
+                break;
+            }
             default:
                 // we hit an instruction that we don't know, so exit the jit
                 labels.erase(--labels.end());
@@ -823,6 +855,18 @@ bool VM::interpretInstruction() {
         memcpy(allocation + 8, mStack.get(datatypeLength + 8), datatypeLength);
         mStack.pop(datatypeLength + 8);
         mStack.push(&allocation, 8);
+        break;
+    }
+    case Instruction::IS_LIST_EMPTY: {
+        void* list = *(void**)mStack.get(8);
+        int64_t result;
+        if(list == nullptr) {
+            result = 1;
+        } else {
+            result = 0;
+        }
+        mStack.pop(8);
+        mStack.push(&result, BOOL_SIZE);
         break;
     }
     default:
