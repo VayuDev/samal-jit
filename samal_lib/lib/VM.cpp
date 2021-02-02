@@ -816,6 +816,15 @@ bool VM::interpretInstruction() {
         mStack.push(&result, BOOL_SIZE);
         break;
     }
+    case Instruction::LIST_PREPEND: {
+        auto datatypeLength = *(int32_t*)&mProgram.code.at(mIp + 1);
+        uint8_t *allocation = mGC.alloc(datatypeLength + 8);
+        memcpy(allocation, mStack.get(8), 8);
+        memcpy(allocation + 8, mStack.get(datatypeLength + 8), datatypeLength);
+        mStack.pop(datatypeLength + 8);
+        mStack.push(&allocation, 8);
+        break;
+    }
     default:
         fprintf(stderr, "Unhandled instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
         assert(false);
@@ -935,7 +944,7 @@ std::vector<uint8_t> Stack::moveData() {
     return ret;
 }
 Stack::Stack() {
-    mDataReserved = 1024 * 10;
+    mDataReserved = 1024 * 1024 * 8;
     mDataLen = 0;
     mData = (uint8_t*)malloc(mDataReserved);
 }

@@ -197,6 +197,12 @@ Datatype Compiler::compileLiteralBool(bool value) {
 Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExpression) {
     auto lhsType = binaryExpression.getLeft()->compile(*this);
     auto rhsType = binaryExpression.getRight()->compile(*this);
+    if(rhsType.getCategory() == DatatypeCategory::list && rhsType.getListInfo() == lhsType) {
+        // prepend to list
+        addInstructions(Instruction::LIST_PREPEND, lhsType.getSizeOnStack());
+        mStackSize -= lhsType.getSizeOnStack();
+        return rhsType;
+    }
     if(lhsType != rhsType) {
         binaryExpression.throwException("Left hand type " + lhsType.toString() + " and right hand type " + rhsType.toString() + " don't match");
     }
