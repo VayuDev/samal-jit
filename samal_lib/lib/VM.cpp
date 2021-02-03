@@ -286,7 +286,7 @@ public:
                 sar(rbx, 32);
                 L(end);
                 add(ip, instructionToWidth(ins));
-                mov(qword[rax], ip);
+                mov(dword[rax + 4], ip32);
 
                 mov(ip, rbx);
                 jumpWithIp();
@@ -295,6 +295,7 @@ public:
             case Instruction::RETURN: {
                 int32_t returnInfoOffset = *(uint32_t*)&instructions.at(i + 1);
                 mov(ip, qword[rsp + returnInfoOffset]);
+                sar(ip, 32);
 
                 // pop below
                 {
@@ -392,6 +393,10 @@ public:
 
         assert(!hasUndefinedLabel());
 
+        mov(r14, stackPtr);
+        add(r14, stackSize);
+        // r14 points to the upper end of stack
+
         // calculate new stack size
         mov(stackSize, r15);
         sub(stackSize, rsp);
@@ -400,7 +405,8 @@ public:
         //    init copy
         mov(rcx, stackSize);
         mov(rsi, rsp);
-        mov(rdi, stackPtr);
+        mov(rdi, r14);
+        sub(rdi, stackSize);
         cld();
         //    copy
         rep();
@@ -467,11 +473,9 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
 #    ifdef _DEBUG
             printf("Executing jit...\n");
 #    endif
-            std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
-            JitReturn ret = mCompiledCode->getCode<JitReturn (*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getBasePtr(), mStack.getSize());
+            JitReturn ret = mCompiledCode->getCode<JitReturn (*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getTopPtr(), mStack.getSize());
             mStack.setSize(ret.stackSize);
             mIp = ret.ip;
-            std::reverse((int64_t*)mStack.getBasePtr(), (int64_t*)(mStack.getBasePtr() + mStack.getSize()));
             if(mIp == static_cast<int32_t>(mProgram.code.size())) {
 #    ifdef _DEBUG
                 auto dump = mStack.dump();
@@ -514,8 +518,8 @@ bool VM::interpretInstruction() {
 #endif
 #ifdef _DEBUG
     // dump
-    auto varDump = dumpVariablesOnStack();
-    printf("Variables: %s", varDump.c_str());
+    //auto varDump = dumpVariablesOnStack();
+    //printf("Variables: %s", varDump.c_str());
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
     switch(ins) {
@@ -880,8 +884,8 @@ bool VM::interpretInstruction() {
 ExternalVMValue VM::run(const std::string& functionName, const std::vector<ExternalVMValue>& params) {
     std::vector<uint8_t> stack(8);
     auto returnValueIP = static_cast<uint32_t>(mProgram.code.size());
-    memset(stack.data(), 0, 8);
-    //memcpy(stack.data() + 4, &returnValueIP, 4);
+    //memset(stack.data(), 0, 8);
+    memcpy(stack.data() + 4, &returnValueIP, 4);
     memcpy(stack.data(), &returnValueIP, 4);
     for(auto& param : params) {
         auto stackedValue = param.toStackValue(*this);
@@ -988,19 +992,20 @@ Stack::Stack() {
     mDataReserved = 1024 * 1024 * 8;
     mDataStart = (uint8_t*)malloc(mDataReserved);
     mDataEnd = mDataStart + mDataReserved;
+    mDataTop = mDataEnd;
 }
 Stack::~Stack() {
     free(mDataStart);
     mDataStart = nullptr;
     mDataEnd = nullptr;
-    mDataTop = mDataEnd;
+    mDataTop = nullptr;
 }
 void Stack::ensureSpace(size_t additionalLen) {
     if(mDataReserved <= getSize() + additionalLen) {
         todo();
         mDataReserved *= 2;
         mDataStart = (uint8_t*)realloc(mDataStart, mDataReserved);
-        mDataEnd = mDataStart + getSize();
+        mDataEnd = mDataStart + mDataReserved;
         mDataTop = mDataEnd;
     }
 }
