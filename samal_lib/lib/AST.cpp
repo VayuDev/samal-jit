@@ -326,7 +326,11 @@ std::string FunctionCallExpressionNode::dump(unsigned int indent) const {
 Datatype FunctionCallExpressionNode::compile(Compiler& comp) const {
     return comp.compileFunctionCall(*this);
 }
-void FunctionCallExpressionNode::findUsedVariables(VariableSearcher&) const {
+void FunctionCallExpressionNode::findUsedVariables(VariableSearcher& searcher) const {
+    mName->findUsedVariables(searcher);
+    for(auto& param : mParams) {
+        param->findUsedVariables(searcher);
+    }
 }
 FunctionChainExpressionNode::FunctionChainExpressionNode(SourceCodeRef source, up<ExpressionNode> initialValue, up<FunctionCallExpressionNode> functionCall)
 : ExpressionNode(std::move(source)), mInitialValue(std::move(initialValue)), mFunctionCall(std::move(functionCall)) {
