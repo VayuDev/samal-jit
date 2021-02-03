@@ -53,17 +53,7 @@ public:
         const auto& nativeFunctionIdRegister = r10;
         mov(nativeFunctionIdRegister, 0);
 
-        // copy stack in
-        //    init copy
-        mov(rcx, stackSize);
-        mov(rsi, stackPtr);
-        //    adjust rsp
-        sub(rsp, stackSize);
-        mov(rdi, rsp);
-        cld(); // up
-        //    copy
-        rep();
-        movsb();
+        mov(rsp, stackPtr);
 
         auto jumpWithIp = [&] {
             jmp(ptr[tableRegister + ip * sizeof(void*)]);
@@ -197,22 +187,11 @@ public:
             case Instruction::POP_N_BELOW: {
                 int32_t popLen = *(uint32_t*)&instructions.at(i + 1);
                 int32_t popOffset = *(uint32_t*)&instructions.at(i + 5);
-                // TODO replace movsq()-code with simple mov code, similar to REPUSH_FROM_N
-
-                //    init copy
                 assert(popOffset % 8 == 0);
-                mov(rsi, rsp);
-                add(rsi, popOffset - 8);
-
-                mov(rdi, rsp);
-                add(rdi, popOffset + popLen - 8);
-
-                std();
-                //    copy
-                for(int j = 0; j < popOffset / 8; ++j) {
-                    movsq();
+                for(int j = popOffset / 8 - 1; j >= 0; --j) {
+                    mov(rax, ptr[rsp + (j * 8)]);
+                    mov(ptr[rsp + (j * 8 + popLen)], rax);
                 }
-
                 add(rsp, popLen);
                 break;
             }
@@ -293,20 +272,11 @@ public:
                 {
                     int32_t popLen = 8;
                     int32_t popOffset = returnInfoOffset;
-                    //    init copy
                     assert(popOffset % 8 == 0);
-
-                    mov(rsi, rsp);
-                    add(rsi, popOffset - 8);
-
-                    mov(rdi, rsp);
-                    add(rdi, popOffset + popLen - 8);
-
-                    //    copy
-                    for(int j = 0; j < popOffset / 8; ++j) {
-                        movsq();
+                    for(int j = popOffset / 8 - 1; j >= 0; --j) {
+                        mov(rax, ptr[rsp + (j * 8)]);
+                        mov(ptr[rsp + (j * 8 + popLen)], rax);
                     }
-
                     add(rsp, popLen);
                 }
 
@@ -360,13 +330,6 @@ public:
 
         jmp("AfterJumpTable");
 
-        /*L("JumpTable");
-        for (auto& label : labels) {
-            mov(rax, label.first);
-            cmp(rax, ip);
-            je(label.second);
-        }*/
-
         L("JumpTable");
         for(size_t i = 0; i <= instructions.size(); ++i) {
             bool labelExists = false;
@@ -387,33 +350,21 @@ public:
 
         mov(r14, stackPtr);
         add(r14, stackSize);
-        // r14 points to the upper end of stack
+        // r14 now points to the upper end of stack
 
         // calculate new stack size
-        mov(stackSize, r15);
-        sub(stackSize, rsp);
+        sub(r14, rsp);
+        mov(stackSize, r14);
+        mov(rsp, r15);
 
-        // copy stack out
-        //    init copy
-        mov(rcx, stackSize);
-        mov(rsi, rsp);
-        mov(rdi, r14);
-        sub(rdi, stackSize);
-        cld();
-        //    copy
-        rep();
-        movsb();
-        //    adjust rsp
-        add(rsp, stackSize);
-
-        // do some magic to put but stackSize and ip in the rdx register
+        // do some magic to put but stackSize and ip in the rax register
         mov(rax, stackSize);
         sal(rax, 32);
         mov(rbx, ip);
         mov(ebx, ebx);
         or_(rax, rbx);
 
-        // put native function id in the rax register
+        // put native function id in the rdx register
         mov(rdx, nativeFunctionIdRegister);
 
         // restore registers & stack
