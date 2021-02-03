@@ -28,6 +28,7 @@ public:
     size_t getSize() const;
     void setSize(size_t);
     void clear();
+
 private:
     void ensureSpace(size_t additionalLen);
 

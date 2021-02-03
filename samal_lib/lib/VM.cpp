@@ -518,8 +518,8 @@ bool VM::interpretInstruction() {
 #endif
 #ifdef _DEBUG
     // dump
-    //auto varDump = dumpVariablesOnStack();
-    //printf("Variables: %s", varDump.c_str());
+    auto varDump = dumpVariablesOnStack();
+    printf("Variables: %s", varDump.c_str());
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
     switch(ins) {
