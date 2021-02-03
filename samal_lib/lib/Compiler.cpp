@@ -278,6 +278,14 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             return Datatype{ DatatypeCategory::bool_ };
         }
         break;
+    case DatatypeCategory::bool_:
+        switch(binaryExpression.getOperator()) {
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_OR:
+            addInstructions(Instruction::LOGICAL_OR);
+            mStackSize -= getSimpleSize(DatatypeCategory::bool_);
+            return Datatype{ DatatypeCategory::bool_ };
+        }
+        break;
     }
     binaryExpression.throwException("Unable to perform the operation between lhs type " + lhsType.toString() + " and rhs type " + rhsType.toString());
     assert(false);

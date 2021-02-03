@@ -23,6 +23,7 @@ namespace samal {
     INSTRUCTION(COMPARE_MORE_THAN_I64, 1)       \
     INSTRUCTION(COMPARE_LESS_EQUAL_THAN_I64, 1) \
     INSTRUCTION(COMPARE_MORE_EQUAL_THAN_I64, 1) \
+    INSTRUCTION(LOGICAL_OR, 1)                  \
     INSTRUCTION(JUMP_IF_FALSE, 5)               \
     INSTRUCTION(JUMP, 5)                        \
     INSTRUCTION(REPUSH_N, 5)                    \

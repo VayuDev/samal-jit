@@ -192,6 +192,10 @@ public:
                 cmovge(rax, oneRegister);
                 push(rax);
                 break;
+            case Instruction::LOGICAL_OR:
+                pop(rax);
+                or_(qword[rsp], rax);
+                break;
             case Instruction::REPUSH_FROM_N: {
                 int32_t repushLen = *(uint32_t*)&instructions.at(i + 1);
                 int32_t repushOffset = *(uint32_t*)&instructions.at(i + 5);
@@ -706,6 +710,22 @@ bool VM::interpretInstruction() {
         mStack.pop(16);
         int64_t res = lhs >= rhs;
         mStack.push(&res, BOOL_SIZE);
+        break;
+    }
+    case Instruction::LOGICAL_OR: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(bool*)mStack.get(8);
+        auto rhs = *(bool*)mStack.get(0);
+        mStack.pop(16);
+        int64_t res = lhs || rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(bool*)mStack.get(1);
+        auto rhs = *(bool*)mStack.get(0);
+        mStack.pop(2);
+        bool res = lhs || rhs;
+        mStack.push(&res, 1);
+#endif
         break;
     }
     case Instruction::POP_N_BELOW: {
