@@ -86,16 +86,12 @@ public:
             switch(ins) {
             case Instruction::PUSH_8:
                 if(nextInstruction() == Instruction::SUB_I32) {
-                    pop(rbx);
-                    sub(rbx, *(uint64_t*)&instructions.at(i + 1));
-                    push(rbx);
+                    sub(qword[rsp], *(uint64_t*)&instructions.at(i + 1));
                     add(ip, instructionToWidth(ins) + nextInstructionWidth());
                     i += instructionToWidth(ins) + nextInstructionWidth();
                     shouldAutoIncrement = false;
                 } else if(nextInstruction() == Instruction::ADD_I32) {
-                    pop(rbx);
-                    add(rbx, *(uint64_t*)&instructions.at(i + 1));
-                    push(rbx);
+                    add(qword[rsp], *(uint64_t*)&instructions.at(i + 1));
                     add(ip, instructionToWidth(ins) + nextInstructionWidth());
                     i += instructionToWidth(ins) + nextInstructionWidth();
                     shouldAutoIncrement = false;
@@ -106,15 +102,11 @@ public:
                 break;
             case Instruction::ADD_I32:
                 pop(rax);
-                pop(rbx);
-                add(ebx, eax);
-                push(rbx);
+                add(dword[rsp], eax);
                 break;
             case Instruction::SUB_I32:
                 pop(rax);
-                pop(rbx);
-                sub(ebx, eax);
-                push(rbx);
+                sub(dword[rsp], eax);
                 break;
             case Instruction::COMPARE_LESS_THAN_I32:
                 pop(rax);
@@ -150,15 +142,11 @@ public:
                 break;
             case Instruction::ADD_I64:
                 pop(rax);
-                pop(rbx);
-                add(rbx, rax);
-                push(rbx);
+                add(qword[rsp], rax);
                 break;
             case Instruction::SUB_I64:
                 pop(rax);
-                pop(rbx);
-                sub(rbx, rax);
-                push(rbx);
+                sub(qword[rsp], rax);
                 break;
             case Instruction::COMPARE_LESS_THAN_I64:
                 pop(rax);
@@ -238,8 +226,8 @@ public:
                 pop(rax);
                 add(ip, instructionToWidth(ins));
                 mov(rbx, *(uint32_t*)&instructions.at(i + 1));
-                cmp(rax, 0);
-                cmove(ip, rbx);
+                test(rax, rax);
+                cmovz(ip, rbx);
                 jumpWithIp();
                 break;
             }
