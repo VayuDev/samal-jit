@@ -21,18 +21,19 @@ public:
     void pop(size_t len);
     void* get(size_t offset);
     std::string dump();
-    std::vector<uint8_t> moveData();
     uint8_t* getBasePtr();
+    uint8_t* getTopPtr();
+    const uint8_t* getTopPtr() const;
     const uint8_t* getBasePtr() const;
     size_t getSize() const;
     void setSize(size_t);
     void clear();
-
 private:
     void ensureSpace(size_t additionalLen);
 
-    uint8_t* mData;
-    size_t mDataLen{ 0 };
+    uint8_t* mDataStart;
+    uint8_t* mDataEnd;
+    uint8_t* mDataTop;
     size_t mDataReserved{ 0 };
 };
 

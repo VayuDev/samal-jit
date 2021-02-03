@@ -90,8 +90,8 @@ std::string ExternalVMValue::dump() const {
     return ret;
 }
 ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t stackOffset) {
-    auto stackEnd = vm.getStack().getBasePtr() + vm.getStack().getSize();
-    return wrapFromPtr(type, vm, stackEnd - stackOffset - type.getSizeOnStack());
+    auto stackTop = vm.getStack().getTopPtr();
+    return wrapFromPtr(type, vm, stackTop + stackOffset);
 }
 ExternalVMValue ExternalVMValue::wrapEmptyTuple(VM& vm) {
     return ExternalVMValue(vm, Datatype::createEmptyTuple(), std::vector<ExternalVMValue>{});

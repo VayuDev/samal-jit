@@ -539,14 +539,14 @@ bool VM::interpretInstruction() {
         break;
     case Instruction::JUMP_IF_FALSE: {
 #ifdef x86_64_BIT_MODE
-        auto val = *(bool*)mStack.get(8);
+        auto val = *(bool*)mStack.get(0);
         mStack.pop(8);
         if(!val) {
             mIp = *(int32_t*)&mProgram.code.at(mIp + 1);
             incIp = false;
         }
 #else
-        auto val = *(bool*)mStack.get(1);
+        auto val = *(bool*)mStack.get(0);
         mStack.pop(1);
         if(!val) {
             mIp = *(int32_t*)&mProgram.code.at(mIp + 1);
@@ -562,14 +562,14 @@ bool VM::interpretInstruction() {
     }
     case Instruction::SUB_I32: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(int32_t*)mStack.get(16);
-        auto rhs = *(int32_t*)mStack.get(8);
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
         int64_t res = lhs - rhs;
         mStack.pop(16);
         mStack.push(&res, 8);
 #else
-        auto lhs = *(int32_t*)mStack.get(8);
-        auto rhs = *(int32_t*)mStack.get(4);
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
         int32_t res = lhs - rhs;
         mStack.pop(8);
         mStack.push(&res, 4);
@@ -578,14 +578,14 @@ bool VM::interpretInstruction() {
     }
     case Instruction::ADD_I32: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(int32_t*)mStack.get(16);
-        auto rhs = *(int32_t*)mStack.get(8);
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
         int64_t res = lhs + rhs;
         mStack.pop(16);
         mStack.push(&res, 8);
 #else
-        auto lhs = *(int32_t*)mStack.get(8);
-        auto rhs = *(int32_t*)mStack.get(4);
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
         int32_t res = lhs + rhs;
         mStack.pop(8);
         mStack.push(&res, 4);
@@ -594,14 +594,14 @@ bool VM::interpretInstruction() {
     }
     case Instruction::COMPARE_LESS_THAN_I32: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(int32_t*)mStack.get(16);
-        auto rhs = *(int32_t*)mStack.get(8);
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs < rhs;
         mStack.push(&res, 8);
 #else
-        auto lhs = *(int32_t*)mStack.get(8);
-        auto rhs = *(int32_t*)mStack.get(4);
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(8);
         bool res = lhs < rhs;
         mStack.push(&res, 1);
@@ -610,14 +610,14 @@ bool VM::interpretInstruction() {
     }
     case Instruction::COMPARE_MORE_THAN_I32: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(int32_t*)mStack.get(16);
-        auto rhs = *(int32_t*)mStack.get(8);
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs > rhs;
         mStack.push(&res, 8);
 #else
-        auto lhs = *(int32_t*)mStack.get(8);
-        auto rhs = *(int32_t*)mStack.get(4);
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(8);
         bool res = lhs > rhs;
         mStack.push(&res, 1);
@@ -626,14 +626,14 @@ bool VM::interpretInstruction() {
     }
     case Instruction::COMPARE_LESS_EQUAL_THAN_I32: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(int32_t*)mStack.get(16);
-        auto rhs = *(int32_t*)mStack.get(8);
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs <= rhs;
         mStack.push(&res, 8);
 #else
-        auto lhs = *(int32_t*)mStack.get(8);
-        auto rhs = *(int32_t*)mStack.get(4);
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(8);
         bool res = lhs <= rhs;
         mStack.push(&res, 1);
@@ -642,14 +642,14 @@ bool VM::interpretInstruction() {
     }
     case Instruction::COMPARE_MORE_EQUAL_THAN_I32: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(int32_t*)mStack.get(16);
-        auto rhs = *(int32_t*)mStack.get(8);
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs >= rhs;
         mStack.push(&res, 8);
 #else
-        auto lhs = *(int32_t*)mStack.get(8);
-        auto rhs = *(int32_t*)mStack.get(4);
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(8);
         bool res = lhs >= rhs;
         mStack.push(&res, 1);
@@ -657,48 +657,48 @@ bool VM::interpretInstruction() {
         break;
     }
     case Instruction::SUB_I64: {
-        auto lhs = *(int64_t*)mStack.get(16);
-        auto rhs = *(int64_t*)mStack.get(8);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         int64_t res = lhs - rhs;
         mStack.pop(16);
         mStack.push(&res, 8);
         break;
     }
     case Instruction::ADD_I64: {
-        auto lhs = *(int64_t*)mStack.get(16);
-        auto rhs = *(int64_t*)mStack.get(8);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         int64_t res = lhs + rhs;
         mStack.pop(16);
         mStack.push(&res, 8);
         break;
     }
     case Instruction::COMPARE_LESS_THAN_I64: {
-        auto lhs = *(int64_t*)mStack.get(16);
-        auto rhs = *(int64_t*)mStack.get(8);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs < rhs;
         mStack.push(&res, BOOL_SIZE);
         break;
     }
     case Instruction::COMPARE_MORE_THAN_I64: {
-        auto lhs = *(int64_t*)mStack.get(16);
-        auto rhs = *(int64_t*)mStack.get(8);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs > rhs;
         mStack.push(&res, BOOL_SIZE);
         break;
     }
     case Instruction::COMPARE_LESS_EQUAL_THAN_I64: {
-        auto lhs = *(int64_t*)mStack.get(16);
-        auto rhs = *(int64_t*)mStack.get(8);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs <= rhs;
         mStack.push(&res, BOOL_SIZE);
         break;
     }
     case Instruction::COMPARE_MORE_EQUAL_THAN_I64: {
-        auto lhs = *(int64_t*)mStack.get(16);
-        auto rhs = *(int64_t*)mStack.get(8);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs >= rhs;
         mStack.push(&res, BOOL_SIZE);
@@ -712,17 +712,17 @@ bool VM::interpretInstruction() {
     case Instruction::CALL: {
         auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
         int32_t newIp{ -1 };
-        auto firstHalfOfParam = *(int32_t*)mStack.get(offset + 8);
+        auto firstHalfOfParam = *(int32_t*)mStack.get(offset);
         if(firstHalfOfParam % 2 == 0) {
             // it's a lambda function call
             // save old values to stack
-            auto* lambdaParams = *(uint8_t**)mStack.get(offset + 8);
+            auto* lambdaParams = *(uint8_t**)mStack.get(offset);
             auto lambdaParamsLen = ((int32_t*)lambdaParams)[0];
             newIp = ((int32_t*)lambdaParams)[1];
 
             // save old values to stack
-            *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
-            *(int32_t*)mStack.get(offset + 4) = 0;
+            *(int32_t*)mStack.get(offset + 4) = mIp + instructionToWidth(Instruction::CALL);
+            *(int32_t*)mStack.get(offset) = 0;
 
             uint8_t buffer[lambdaParamsLen];
             memcpy(buffer, lambdaParams + 8, lambdaParamsLen);
@@ -740,8 +740,8 @@ bool VM::interpretInstruction() {
                 newIp = *(int32_t*)mStack.get(offset + 4);
 
                 // save old values to stack
-                *(int32_t*)mStack.get(offset + 8) = mIp + instructionToWidth(Instruction::CALL);
-                *(int32_t*)mStack.get(offset + 4) = 0;
+                *(int32_t*)mStack.get(offset + 4) = mIp + instructionToWidth(Instruction::CALL);
+                *(int32_t*)mStack.get(offset) = 0;
             }
         }
 
@@ -751,7 +751,7 @@ bool VM::interpretInstruction() {
     }
     case Instruction::RETURN: {
         auto offset = *(int32_t*)&mProgram.code.at(mIp + 1);
-        mIp = *(int32_t*)mStack.get(offset + 8);
+        mIp = *(int32_t*)mStack.get(offset + 4);
         mStack.popBelow(offset, 8);
         incIp = false;
         if(mIp == static_cast<int32_t>(mProgram.code.size())) {
@@ -760,13 +760,13 @@ bool VM::interpretInstruction() {
         break;
     }
     case Instruction::CREATE_LAMBDA: {
-        auto functionIp = *(int32_t*)&mProgram.code.at(mIp + 1);
-        auto* dataOnHeap = (uint8_t*)mGC.alloc(functionIp + 8);
+        auto functionIpOffset = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto* dataOnHeap = (uint8_t*)mGC.alloc(functionIpOffset + 8);
         // store length of buffer & ip of the function on the stack
-        ((int32_t*)dataOnHeap)[0] = functionIp;
-        ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIp + 8);
-        memcpy(dataOnHeap + 8, mStack.get(functionIp), functionIp);
-        mStack.pop(functionIp + 8);
+        ((int32_t*)dataOnHeap)[0] = functionIpOffset;
+        ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIpOffset);
+        memcpy(dataOnHeap + 8, mStack.get(0), functionIpOffset);
+        mStack.pop(functionIpOffset + 8);
         mStack.push(&dataOnHeap, 8);
         break;
     }
@@ -776,7 +776,7 @@ bool VM::interpretInstruction() {
         uint8_t* firstPtr = nullptr;
         uint8_t* ptrToPreviousElement = nullptr;
         for(int i = 0; i < elementCount; ++i) {
-            int32_t elementOffset = (elementCount - i) * elementSize;
+            int32_t elementOffset = (elementCount - i - 1) * elementSize;
             auto* dataOnHeap = (uint8_t*)mGC.alloc(elementSize + 8);
             if(firstPtr == nullptr)
                 firstPtr = dataOnHeap;
@@ -795,14 +795,14 @@ bool VM::interpretInstruction() {
         break;
     }
     case Instruction::LIST_GET_TAIL: {
-        if(*(void**)mStack.get(8) != nullptr) {
-            *(uint8_t**)mStack.get(8) = **(uint8_t***)mStack.get(8);
+        if(*(void**)mStack.get(0) != nullptr) {
+            *(uint8_t**)mStack.get(0) = **(uint8_t***)mStack.get(0);
         }
         break;
     }
     case Instruction::LIST_GET_HEAD: {
         auto size = *(int32_t*)&mProgram.code.at(mIp + 1);
-        auto ptr = *(uint8_t**)mStack.get(8);
+        auto ptr = *(uint8_t**)mStack.get(0);
         if(ptr == nullptr) {
             // TODO throw some kind of language-internal exception
             throw std::runtime_error{ "Trying to access :head of empty list" };
@@ -844,7 +844,7 @@ bool VM::interpretInstruction() {
             }
             todo();
         };
-        int64_t result = isEqual(datatype, (uint8_t*)mStack.get(datatypeSize), (uint8_t*)mStack.get(datatypeSize * 2));
+        int64_t result = isEqual(datatype, (uint8_t*)mStack.get(0), (uint8_t*)mStack.get(datatypeSize));
         mStack.pop(datatypeSize * 2);
         mStack.push(&result, BOOL_SIZE);
         break;
@@ -852,14 +852,14 @@ bool VM::interpretInstruction() {
     case Instruction::LIST_PREPEND: {
         auto datatypeLength = *(int32_t*)&mProgram.code.at(mIp + 1);
         uint8_t* allocation = mGC.alloc(datatypeLength + 8);
-        memcpy(allocation, mStack.get(8), 8);
-        memcpy(allocation + 8, mStack.get(datatypeLength + 8), datatypeLength);
+        memcpy(allocation, mStack.get(0), 8);
+        memcpy(allocation + 8, mStack.get(8), datatypeLength);
         mStack.pop(datatypeLength + 8);
         mStack.push(&allocation, 8);
         break;
     }
     case Instruction::IS_LIST_EMPTY: {
-        void* list = *(void**)mStack.get(8);
+        void* list = *(void**)mStack.get(0);
         int64_t result;
         if(list == nullptr) {
             result = 1;
@@ -880,11 +880,12 @@ bool VM::interpretInstruction() {
 ExternalVMValue VM::run(const std::string& functionName, const std::vector<ExternalVMValue>& params) {
     std::vector<uint8_t> stack(8);
     auto returnValueIP = static_cast<uint32_t>(mProgram.code.size());
+    memset(stack.data(), 0, 8);
+    //memcpy(stack.data() + 4, &returnValueIP, 4);
     memcpy(stack.data(), &returnValueIP, 4);
-    memset(stack.data() + 4, 0, 4);
     for(auto& param : params) {
         auto stackedValue = param.toStackValue(*this);
-        stack.insert(stack.end(), stackedValue.cbegin(), stackedValue.cend());
+        stack.insert(stack.begin(), stackedValue.cbegin(), stackedValue.cend());
     }
     return run(functionName, stack);
 }
@@ -950,30 +951,31 @@ void Stack::push(const std::vector<uint8_t>& data) {
 }
 void Stack::push(const void* data, size_t len) {
     ensureSpace(len);
-    memcpy(mData + mDataLen, data, len);
-    mDataLen += len;
+    mDataTop -= len;
+    memcpy(mDataTop, data, len);
 }
 void Stack::repush(size_t offset, size_t len) {
-    assert(mDataLen >= offset + len);
+    assert(mDataStart < mDataTop - len - offset);
     ensureSpace(len);
-    memcpy(mData + mDataLen, mData + mDataLen - offset - len, len);
-    mDataLen += len;
+    mDataTop -= len;
+    memcpy(mDataTop, mDataTop + len + offset, len);
 }
 void* Stack::get(size_t offset) {
-    return mData + mDataLen - offset;
+    return mDataTop + offset;
 }
 void Stack::popBelow(size_t offset, size_t len) {
-    assert(mDataLen >= offset + len);
-    memmove(mData + mDataLen - offset - len, mData + mDataLen - offset, offset);
-    mDataLen -= len;
+    assert(getSize() >= offset + len);
+    memmove(mDataTop + len, mDataTop, offset);
+    mDataTop += len;
 }
 void Stack::pop(size_t len) {
-    mDataLen -= len;
+    mDataTop += len;
 }
 std::string Stack::dump() {
     std::string ret;
-    for(size_t i = 0; i < mDataLen;) {
-        uint8_t val = mData[i];
+    size_t i = 0;
+    for(uint8_t* ptr = mDataTop; ptr < mDataEnd; ++ptr) {
+        uint8_t val = *ptr;
         ret += std::to_string(val) + " ";
         ++i;
         if(i > 0 && i % 4 == 0) {
@@ -982,42 +984,47 @@ std::string Stack::dump() {
     }
     return ret;
 }
-std::vector<uint8_t> Stack::moveData() {
-    std::vector<uint8_t> ret;
-    ret.resize(mDataLen);
-    memcpy(ret.data(), mData, mDataLen);
-    return ret;
-}
 Stack::Stack() {
     mDataReserved = 1024 * 1024 * 8;
-    mDataLen = 0;
-    mData = (uint8_t*)malloc(mDataReserved);
+    mDataStart = (uint8_t*)malloc(mDataReserved);
+    mDataEnd = mDataStart + mDataReserved;
 }
 Stack::~Stack() {
-    free(mData);
-    mData = nullptr;
+    free(mDataStart);
+    mDataStart = nullptr;
+    mDataEnd = nullptr;
+    mDataTop = mDataEnd;
 }
 void Stack::ensureSpace(size_t additionalLen) {
-    if(mDataReserved <= mDataLen + additionalLen) {
+    if(mDataReserved <= getSize() + additionalLen) {
+        todo();
         mDataReserved *= 2;
-        mData = (uint8_t*)realloc(mData, mDataReserved);
+        mDataStart = (uint8_t*)realloc(mDataStart, mDataReserved);
+        mDataEnd = mDataStart + getSize();
+        mDataTop = mDataEnd;
     }
 }
 uint8_t* Stack::getBasePtr() {
-    return mData;
+    return mDataStart;
 }
 const uint8_t* Stack::getBasePtr() const {
-    return mData;
+    return mDataStart;
 }
 size_t Stack::getSize() const {
-    return mDataLen;
+    return mDataEnd - mDataTop;
 }
 void Stack::setSize(size_t val) {
     assert(val <= mDataReserved);
-    mDataLen = val;
+    mDataTop = mDataEnd - val;
 }
 void Stack::clear() {
-    mDataLen = 0;
+    mDataTop = mDataEnd;
+}
+uint8_t* Stack::getTopPtr() {
+    return mDataTop;
+}
+const uint8_t* Stack::getTopPtr() const {
+    return mDataTop;
 }
 
 }
