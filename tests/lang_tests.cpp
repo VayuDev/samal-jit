@@ -76,3 +76,56 @@ fn makeLambda<T>(p : T) -> fn(T) -> T {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{});
     REQUIRE(vmRet.dump() == "{type: i64, value: 34}");
 }
+
+TEST_CASE("Ensure that lists work", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn len<T>(l : [T]) -> i32 {
+    if l == [] {
+        0
+    } else {
+        1 + len<T>(l:tail)
+    }
+}
+
+fn concat<T>(l1 : [T], l2 : [T]) -> [T] {
+    if l1 == [] {
+        l2
+    } else {
+        l1:head + concat<T>(l1:tail, l2)
+    }
+}
+
+fn map<T, S>(l : [T], callback : fn(T) -> S) -> [S] {
+    if l == [] {
+        [:S]
+    } else {
+        callback(l:head) + map<T, S>(l:tail, callback)
+    }
+}
+
+
+fn seqRec<T>(index : T, limit: T) -> [T] {
+    if limit < 1 {
+        [:T]
+    } else {
+        index + seqRec<T>(index + 1, limit - 1)
+    }
+}
+
+fn seq<T>(limit: T) -> [T] {
+    seqRec<T>(0, limit)
+}
+
+fn test() -> [i32] {
+    l1 = seq<i32>(3)
+    l2 = seq<i32>(3)
+    combined = concat<i32>(l1, l2)
+    lambda = fn(p2 : i32) -> i32 {
+        p2 + len<i32>(l1)
+    }
+    added = map<i32, i32>(combined, lambda)
+    added
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{});
+    REQUIRE(vmRet.dump() == "{type: [i32], value: [{type: i32, value: 3}, {type: i32, value: 4}, {type: i32, value: 5}, {type: i32, value: 3}, {type: i32, value: 4}, {type: i32, value: 5}]}");
+}
