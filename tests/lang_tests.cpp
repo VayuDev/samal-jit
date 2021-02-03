@@ -28,7 +28,7 @@ fn fib64(n : i64) -> i64 {
         fib64(n - 1i64) + fib64(n - 2i64)
     }
 })");
-    auto vmRet = vm.run("Main.fib64", { samal::ExternalVMValue::wrapInt64(10) });
+    auto vmRet = vm.run("Main.fib64", { samal::ExternalVMValue::wrapInt64(vm, 10) });
     REQUIRE(vmRet.dump() == "{type: i64, value: 55}");
 }
 
@@ -41,7 +41,7 @@ fn fib32(n : i32) -> i32 {
         fib32(n - 1) + fib32(n - 2)
     }
 })");
-    auto vmRet = vm.run("Main.fib32", { samal::ExternalVMValue::wrapInt32(10) });
+    auto vmRet = vm.run("Main.fib32", { samal::ExternalVMValue::wrapInt32(vm, 10) });
     REQUIRE(vmRet.dump() == "{type: i32, value: 55}");
 }
 
