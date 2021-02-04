@@ -88,17 +88,11 @@ public:
                     i += instructionToWidth(ins) + nextInstructionWidth();
                     shouldAutoIncrement = false;
                 } else if(nextInstruction() == Instruction::DIV_I32) {
-                    // check if val is power of 2
-                    if(amount != 0 && (amount & (amount - 1)) == 0) {
-                        int32_t index = round(log2(amount));
-                        sar(qword[rsp], index);
-                    } else {
-                        xor_(rdx, rdx);
-                        pop(rax);
-                        mov(rbx, amount);
-                        idiv(ebx);
-                        push(rax);
-                    }
+                    pop(rax);
+                    mov(rbx, amount);
+                    cdq();
+                    idiv(ebx);
+                    push(rax);
                     add(ip, instructionToWidth(ins) + nextInstructionWidth());
                     i += instructionToWidth(ins) + nextInstructionWidth();
                     shouldAutoIncrement = false;
@@ -124,8 +118,8 @@ public:
                 break;
             case Instruction::DIV_I32:
                 pop(rbx);
-                xor_(rdx, rdx);
                 pop(rax);
+                cdq();
                 idiv(ebx);
                 push(rax);
                 break;
@@ -176,8 +170,8 @@ public:
                 break;
             case Instruction::DIV_I64:
                 pop(rbx);
-                xor_(rdx, rdx);
                 pop(rax);
+                cqo();
                 idiv(rbx);
                 push(rax);
                 break;
