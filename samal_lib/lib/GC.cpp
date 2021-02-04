@@ -8,7 +8,7 @@ uint8_t* GC::alloc(int32_t num) {
     mAllocations.emplace_back(
         Allocation{
             .found = false,
-            .ptr{
+            .ptr = {
                 ptr,
                 [](uint8_t* ptr) {
                     free(ptr);
