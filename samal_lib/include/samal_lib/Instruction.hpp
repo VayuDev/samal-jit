@@ -13,12 +13,16 @@ namespace samal {
     INSTRUCTION(POP_N_BELOW, 9)                 \
     INSTRUCTION(ADD_I32, 1)                     \
     INSTRUCTION(SUB_I32, 1)                     \
+    INSTRUCTION(MUL_I32, 1)                     \
+    INSTRUCTION(DIV_I32, 1)                     \
     INSTRUCTION(COMPARE_LESS_THAN_I32, 1)       \
     INSTRUCTION(COMPARE_MORE_THAN_I32, 1)       \
     INSTRUCTION(COMPARE_LESS_EQUAL_THAN_I32, 1) \
     INSTRUCTION(COMPARE_MORE_EQUAL_THAN_I32, 1) \
     INSTRUCTION(ADD_I64, 1)                     \
     INSTRUCTION(SUB_I64, 1)                     \
+    INSTRUCTION(MUL_I64, 1)                     \
+    INSTRUCTION(DIV_I64, 1)                     \
     INSTRUCTION(COMPARE_LESS_THAN_I64, 1)       \
     INSTRUCTION(COMPARE_MORE_THAN_I64, 1)       \
     INSTRUCTION(COMPARE_LESS_EQUAL_THAN_I64, 1) \

@@ -230,6 +230,16 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
             return Datatype{ DatatypeCategory::i32 };
 
+        case BinaryExpressionNode::BinaryOperator::MULTIPLY:
+            addInstructions(Instruction::MUL_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32);
+            return Datatype{ DatatypeCategory::i32 };
+
+        case BinaryExpressionNode::BinaryOperator::DIVIDE:
+            addInstructions(Instruction::DIV_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32);
+            return Datatype{ DatatypeCategory::i32 };
+
         case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
@@ -252,6 +262,16 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
 
         case BinaryExpressionNode::BinaryOperator::MINUS:
             addInstructions(Instruction::SUB_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64);
+            return Datatype{ DatatypeCategory::i64 };
+
+        case BinaryExpressionNode::BinaryOperator::MULTIPLY:
+            addInstructions(Instruction::MUL_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64);
+            return Datatype{ DatatypeCategory::i64 };
+
+        case BinaryExpressionNode::BinaryOperator::DIVIDE:
+            addInstructions(Instruction::DIV_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64);
             return Datatype{ DatatypeCategory::i64 };
 
@@ -584,7 +604,8 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
                 sizeOfCopiedScopeValues += identifierType.getSizeOnStack();
                 usedIdentifiersWithType.emplace_back(identifier->getName(), identifierType);
             } catch(std::exception& e) {
-                node.throwException("While looking for the identifiers used, the following exception occurred:\n" + std::string{ e.what() });
+                // If we can't find the identifier in the surrounding scope, it could just be that the identifier
+                // is declared & assigned to within the lambda, so no need to abort (yet)
             }
         }
     }

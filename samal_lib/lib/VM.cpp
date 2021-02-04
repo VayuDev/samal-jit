@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 
 namespace samal {
 
@@ -74,22 +75,40 @@ public:
             bool shouldAutoIncrement = true;
             labels.emplace_back(std::make_pair((uint32_t)i, L()));
             switch(ins) {
-            case Instruction::PUSH_8:
+            case Instruction::PUSH_8: {
+                auto amount = *(uint64_t*)&instructions.at(i + 1);
                 if(nextInstruction() == Instruction::SUB_I32) {
-                    sub(qword[rsp], *(uint64_t*)&instructions.at(i + 1));
+                    sub(qword[rsp], amount);
                     add(ip, instructionToWidth(ins) + nextInstructionWidth());
                     i += instructionToWidth(ins) + nextInstructionWidth();
                     shouldAutoIncrement = false;
                 } else if(nextInstruction() == Instruction::ADD_I32) {
-                    add(qword[rsp], *(uint64_t*)&instructions.at(i + 1));
+                    add(qword[rsp], amount);
                     add(ip, instructionToWidth(ins) + nextInstructionWidth());
                     i += instructionToWidth(ins) + nextInstructionWidth();
                     shouldAutoIncrement = false;
+                } else if(nextInstruction() == Instruction::DIV_I32) {
+                    // check if val is power of 2
+                    if(amount != 0 && (amount & (amount - 1)) == 0) {
+                        int32_t index = round(log2(amount));
+                        sar(qword[rsp], index);
+                    } else {
+                        xor_(rdx, rdx);
+                        pop(rax);
+                        mov(rbx, amount);
+                        idiv(ebx);
+                        push(rax);
+                    }
+                    add(ip, instructionToWidth(ins) + nextInstructionWidth());
+                    i += instructionToWidth(ins) + nextInstructionWidth();
+                    shouldAutoIncrement = false;
+                    // TODO optimize MUL_I32, DIV_I64 and MUL_I64 as well
                 } else {
                     mov(rax, *(uint64_t*)&instructions.at(i + 1));
                     push(rax);
                 }
                 break;
+            }
             case Instruction::ADD_I32:
                 pop(rax);
                 add(dword[rsp], eax);
@@ -97,6 +116,18 @@ public:
             case Instruction::SUB_I32:
                 pop(rax);
                 sub(dword[rsp], eax);
+                break;
+            case Instruction::MUL_I32:
+                pop(rbx);
+                imul(ebx, qword[rsp]);
+                mov(qword[rsp], rbx);
+                break;
+            case Instruction::DIV_I32:
+                pop(rbx);
+                xor_(rdx, rdx);
+                pop(rax);
+                idiv(ebx);
+                push(rax);
                 break;
             case Instruction::COMPARE_LESS_THAN_I32:
                 pop(rax);
@@ -137,6 +168,18 @@ public:
             case Instruction::SUB_I64:
                 pop(rax);
                 sub(qword[rsp], rax);
+                break;
+            case Instruction::MUL_I64:
+                pop(rbx);
+                imul(rbx, qword[rsp]);
+                mov(qword[rsp], rbx);
+                break;
+            case Instruction::DIV_I64:
+                pop(rbx);
+                xor_(rdx, rdx);
+                pop(rax);
+                idiv(rbx);
+                push(rax);
                 break;
             case Instruction::COMPARE_LESS_THAN_I64:
                 pop(rax);
@@ -539,6 +582,38 @@ bool VM::interpretInstruction() {
 #endif
         break;
     }
+    case Instruction::MUL_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
+        int64_t res = lhs * rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
+        int32_t res = lhs * rhs;
+        mStack.pop(8);
+        mStack.push(&res, 4);
+#endif
+        break;
+    }
+    case Instruction::DIV_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
+        int64_t res = lhs / rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
+        int32_t res = lhs / rhs;
+        mStack.pop(8);
+        mStack.push(&res, 4);
+#endif
+        break;
+    }
     case Instruction::COMPARE_LESS_THAN_I32: {
 #ifdef x86_64_BIT_MODE
         auto lhs = *(int32_t*)mStack.get(8);
@@ -615,6 +690,22 @@ bool VM::interpretInstruction() {
         auto lhs = *(int64_t*)mStack.get(8);
         auto rhs = *(int64_t*)mStack.get(0);
         int64_t res = lhs + rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+        break;
+    }
+    case Instruction::MUL_I64: {
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
+        int64_t res = lhs * rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+        break;
+    }
+    case Instruction::DIV_I64: {
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
+        int64_t res = lhs / rhs;
         mStack.pop(16);
         mStack.push(&res, 8);
         break;
