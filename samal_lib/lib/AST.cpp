@@ -465,11 +465,7 @@ Datatype FunctionDeclarationNode::compile(Compiler& comp) const {
     return getDatatype();
 }
 bool FunctionDeclarationNode::hasTemplateParameters() const {
-    for(auto& param : mParameters) {
-        if(param.type.hasUndeterminedTemplateTypes())
-            return true;
-    }
-    return mReturnType.hasUndeterminedTemplateTypes();
+    return !mName->getTemplateParameters().empty();
 }
 std::vector<Datatype> FunctionDeclarationNode::getTemplateParameterVector() const {
     return mName->getTemplateParameters();
@@ -492,11 +488,7 @@ NativeFunctionDeclarationNode::NativeFunctionDeclarationNode(SourceCodeRef sourc
 : CallableDeclarationNode(std::move(source)), mName(std::move(name)), mParameters(std::move(params)), mReturnType(std::move(returnType)) {
 }
 bool NativeFunctionDeclarationNode::hasTemplateParameters() const {
-    for(auto& param : mParameters) {
-        if(param.type.hasUndeterminedTemplateTypes())
-            return true;
-    }
-    return mReturnType.hasUndeterminedTemplateTypes();
+    return !mName->getTemplateParameters().empty();
 }
 std::vector<Datatype> NativeFunctionDeclarationNode::getTemplateParameterVector() const {
     return mName->getTemplateParameters();
@@ -522,6 +514,27 @@ std::string NativeFunctionDeclarationNode::dump(unsigned int indent) const {
     ret += createIndent(indent + 1) + "Returns: " + mReturnType.toString() + "\n";
     ret += createIndent(indent + 1) + "Params: \n" + dumpParameterVector(indent + 2, mParameters);
     return ret;
+}
+
+StructDeclarationNode::StructDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> values)
+: DeclarationNode(std::move(source)), mName(std::move(name)), mValues(std::move(values)) {
+}
+bool StructDeclarationNode::hasTemplateParameters() const {
+    return !mName->getTemplateParameters().empty();
+}
+std::vector<Datatype> StructDeclarationNode::getTemplateParameterVector() const {
+    return mName->getTemplateParameters();
+}
+const IdentifierNode* StructDeclarationNode::getIdentifier() const {
+    return mName.get();
+}
+Datatype StructDeclarationNode::compile(Compiler& comp) const {
+    return ASTNode::compile(comp);
+}
+void StructDeclarationNode::findUsedVariables(VariableSearcher&) const {
+}
+std::string StructDeclarationNode::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
 }
 
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params) {

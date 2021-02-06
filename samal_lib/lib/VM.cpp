@@ -4,9 +4,9 @@
 #include "samal_lib/StackInformationTree.hpp"
 #include "samal_lib/Util.hpp"
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <cmath>
 
 namespace samal {
 

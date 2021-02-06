@@ -347,8 +347,6 @@ public:
     [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
     [[nodiscard]] virtual std::vector<Datatype> getTemplateParameterVector() const = 0;
     [[nodiscard]] virtual const IdentifierNode* getIdentifier() const = 0;
-    [[nodiscard]] virtual Datatype getDatatype() const = 0;
-    //void compile(Compiler &) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
 
 private:
@@ -374,6 +372,7 @@ private:
 class CallableDeclarationNode : public DeclarationNode {
 public:
     explicit CallableDeclarationNode(SourceCodeRef source);
+    [[nodiscard]] virtual Datatype getDatatype() const = 0;
     [[nodiscard]] inline const char* getClassName() const override { return "CallableDeclarationNode"; }
 };
 
@@ -427,6 +426,25 @@ private:
     up<IdentifierNode> mName;
     std::vector<Parameter> mParameters;
     Datatype mReturnType;
+};
+
+class StructDeclarationNode : public DeclarationNode {
+public:
+    StructDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> values);
+    [[nodiscard]] bool hasTemplateParameters() const override;
+    [[nodiscard]] std::vector<Datatype> getTemplateParameterVector() const override;
+    [[nodiscard]] const IdentifierNode* getIdentifier() const override;
+    [[nodiscard]] inline const std::vector<Parameter>& getValues() const {
+        return mValues;
+    }
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "StructDeclarationNode"; }
+
+private:
+    up<IdentifierNode> mName;
+    std::vector<Parameter> mValues;
 };
 
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params);

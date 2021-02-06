@@ -11,19 +11,55 @@ Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots, std::vector<NativeFun
 Compiler::~Compiler() = default;
 
 Program Compiler::compile() {
-    // declare all functions & structs
+    // 1. declare all functions & structs
     for(auto& module : mRoots) {
         for(auto& decl : module->getDeclarations()) {
-            auto emplaceResult = mDeclarations.emplace(
-                module->getModuleName() + '.' + decl->getIdentifier()->getName(),
-                Declaration{ .astNode = decl.get(), .type = decl->getDatatype() });
-            if(!emplaceResult.second) {
-                decl->throwException("Function defined twice!");
+            auto callableDeclaration = dynamic_cast<CallableDeclarationNode*>(decl.get());
+            if(callableDeclaration) {
+                // declare functions & native functions
+                auto emplaceResult = mCallableDeclarations.emplace(
+                    module->getModuleName() + '.' + callableDeclaration->getIdentifier()->getName(),
+                    CallableDeclaration{ .astNode = callableDeclaration, .type = callableDeclaration->getDatatype() });
+                if(!emplaceResult.second) {
+                    callableDeclaration->throwException("Function defined twice!");
+                }
             }
-            mDeclarationNodeToModuleName.emplace(decl.get(), module->getModuleName());
+            auto structDeclaration = dynamic_cast<StructDeclarationNode*>(decl.get());
+            if(structDeclaration) {
+                // declare structs
+                std::vector<StructDeclaration::StructElement> structElements;
+                for(auto& value : structDeclaration->getValues()) {
+                    structElements.emplace_back(StructDeclaration::StructElement{ .name = value.name->getName(), .type = value.type });
+                }
+                mStructDeclarations.emplace_back(
+                    StructDeclaration{
+                        .astNode = structDeclaration,
+                        .structElements = std::move(structElements),
+                        .datatype = Datatype::createStructType(mStructDeclarations.size()),
+                        .moduleName = module->getModuleName() });
+            }
         }
     }
-    // TODO 'compile' (declare) structs in between these two steps
+    // 2. create module list which importantly contains the structTypeReplacementMap
+    //    and create mDeclarationNodeToModuleId list
+    for(auto& moduleNode : mRoots) {
+        Module module;
+        module.name = moduleNode->getModuleName();
+        for(auto& structDeclaration : mStructDeclarations) {
+            // check if struct is in our current module
+            bool isStructInCurrentModule = structDeclaration.moduleName == moduleNode->getModuleName();
+            std::string structName = structDeclaration.astNode->getIdentifier()->getName();
+            if(!isStructInCurrentModule) {
+                structName = structDeclaration.moduleName + "." + structName;
+            }
+            module.structTypeReplacementMap.emplace(structName, structDeclaration.datatype);
+        }
+        mModules.emplace_back(std::move(module));
+        // map all child declaration nodes to the index of the module
+        for(auto& decl : moduleNode->getDeclarations()) {
+            mDeclarationNodeToModuleId.emplace(decl.get(), mModules.size() - 1);
+        }
+    }
 
     auto compileLambdaFunctions = [this] {
         while(!mLambdasToCompile.empty()) {
@@ -50,20 +86,27 @@ Program Compiler::compile() {
         mCurrentModuleName = module->getModuleName();
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
+                mCurrentUndeterminedTypeReplacementMap = mModules.at(mDeclarationNodeToModuleId.at(decl.get())).structTypeReplacementMap;
                 decl->compile(*this);
                 compileLambdaFunctions();
+                mCurrentUndeterminedTypeReplacementMap.clear();
             }
         }
     }
     // compile all template functions
     while(!mTemplateFunctionsToInstantiate.empty()) {
         auto function = mTemplateFunctionsToInstantiate.front().function;
-        mTemplateReplacementMap = mTemplateFunctionsToInstantiate.front().replacementMap;
-        mCurrentModuleName = mDeclarationNodeToModuleName.at(function);
+        mCurrentUndeterminedTypeReplacementMap = mTemplateFunctionsToInstantiate.front().replacementMap;
+
+        auto& currentModule = mModules.at(mDeclarationNodeToModuleId.at(function));
+        mCurrentUndeterminedTypeReplacementMap.merge(currentModule.structTypeReplacementMap);
+        mCurrentModuleName = currentModule.name;
+
         function->compile(*this);
+
         mTemplateFunctionsToInstantiate.erase(mTemplateFunctionsToInstantiate.begin());
         compileLambdaFunctions();
-        mTemplateReplacementMap.clear();
+        mCurrentUndeterminedTypeReplacementMap.clear();
     }
     // insert all the function locations in the code
     for(auto& label : mLabelsToInsertFunctionIds) {
@@ -87,7 +130,7 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
     // search for the full function name (this is the name prepended by the module)
     // TODO maybe add reverse list?
     std::string fullFunctionName;
-    for(const auto& [name, decl] : mDeclarations) {
+    for(const auto& [name, decl] : mCallableDeclarations) {
         if(decl.astNode == &function) {
             fullFunctionName = name;
         }
@@ -384,8 +427,8 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     } else {
         fullName = mCurrentModuleName + "." + identifier.getName();
     }
-    auto maybeDeclaration = mDeclarations.find(fullName);
-    if(maybeDeclaration == mDeclarations.end()) {
+    auto maybeDeclaration = mCallableDeclarations.find(fullName);
+    if(maybeDeclaration == mCallableDeclarations.end()) {
         identifier.throwException("Identifier not found");
     }
     auto& declaration = *maybeDeclaration;
@@ -396,7 +439,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
         mStackSize += 8;
         return declaration.second.type;
     }
-    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mTemplateReplacementMap);
+    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
     auto functionTemplateParams = declaration.second.astNode->getTemplateParameterVector();
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
 
@@ -416,7 +459,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
             // we have a templated native function, so we need to build a replacement map to get the correct type
             std::vector<Datatype> passedTemplateParameters;
             for(auto& param : identifier.getTemplateParameters()) {
-                passedTemplateParameters.push_back(param.completeWithTemplateParameters(mTemplateReplacementMap));
+                passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
                 if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
                     identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
                 }
@@ -455,7 +498,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
     std::vector<Datatype> passedTemplateParameters;
     for(auto& param : identifier.getTemplateParameters()) {
-        passedTemplateParameters.push_back(param.completeWithTemplateParameters(mTemplateReplacementMap));
+        passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
         if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
             identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
         }
@@ -620,7 +663,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
     for(auto& param : node.getParameters()) {
         paramTypes.push_back(param.type);
     }
-    return Datatype(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mTemplateReplacementMap);
+    return Datatype(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
 }
 Datatype Compiler::compileListCreation(const ListCreationNode& node) {
     std::optional<Datatype> elementType = node.getBaseType();
@@ -628,7 +671,7 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
         node.throwException("Unable to infer list type; if you want to create an empty list, use the following syntax: [:i32]");
     }
     if(elementType) {
-        elementType = elementType->completeWithTemplateParameters(mTemplateReplacementMap);
+        elementType = elementType->completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
     }
     for(auto& param : node.getParams()) {
         auto paramType = param->compile(*this);
@@ -685,9 +728,9 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
     mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
 
-    const auto& functionReturnType = returnType.completeWithTemplateParameters(mTemplateReplacementMap);
+    const auto& functionReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
     for(const auto& param : params) {
-        auto type = param.second.completeWithTemplateParameters(mTemplateReplacementMap);
+        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
         mStackSize += type.getSizeOnStack();
         saveVariableLocation(param.first, type);
     }
@@ -725,7 +768,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         .len = static_cast<int32_t>(mProgram.code.size() - start),
         .type = functionType,
         .name = fullFunctionName,
-        .templateParameters = mTemplateReplacementMap,
+        .templateParameters = mCurrentUndeterminedTypeReplacementMap,
         .stackInformation = std::move(mCurrentStackInfoTree),
         .stackSizePerIp = std::move(mIpToStackSize) });
     assert(mCurrentStackInfoTreeNode);

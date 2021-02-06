@@ -64,21 +64,41 @@ private:
 
     int32_t addLabel(Instruction futureInstruction);
     uint8_t* labelToPtr(int32_t label);
+
     struct TemplateFunctionToInstantiate {
         FunctionDeclarationNode* function{ nullptr };
         // this is e.g. <i32, i64, (i32, bool)>
         std::map<std::string, Datatype> replacementMap;
     };
     std::vector<TemplateFunctionToInstantiate> mTemplateFunctionsToInstantiate;
-    struct Declaration {
-        DeclarationNode* astNode{ nullptr };
+    struct CallableDeclaration {
+        CallableDeclarationNode* astNode{ nullptr };
         Datatype type;
     };
-    std::unordered_map<std::string, Declaration> mDeclarations;
-    std::unordered_map<DeclarationNode*, std::string> mDeclarationNodeToModuleName;
+    std::unordered_map<std::string, CallableDeclaration> mCallableDeclarations;
+
+    struct StructDeclaration {
+        StructDeclarationNode* astNode{ nullptr };
+        struct StructElement {
+            std::string name;
+            Datatype type;
+        };
+        std::vector<StructElement> structElements;
+        Datatype datatype;
+        std::string moduleName;
+    };
+    std::vector<StructDeclaration> mStructDeclarations;
+
+    struct Module {
+        std::string name;
+        // Maps strings of structs like 'Vec2' (or from external modules like 'Math.Vec3') to the actual datatype. This is later merged with the mTemplateReplacementMap
+        std::map<std::string, Datatype> structTypeReplacementMap;
+    };
+    std::vector<Module> mModules;
+    std::unordered_map<DeclarationNode*, size_t> mDeclarationNodeToModuleId;
     std::string mCurrentModuleName;
 
-    std::map<std::string, Datatype> mTemplateReplacementMap;
+    std::map<std::string, Datatype> mCurrentUndeterminedTypeReplacementMap;
 
     struct VariableOnStack {
         int32_t offsetFromBottom{ 0 };

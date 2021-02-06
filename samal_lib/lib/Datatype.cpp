@@ -44,6 +44,8 @@ std::string Datatype::toString() const {
         return "bool";
     case DatatypeCategory::undetermined_identifier:
         return "<undetermined '" + std::get<std::string>(mFurtherInfo) + "'>";
+    case DatatypeCategory::struct_:
+        return "<struct id " + std::to_string(std::get<int32_t>(mFurtherInfo)) + ">";
     default:
         return "DATATYPE";
     }
@@ -138,6 +140,9 @@ DatatypeCategory Datatype::getCategory() const {
 }
 Datatype Datatype::createEmptyTuple() {
     return Datatype(std::vector<Datatype>{});
+}
+Datatype Datatype::createStructType(int32_t structId) {
+    return Datatype{ DatatypeCategory::struct_, structId };
 }
 Datatype Datatype::createListType(Datatype baseType) {
     Datatype ret{ DatatypeCategory::list };
@@ -260,6 +265,9 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
     default:
         assert(false);
     }
+}
+Datatype::Datatype(DatatypeCategory cat, decltype(mFurtherInfo) furtherInfo)
+: mFurtherInfo(std::move(furtherInfo)), mCategory(cat) {
 }
 
 }

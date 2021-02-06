@@ -38,6 +38,13 @@ fn map<T, S>(l : [T], callback : fn(T) -> S) -> [S] {
     }
 }
 
+fn zip<S, T>(l1 : [S], l2 : [T]) -> [(S, T)] {
+    if l1 == [] || l2 == [] {
+        [:(S, T)]
+    } else {
+        (l1:head, l2:head) + zip<S, T>(l1:tail, l2:tail)
+    }
+}
 
 fn seqRec<T>(index : T, limit: T) -> [T] {
     if limit < 1 {
@@ -51,21 +58,70 @@ fn seq<T>(limit: T) -> [T] {
     seqRec<T>(0, limit)
 }
 
-fn func2(p : i32) -> i32 {
-    l1 = seq<i32>(50)
-    l2 = seq<i32>(50)
-    same = l1 == l2
-    h = [:i32]:head
+fn testListSpeed(p : i32) -> [i32] {
+    l1 = seq<i32>(5000)
+    l2 = seq<i32>(5000)
     combined = concat<i32>(l1, l2)
     lambda = fn(p2 : i32) -> i32 {
         p2
     }
     added = map<i32, i32>(combined, lambda)
-    if same {
-        1
-    } else {
+}
+
+fn testZip(p : i32) -> [(i32, i32)] {
+    l1 = seq<i32>(20000)
+    l2 = seq<i32>(20000)
+    l1Added = map<i32, i32>(l1, fn(p : i32) -> i32 {
+        p / 16
+    })
+    zip<i32, i32>(l1Added, l2)
+}
+
+struct Vec2 {
+    x : i32,
+    y : i32
+}
+
+struct Rect {
+    pos : Vec2,
+    size : Vec2
+}
+
+fn testStruct(p : i32) -> Vec2 {
+
+}
+
+fn sum<T>(list : [T]) -> T {
+    if list == [] {
         0
+    } else {
+        list:head + sum<T>(list:tail)
     }
+}
+
+fn avg<T>(list : [T]) -> T {
+    s = sum<T>(list)
+    l = len<T>(list)
+    s / l
+}
+
+fn testAvg(p : i32) -> i32 {
+    avg<i32>([1, 3, 5, 7])
+}
+
+fn testFib(p : i32) -> i32 {
+    Templ.fib<i32>(28)
+    Templ.fib<i32>(28)
+    Templ.fib<i32>(28)
+    Templ.fib<i32>(28)
+    Templ.fib<i32>(28)
+}
+fn testSimple(p : i32) -> [i32] {
+
+   seq<i32>(20)
+    |> map<i32, i32>(fn(p : i32) -> i32 {
+        ((p - 100) * 2) / -2
+    })
 }
 
 fn makeLambda<T>(v : T) -> fn(T) -> T {
@@ -76,9 +132,8 @@ fn makeLambda<T>(v : T) -> fn(T) -> T {
 })");
     auto ast2 = parser.parse("Templ", R"(
 fn fib<T>(a : T) -> T {
-    Main.print<T>(a)
     if a < 2 {
-        Main.identity<T>(a)
+        a
     } else {
         fib<T>(a - 1) + fib<T>(a - 2)
     }
@@ -137,7 +192,7 @@ fn addAndFib<T>(a : T, b : T) -> T {
 
     samal::Stopwatch vmStopwatch{ "VM execution" };
     samal::VM vm{ std::move(program) };
-    auto ret = vm.run("Main.func2", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 5) });
+    auto ret = vm.run("Main.testAvg", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 5) });
     std::cout << "Func2 returned " << ret.dump() << "\n";
     vmStopwatch.stop();
 }

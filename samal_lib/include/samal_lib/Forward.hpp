@@ -25,6 +25,8 @@ class NativeFunctionDeclarationNode;
 class ListCreationNode;
 class ListPropertyAccessExpression;
 
+struct Parameter;
+
 class Compiler;
 class Datatype;
 class ExternalVMValue;

@@ -23,7 +23,7 @@ Parser::Parser() {
         }
         return ModuleRootNode{ toRef(res), std::move(decls) };
     };
-    mPegParser["Declaration"] << "FunctionDeclaration | NativeFunctionDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Declaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
         return std::move(res[0].result);
     };
     mPegParser["FunctionDeclaration"] << "'fn' IdentifierWithTemplate '(' ParameterVector ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
@@ -40,6 +40,12 @@ Parser::Parser() {
             up<IdentifierNode>{ res[2].result.move<IdentifierNode*>() },
             std::vector<Parameter>{ res[4].result.moveValue<std::vector<Parameter>>() },
             res[7].result.moveValue<Datatype>());
+    };
+    mPegParser["StructDeclaration"] << "'struct' IdentifierWithTemplate '{' ParameterVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return StructDeclarationNode(
+            toRef(res),
+            up<IdentifierNode>{ res[1].result.move<IdentifierNode*>() },
+            std::vector<Parameter>{ res[3].result.moveValue<std::vector<Parameter>>() });
     };
     mPegParser["ParameterVector"] << "ParameterVectorRec?" >> [](peg::MatchInfo& res) -> peg::Any {
         if(res.subs.empty())
