@@ -818,6 +818,14 @@ bool VM::interpretInstruction() {
         mStack.push(&dataOnHeap, 8);
         break;
     }
+    case Instruction::CREATE_STRUCT: {
+        auto sizeOfData = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto* dataOnHeap = (uint8_t*)mGC.alloc(sizeOfData);
+        memcpy(dataOnHeap, mStack.get(0), sizeOfData);
+        mStack.pop(sizeOfData);
+        mStack.push(&dataOnHeap, 8);
+        break;
+    }
     case Instruction::CREATE_LIST: {
         auto elementSize = *(int32_t*)&mProgram.code.at(mIp + 1);
         auto elementCount = *(int32_t*)&mProgram.code.at(mIp + 5);

@@ -47,9 +47,7 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
     }
 }
 std::string ExternalVMValue::dump() const {
-    std::string ret{ "{type: " };
-    ret += mType.toString();
-    ret += ", value: ";
+    std::string ret;
     switch(mType.getCategory()) {
     case DatatypeCategory::i32:
         ret += std::to_string(std::get<int32_t>(mValue));
@@ -83,10 +81,22 @@ std::string ExternalVMValue::dump() const {
         ret += "]";
         break;
     }
+    case DatatypeCategory::struct_: {
+        ret += mType.getStructInfo().name + "{";
+        auto ptr = std::get<const uint8_t*>(mValue);
+        for(auto& element: mType.getStructInfo().elements) {
+            ret += element.name;
+            ret += ": ";
+            ret += ExternalVMValue::wrapFromPtr(element.type, *mVM, ptr).dump();
+            ret += ", ";
+            ptr += element.type.getSizeOnStack();
+        }
+        ret += "}";
+        break;
+    }
     default:
         ret += "<unknown>";
     }
-    ret += "}";
     return ret;
 }
 ExternalVMValue ExternalVMValue::wrapStackedValue(Datatype type, VM& vm, size_t stackOffset) {
@@ -116,6 +126,7 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
         std::reverse(children.begin(), children.end());
         return ExternalVMValue{ vm, type, std::move(children) };
     }
+    case DatatypeCategory::struct_:
     case DatatypeCategory::list: {
         return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };
     }

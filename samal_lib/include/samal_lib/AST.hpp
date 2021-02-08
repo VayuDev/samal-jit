@@ -192,6 +192,35 @@ private:
     std::vector<up<ExpressionNode>> mParams;
 };
 
+class StructCreationNode : public ExpressionNode {
+public:
+    struct StructCreationParameter {
+        std::string name;
+        up<ExpressionNode> value;
+        inline StructCreationParameter(std::string name, up<ExpressionNode> value)
+        : name(std::move(name)), value(std::move(value)) {
+
+        }
+    };
+    explicit StructCreationNode(SourceCodeRef source, Datatype structType, std::vector<StructCreationParameter> params);
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+
+    [[nodiscard]] const auto& getStructType() const {
+        return mStructType;
+    }
+    [[nodiscard]] const auto& getParams() const {
+        return mParams;
+    }
+
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "StructCreationNode"; }
+
+private:
+    Datatype mStructType;
+    std::vector<StructCreationParameter> mParams;
+};
+
 class LambdaCreationNode : public ExpressionNode {
 public:
     LambdaCreationNode(SourceCodeRef source, std::vector<Parameter> parameters, Datatype returnType, up<ScopeNode> body);

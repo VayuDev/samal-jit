@@ -244,6 +244,21 @@ Datatype ListCreationNode::compile(Compiler& comp) const {
     return comp.compileListCreation(*this);
 }
 
+std::string StructCreationNode::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+StructCreationNode::StructCreationNode(SourceCodeRef source, Datatype structType, std::vector<StructCreationParameter> params)
+: ExpressionNode(std::move(source)), mStructType(std::move(structType)), mParams(std::move(params)) {
+}
+Datatype StructCreationNode::compile(Compiler& comp) const {
+    return comp.compileStructCreation(*this);
+}
+void StructCreationNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& p: mParams) {
+        p.value->findUsedVariables(searcher);
+    }
+}
+
 LambdaCreationNode::LambdaCreationNode(SourceCodeRef source, std::vector<Parameter> parameters, Datatype returnType, up<ScopeNode> body)
 : ExpressionNode(std::move(source)), mReturnType(std::move(returnType)), mParameters(std::move(parameters)), mBody(std::move(body)) {
 }

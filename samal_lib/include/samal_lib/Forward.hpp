@@ -24,6 +24,7 @@ class CallableDeclarationNode;
 class NativeFunctionDeclarationNode;
 class ListCreationNode;
 class ListPropertyAccessExpression;
+class StructCreationNode;
 
 struct Parameter;
 

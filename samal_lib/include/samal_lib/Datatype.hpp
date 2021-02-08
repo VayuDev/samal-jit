@@ -25,6 +25,7 @@ enum class DatatypeCategory {
 };
 
 class Datatype {
+    struct StructInfo;
 public:
     Datatype();
     explicit Datatype(DatatypeCategory category);
@@ -32,10 +33,13 @@ public:
     explicit Datatype(std::vector<Datatype> params);
     explicit Datatype(std::string identifierName);
     [[nodiscard]] std::string toString() const;
+
     [[nodiscard]] const std::pair<sp<Datatype>, std::vector<Datatype>>& getFunctionTypeInfo() const&;
     [[nodiscard]] const std::vector<Datatype>& getTupleInfo() const;
     [[nodiscard]] const Datatype& getListInfo() const;
     [[nodiscard]] const std::string& getUndeterminedIdentifierInfo() const;
+    [[nodiscard]] const StructInfo& getStructInfo() const;
+
     bool operator==(const Datatype& other) const;
     bool operator!=(const Datatype& other) const;
     [[nodiscard]] DatatypeCategory getCategory() const;
@@ -45,13 +49,20 @@ public:
 
     static Datatype createEmptyTuple();
     static Datatype createListType(Datatype baseType);
-    static Datatype createStructType(int32_t structId);
+    static Datatype createStructType(const std::string& name, const std::vector<Parameter>& params, const std::vector<Datatype>& templateParams);
 
     [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams) const;
 
     [[nodiscard]] bool hasUndeterminedTemplateTypes() const;
 
 private:
+    struct StructInfo {
+        std::string name;
+        struct StructElement;
+        std::vector<StructElement> elements;
+        std::vector<std::string> templateParams;
+        bool operator==(const StructInfo&) const = default;
+    };
     std::variant<
         std::monostate,
         std::string,
@@ -60,10 +71,15 @@ private:
         std::pair<sp<Datatype>, std::vector<Datatype>>,
         std::vector<Datatype>,
         sp<Datatype>,
-        int32_t>
+        StructInfo>
         mFurtherInfo;
     DatatypeCategory mCategory;
     Datatype(DatatypeCategory, decltype(mFurtherInfo));
+};
+struct Datatype::StructInfo::StructElement {
+    std::string name;
+    Datatype type;
+    bool operator==(const StructElement&) const = default;
 };
 
 static inline size_t getSimpleSize(DatatypeCategory type) {

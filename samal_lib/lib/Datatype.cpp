@@ -1,5 +1,6 @@
 #include "samal_lib/Datatype.hpp"
 #include <cassert>
+#include "samal_lib/AST.hpp"
 
 namespace samal {
 
@@ -45,7 +46,7 @@ std::string Datatype::toString() const {
     case DatatypeCategory::undetermined_identifier:
         return "<undetermined '" + std::get<std::string>(mFurtherInfo) + "'>";
     case DatatypeCategory::struct_:
-        return "<struct id " + std::to_string(std::get<int32_t>(mFurtherInfo)) + ">";
+        return "<struct " + std::get<StructInfo>(mFurtherInfo).name + ">";
     default:
         return "DATATYPE";
     }
@@ -87,7 +88,16 @@ const Datatype& Datatype::getListInfo() const {
     return *std::get<sp<Datatype>>(mFurtherInfo);
 }
 const std::string& Datatype::getUndeterminedIdentifierInfo() const {
+    if(mCategory != DatatypeCategory::undetermined_identifier) {
+        throw std::runtime_error{ "This is not an undetermined identifier!" };
+    }
     return std::get<std::string>(mFurtherInfo);
+}
+const Datatype::StructInfo& Datatype::getStructInfo() const {
+    if(mCategory != DatatypeCategory::struct_) {
+        throw std::runtime_error{ "This is not a struct!" };
+    }
+    return std::get<StructInfo>(mFurtherInfo);
 }
 bool Datatype::operator==(const Datatype& other) const {
     if(mCategory != other.mCategory)
@@ -141,13 +151,25 @@ DatatypeCategory Datatype::getCategory() const {
 Datatype Datatype::createEmptyTuple() {
     return Datatype(std::vector<Datatype>{});
 }
-Datatype Datatype::createStructType(int32_t structId) {
-    return Datatype{ DatatypeCategory::struct_, structId };
-}
 Datatype Datatype::createListType(Datatype baseType) {
     Datatype ret{ DatatypeCategory::list };
     ret.mFurtherInfo = std::make_shared<Datatype>(std::move(baseType));
     return ret;
+}
+Datatype Datatype::createStructType(const std::string& name, const std::vector<Parameter>& params, const std::vector<Datatype>& templateParams) {
+    std::vector<StructInfo::StructElement> elements;
+    for(const auto& p: params) {
+        elements.push_back(StructInfo::StructElement{.name = p.name->getName(), .type = p.type});
+    }
+    std::sort(elements.begin(), elements.end(), [](auto& a, auto& b) -> bool {
+        return a.name < b.name;
+    });
+    std::vector<std::string> templateParamNames;
+    for(auto& t: templateParams) {
+        assert(t.getCategory() == DatatypeCategory::undetermined_identifier);
+        templateParamNames.push_back(t.getUndeterminedIdentifierInfo());
+    }
+    return Datatype(DatatypeCategory::struct_, StructInfo{.name = name, .elements = std::move(elements), .templateParams = std::move(templateParamNames)});
 }
 bool Datatype::isInteger() const {
     return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
@@ -160,6 +182,7 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::function:
     case DatatypeCategory::bool_:
     case DatatypeCategory::list:
+    case DatatypeCategory::struct_:
         return 8;
     case DatatypeCategory::tuple: {
         size_t sum = 0;
@@ -176,8 +199,9 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::i32:
         return 4;
     case DatatypeCategory::i64:
-        return 8;
     case DatatypeCategory::function:
+    case DatatypeCategory::list:
+    case DatatypeCategory::struct_:
         return 8;
     case DatatypeCategory::bool_:
         return 1;
@@ -188,8 +212,6 @@ size_t Datatype::getSizeOnStack() const {
         }
         return sum;
     }
-    case DatatypeCategory::list:
-        return 8;
     default:
         assert(false);
     }
@@ -217,6 +239,10 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         if(maybeReplacementType != templateParams.end()) {
             cpy = maybeReplacementType->second;
         }
+        // recursively complete types if the type we replaced our copy with requires template parameters as well; only possible right now if it's a struct
+        if(cpy.getCategory() == DatatypeCategory::struct_) {
+            return cpy.completeWithTemplateParameters(templateParams);
+        }
         break;
     }
     case DatatypeCategory::tuple: {
@@ -227,6 +253,16 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     }
     case DatatypeCategory::list: {
         std::get<sp<Datatype>>(cpy.mFurtherInfo) = std::make_shared<Datatype>(getListInfo().completeWithTemplateParameters(templateParams));
+        break;
+    }
+    case DatatypeCategory::struct_: {
+        size_t i = 0;
+        auto templateParamsCpy = templateParams;
+
+        for(auto& element : getStructInfo().elements) {
+            std::get<StructInfo>(cpy.mFurtherInfo).elements.at(i).type = element.type.completeWithTemplateParameters(templateParamsCpy);
+            ++i;
+        }
         break;
     }
     default:
@@ -261,6 +297,13 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
     }
     case DatatypeCategory::list: {
         return getListInfo().hasUndeterminedTemplateTypes();
+    }
+    case DatatypeCategory::struct_: {
+        for(auto& element : getStructInfo().elements) {
+            if(element.type.hasUndeterminedTemplateTypes())
+                return true;
+        }
+        return false;
     }
     default:
         assert(false);

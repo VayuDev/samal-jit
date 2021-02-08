@@ -40,6 +40,7 @@ public:
     Datatype compileLambdaCreationExpression(const LambdaCreationNode&);
     Datatype compileListCreation(const ListCreationNode&);
     Datatype compileListPropertyAccess(const ListPropertyAccessExpression&);
+    Datatype compileStructCreation(const StructCreationNode&);
 
 private:
     Program mProgram;
@@ -77,18 +78,6 @@ private:
     };
     std::unordered_map<std::string, CallableDeclaration> mCallableDeclarations;
 
-    struct StructDeclaration {
-        StructDeclarationNode* astNode{ nullptr };
-        struct StructElement {
-            std::string name;
-            Datatype type;
-        };
-        std::vector<StructElement> structElements;
-        Datatype datatype;
-        std::string moduleName;
-    };
-    std::vector<StructDeclaration> mStructDeclarations;
-
     struct Module {
         std::string name;
         // Maps strings of structs like 'Vec2' (or from external modules like 'Math.Vec3') to the actual datatype. This is later merged with the mTemplateReplacementMap
@@ -99,6 +88,7 @@ private:
     std::string mCurrentModuleName;
 
     std::map<std::string, Datatype> mCurrentUndeterminedTypeReplacementMap;
+    std::map<std::string, Datatype> mCurrentTemplateTypeReplacementMap;
 
     struct VariableOnStack {
         int32_t offsetFromBottom{ 0 };

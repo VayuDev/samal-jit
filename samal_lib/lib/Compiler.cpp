@@ -11,7 +11,7 @@ Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots, std::vector<NativeFun
 Compiler::~Compiler() = default;
 
 Program Compiler::compile() {
-    // 1. declare all functions & structs
+    // 1. declare all functions
     for(auto& module : mRoots) {
         for(auto& decl : module->getDeclarations()) {
             auto callableDeclaration = dynamic_cast<CallableDeclarationNode*>(decl.get());
@@ -24,20 +24,6 @@ Program Compiler::compile() {
                     callableDeclaration->throwException("Function defined twice!");
                 }
             }
-            auto structDeclaration = dynamic_cast<StructDeclarationNode*>(decl.get());
-            if(structDeclaration) {
-                // declare structs
-                std::vector<StructDeclaration::StructElement> structElements;
-                for(auto& value : structDeclaration->getValues()) {
-                    structElements.emplace_back(StructDeclaration::StructElement{ .name = value.name->getName(), .type = value.type });
-                }
-                mStructDeclarations.emplace_back(
-                    StructDeclaration{
-                        .astNode = structDeclaration,
-                        .structElements = std::move(structElements),
-                        .datatype = Datatype::createStructType(mStructDeclarations.size()),
-                        .moduleName = module->getModuleName() });
-            }
         }
     }
     // 2. create module list which importantly contains the structTypeReplacementMap
@@ -45,14 +31,19 @@ Program Compiler::compile() {
     for(auto& moduleNode : mRoots) {
         Module module;
         module.name = moduleNode->getModuleName();
-        for(auto& structDeclaration : mStructDeclarations) {
-            // check if struct is in our current module
-            bool isStructInCurrentModule = structDeclaration.moduleName == moduleNode->getModuleName();
-            std::string structName = structDeclaration.astNode->getIdentifier()->getName();
-            if(!isStructInCurrentModule) {
-                structName = structDeclaration.moduleName + "." + structName;
+        for(auto& moduleNodeInner : mRoots) {
+            for(auto& declNode: moduleNodeInner->getDeclarations()) {
+                auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
+                if(!declNodeAsStructDecl)
+                    continue;
+
+                std::string structName = declNodeAsStructDecl->getIdentifier()->getName();
+                std::string fullStructName = moduleNodeInner->getModuleName() + "." + structName;
+                if(moduleNode.get() != moduleNodeInner.get()) {
+                    structName = fullStructName;
+                }
+                module.structTypeReplacementMap.emplace(structName, Datatype::createStructType(fullStructName, declNodeAsStructDecl->getValues(), declNodeAsStructDecl->getTemplateParameterVector()));
             }
-            module.structTypeReplacementMap.emplace(structName, structDeclaration.datatype);
         }
         mModules.emplace_back(std::move(module));
         // map all child declaration nodes to the index of the module
@@ -87,6 +78,7 @@ Program Compiler::compile() {
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
                 mCurrentUndeterminedTypeReplacementMap = mModules.at(mDeclarationNodeToModuleId.at(decl.get())).structTypeReplacementMap;
+                mCurrentTemplateTypeReplacementMap.clear();
                 decl->compile(*this);
                 compileLambdaFunctions();
                 mCurrentUndeterminedTypeReplacementMap.clear();
@@ -97,6 +89,7 @@ Program Compiler::compile() {
     while(!mTemplateFunctionsToInstantiate.empty()) {
         auto function = mTemplateFunctionsToInstantiate.front().function;
         mCurrentUndeterminedTypeReplacementMap = mTemplateFunctionsToInstantiate.front().replacementMap;
+        mCurrentTemplateTypeReplacementMap = mCurrentUndeterminedTypeReplacementMap;
 
         auto& currentModule = mModules.at(mDeclarationNodeToModuleId.at(function));
         mCurrentUndeterminedTypeReplacementMap.merge(currentModule.structTypeReplacementMap);
@@ -107,6 +100,7 @@ Program Compiler::compile() {
         mTemplateFunctionsToInstantiate.erase(mTemplateFunctionsToInstantiate.begin());
         compileLambdaFunctions();
         mCurrentUndeterminedTypeReplacementMap.clear();
+        mCurrentTemplateTypeReplacementMap.clear();
     }
     // insert all the function locations in the code
     for(auto& label : mLabelsToInsertFunctionIds) {
@@ -728,7 +722,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
     mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
 
-    const auto& functionReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
     for(const auto& param : params) {
         auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
         mStackSize += type.getSizeOnStack();
@@ -736,22 +730,23 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     }
     mStackFrames.top().stackFrameSize = mStackSize;
     auto bodyReturnType = body.compile(*this);
-    if(bodyReturnType != functionReturnType) {
-        throw std::runtime_error{ "Function's declared return type " + functionReturnType.toString() + " and actual return type " + bodyReturnType.toString() + " don't match" };
+    if(bodyReturnType != completedReturnType) {
+        // TODO call node.throwException instead
+        throw std::runtime_error{ "Function's declared return type " + completedReturnType.toString() + " and actual return type " + bodyReturnType.toString() + " don't match" };
     }
 
     // pop all parameters of the stack
     {
         auto bytesToPop = mStackFrames.top().stackFrameSize;
         if(bytesToPop > 0) {
-            addInstructions(Instruction::POP_N_BELOW, bytesToPop, functionReturnType.getSizeOnStack());
+            addInstructions(Instruction::POP_N_BELOW, bytesToPop, completedReturnType.getSizeOnStack());
             mStackSize -= bytesToPop;
         }
         mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::Yes));
         mStackFrames.pop();
     }
-    assert(mStackSize == static_cast<int32_t>(functionReturnType.getSizeOnStack()));
-    addInstructions(Instruction::RETURN, functionReturnType.getSizeOnStack());
+    assert(mStackSize == static_cast<int32_t>(completedReturnType.getSizeOnStack()));
+    addInstructions(Instruction::RETURN, completedReturnType.getSizeOnStack());
     mStackSize = 0;
 
     // figure out type of function
@@ -760,7 +755,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     for(auto& param : params) {
         parameterTypes.emplace_back(param.second);
     }
-    Datatype functionType{ returnType, std::move(parameterTypes) };
+    Datatype functionType{ completedReturnType, std::move(parameterTypes) };
 
     // save the region of the function in the program object to allow locating it
     auto& entry = mProgram.functions.emplace_back(Program::Function{
@@ -768,7 +763,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         .len = static_cast<int32_t>(mProgram.code.size() - start),
         .type = functionType,
         .name = fullFunctionName,
-        .templateParameters = mCurrentUndeterminedTypeReplacementMap,
+        .templateParameters = mCurrentTemplateTypeReplacementMap,
         .stackInformation = std::move(mCurrentStackInfoTree),
         .stackSizePerIp = std::move(mIpToStackSize) });
     assert(mCurrentStackInfoTreeNode);
@@ -784,6 +779,33 @@ void Compiler::saveVariableLocation(std::string name, Datatype type) {
 }
 void Compiler::saveCurrentStackSizeToDebugInfo() {
     mIpToStackSize.emplace(mProgram.code.size(), mStackSize);
+}
+Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
+    auto structType = node.getStructType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    const auto& structTypeInfo = structType.getStructInfo();
+    int32_t sizeOfCopiedParams = 0;
+
+    if(node.getParams().size() != structTypeInfo.elements.size()) {
+        node.throwException("Invalid number of arguments for this struct; expected " + std::to_string(structTypeInfo.elements.size()) + ", but got " + std::to_string(node.getParams().size()));
+    }
+    for(size_t i = 0; i < node.getParams().size(); ++i) {
+        const auto& nodeParam = node.getParams().at(node.getParams().size() - i - 1);
+        const auto& expectedParam = structTypeInfo.elements.at(structTypeInfo.elements.size() - i - 1);
+        if(expectedParam.name != nodeParam.name) {
+            node.throwException("Element names of struct don't match / are in the wrong order; expected element " + expectedParam.name + ", got " + nodeParam.name);
+        }
+        auto paramType = nodeParam.value->compile(*this);
+        auto completedExpectedParamType = expectedParam.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        if(completedExpectedParamType != paramType) {
+            node.throwException("Invalid type for element '" + expectedParam.name + "'; expected " + completedExpectedParamType.toString() + ", but got " + paramType.toString());
+        }
+        sizeOfCopiedParams += paramType.getSizeOnStack();
+    }
+    addInstructions(Instruction::CREATE_STRUCT, sizeOfCopiedParams);
+    mStackSize -= sizeOfCopiedParams;
+    mStackSize += 8;
+
+    return structType;
 }
 
 VariableSearcher::VariableSearcher(std::vector<const IdentifierNode*>& identifiers)

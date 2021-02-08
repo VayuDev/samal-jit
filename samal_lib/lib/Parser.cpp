@@ -290,7 +290,8 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionVector
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression "
+                                       " | StructCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             if(res[0][2].subs.empty()) {
@@ -312,15 +313,43 @@ Parser::Parser() {
             return ListCreationNode(toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>());
         case 5:
         case 6:
-        case 9:
-            return std::move(res[0].result);
         case 7:
-            return std::move(res[0][1].result);
+        case 10:
+            return std::move(res[0].result);
         case 8:
+            return std::move(res[0][1].result);
+        case 9:
             return TupleCreationNode{ toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>() };
         default:
             assert(false);
         }
+    };
+    mPegParser["StructCreationExpression"] << "Datatype '{' StructParameterVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return StructCreationNode{
+            toRef(res),
+            res[0].result.moveValue<Datatype>(),
+            res[2].result.moveValue<std::vector<StructCreationNode::StructCreationParameter>>()
+        };
+    };
+    mPegParser["StructParameterVector"] << "StructParameterVectorRec?" >> [](peg::MatchInfo& res) -> peg::Any {
+        if(res.subs.empty())
+            return std::vector<StructCreationNode::StructCreationParameter>{};
+        return std::move(res[0].result);
+    };
+    mPegParser["StructParameterVectorRec"] << "Identifier ':' Expression (',' StructParameterVectorRec)?" >> [](peg::MatchInfo& res) {
+        up<IdentifierNode> identifier{res[0].result.move<IdentifierNode*>()};
+        auto identifierAsString = identifier->getName();
+        std::vector<StructCreationNode::StructCreationParameter> structParams;
+        structParams.emplace_back(
+            identifierAsString,
+            up<ExpressionNode>{res[2].result.move<ExpressionNode*>()}
+        );
+        // recursive child
+        if(!res[3].subs.empty()) {
+            auto childParams = res[3][0][1].result.moveValue<std::vector<StructCreationNode::StructCreationParameter>>();
+            structParams.insert(structParams.end(), std::move_iterator(childParams.begin()), std::move_iterator(childParams.end()));
+        }
+        return structParams;
     };
     mPegParser["LambdaCreationExpression"] << "'fn' '(' ParameterVector ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         return LambdaCreationNode{
