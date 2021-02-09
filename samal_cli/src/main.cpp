@@ -84,11 +84,13 @@ struct Vec2 {
 
 struct Rect {
     pos : Vec2,
-    size : Vec2
+    size : Vec2,
+    friend : [Rect]
 }
 
-fn testStruct(p : i32) -> Vec2 {
-
+fn testStruct(p : i32) -> Rect {
+    ret = Rect{friend : [Rect{friend : [:Rect], pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}], pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
+    ret
 }
 
 fn sum<T>(list : [T]) -> T {
@@ -192,7 +194,7 @@ fn addAndFib<T>(a : T, b : T) -> T {
 
     samal::Stopwatch vmStopwatch{ "VM execution" };
     samal::VM vm{ std::move(program) };
-    auto ret = vm.run("Main.testAvg", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 5) });
+    auto ret = vm.run("Main.testStruct", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 5) });
     std::cout << "Func2 returned " << ret.dump() << "\n";
     vmStopwatch.stop();
 }

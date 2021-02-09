@@ -795,7 +795,7 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
             node.throwException("Element names of struct don't match / are in the wrong order; expected element " + expectedParam.name + ", got " + nodeParam.name);
         }
         auto paramType = nodeParam.value->compile(*this);
-        auto completedExpectedParamType = expectedParam.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        auto completedExpectedParamType = expectedParam.lazyType();
         if(completedExpectedParamType != paramType) {
             node.throwException("Invalid type for element '" + expectedParam.name + "'; expected " + completedExpectedParamType.toString() + ", but got " + paramType.toString());
         }

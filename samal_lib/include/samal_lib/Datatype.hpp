@@ -78,8 +78,11 @@ private:
 };
 struct Datatype::StructInfo::StructElement {
     std::string name;
-    Datatype type;
-    bool operator==(const StructElement&) const = default;
+    Datatype baseType;
+    std::function<Datatype()> lazyType;
+    inline bool operator==(const StructElement& other) const {
+        return name == other.name && baseType == other.baseType;
+    }
 };
 
 static inline size_t getSimpleSize(DatatypeCategory type) {

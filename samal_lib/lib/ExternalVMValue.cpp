@@ -85,11 +85,13 @@ std::string ExternalVMValue::dump() const {
         ret += mType.getStructInfo().name + "{";
         auto ptr = std::get<const uint8_t*>(mValue);
         for(auto& element: mType.getStructInfo().elements) {
+            assert(element.lazyType);
+            auto elementType = element.lazyType();
             ret += element.name;
             ret += ": ";
-            ret += ExternalVMValue::wrapFromPtr(element.type, *mVM, ptr).dump();
+            ret += ExternalVMValue::wrapFromPtr(elementType, *mVM, ptr).dump();
             ret += ", ";
-            ptr += element.type.getSizeOnStack();
+            ptr += elementType.getSizeOnStack();
         }
         ret += "}";
         break;

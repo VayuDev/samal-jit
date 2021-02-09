@@ -159,7 +159,7 @@ Datatype Datatype::createListType(Datatype baseType) {
 Datatype Datatype::createStructType(const std::string& name, const std::vector<Parameter>& params, const std::vector<Datatype>& templateParams) {
     std::vector<StructInfo::StructElement> elements;
     for(const auto& p: params) {
-        elements.push_back(StructInfo::StructElement{.name = p.name->getName(), .type = p.type});
+        elements.push_back(StructInfo::StructElement{.name = p.name->getName(), .baseType = p.type});
     }
     std::sort(elements.begin(), elements.end(), [](auto& a, auto& b) -> bool {
         return a.name < b.name;
@@ -260,7 +260,9 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         auto templateParamsCpy = templateParams;
 
         for(auto& element : getStructInfo().elements) {
-            std::get<StructInfo>(cpy.mFurtherInfo).elements.at(i).type = element.type.completeWithTemplateParameters(templateParamsCpy);
+            std::get<StructInfo>(cpy.mFurtherInfo).elements.at(i).lazyType = [baseType = getStructInfo().elements.at(i).baseType, templateParams = templateParamsCpy] () {
+                return baseType.completeWithTemplateParameters(templateParams);
+            };
             ++i;
         }
         break;
@@ -300,7 +302,7 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
     }
     case DatatypeCategory::struct_: {
         for(auto& element : getStructInfo().elements) {
-            if(element.type.hasUndeterminedTemplateTypes())
+            if(!element.lazyType)
                 return true;
         }
         return false;
