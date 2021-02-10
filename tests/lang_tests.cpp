@@ -29,7 +29,7 @@ fn fib64(n : i64) -> i64 {
     }
 })");
     auto vmRet = vm.run("Main.fib64", { samal::ExternalVMValue::wrapInt64(vm, 10) });
-    REQUIRE(vmRet.dump() == "{type: i64, value: 55}");
+    REQUIRE(vmRet.dump() == "55");
 }
 
 TEST_CASE("Ensure that fib32 works", "[samal_whole_system]") {
@@ -42,7 +42,7 @@ fn fib32(n : i32) -> i32 {
     }
 })");
     auto vmRet = vm.run("Main.fib32", { samal::ExternalVMValue::wrapInt32(vm, 10) });
-    REQUIRE(vmRet.dump() == "{type: i32, value: 55}");
+    REQUIRE(vmRet.dump() == "55");
 }
 
 TEST_CASE("Ensure that tuples work", "[samal_whole_system]") {
@@ -57,7 +57,7 @@ fn testTuple() -> i32 {
     t:0:0 + t2 + t1:0
 })");
     auto vmRet = vm.run("Main.testTuple", std::vector<samal::ExternalVMValue>{});
-    REQUIRE(vmRet.dump() == "{type: i32, value: 12}");
+    REQUIRE(vmRet.dump() == "12");
 }
 
 TEST_CASE("Ensure that lambda templates work", "[samal_whole_system]") {
@@ -74,7 +74,7 @@ fn makeLambda<T>(p : T) -> fn(T) -> T {
     }
 })");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{});
-    REQUIRE(vmRet.dump() == "{type: i64, value: 34}");
+    REQUIRE(vmRet.dump() == "34");
 }
 
 TEST_CASE("Ensure that lists work", "[samal_whole_system]") {
@@ -127,5 +127,5 @@ fn test() -> [i32] {
     added
 })");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{});
-    REQUIRE(vmRet.dump() == "{type: [i32], value: [{type: i32, value: 3}, {type: i32, value: 4}, {type: i32, value: 5}, {type: i32, value: 3}, {type: i32, value: 4}, {type: i32, value: 5}]}");
+    REQUIRE(vmRet.dump() == "[3, 4, 5, 3, 4, 5]");
 }
