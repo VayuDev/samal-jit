@@ -20,7 +20,7 @@ struct JitReturn {
 class JitCode : public Xbyak::CodeGenerator {
 public:
     explicit JitCode(const std::vector<uint8_t>& instructions)
-    : Xbyak::CodeGenerator(4096 * 4) {
+    : Xbyak::CodeGenerator(4096 * 4, Xbyak::AutoGrow) {
         setDefaultJmpNEAR(true);
         // prelude
         push(rbx);
@@ -415,6 +415,8 @@ public:
         pop(rbp);
         pop(rbx);
         ret();
+
+        readyRE();
     }
 };
 #else
