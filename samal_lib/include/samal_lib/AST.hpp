@@ -23,7 +23,7 @@ public:
     explicit ASTNode(SourceCodeRef source);
     virtual ~ASTNode() = default;
     virtual Datatype compile(Compiler& comp) const {
-        return Datatype{ DatatypeCategory::invalid };
+        return Datatype{ };
     };
     virtual void findUsedVariables(VariableSearcher&) const = 0;
     [[nodiscard]] virtual std::string dump(unsigned indent) const;

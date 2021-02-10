@@ -11,10 +11,10 @@ ExternalVMValue::ExternalVMValue(VM& vm, Datatype type, decltype(mValue) val)
 : mVM(&vm), mType(std::move(type)), mValue(std::move(val)) {
 }
 ExternalVMValue ExternalVMValue::wrapInt32(VM& vm, int32_t val) {
-    return ExternalVMValue(vm, Datatype{ DatatypeCategory::i32 }, val);
+    return ExternalVMValue(vm, Datatype::createSimple(DatatypeCategory::i32), val);
 }
 ExternalVMValue ExternalVMValue::wrapInt64(VM& vm, int64_t val) {
-    return ExternalVMValue(vm, samal::Datatype(DatatypeCategory::i64), val);
+    return ExternalVMValue(vm, Datatype::createSimple(DatatypeCategory::i64), val);
 }
 const Datatype& ExternalVMValue::getDatatype() const& {
     return mType;
@@ -59,7 +59,9 @@ std::string ExternalVMValue::dump() const {
         ret += "(";
         for(auto& child : std::get<std::vector<ExternalVMValue>>(mValue)) {
             ret += child.dump();
-            ret += ", ";
+            if(&child != &std::get<std::vector<ExternalVMValue>>(mValue).back()) {
+                ret += ", ";
+            }
         }
         ret += ")";
         break;
@@ -85,13 +87,17 @@ std::string ExternalVMValue::dump() const {
         ret += mType.getStructInfo().name + "{";
         auto ptr = std::get<const uint8_t*>(mValue);
         for(auto& element: mType.getStructInfo().elements) {
-            assert(element.lazyType);
-            auto elementType = element.lazyType();
+            auto elementValue = ExternalVMValue::wrapFromPtr(element.baseType, *mVM, ptr);
+            // Sidenote: elementValue can actually have a different type (getDataype()) than we pass in with element.baseType.
+            //           This happens if the element.baseType is incomplete (undetermined identifier), which will lead to wrapFromPtr calling itself
+            //           recursively with the completed type. See Datatype.hpp for more information.
             ret += element.name;
             ret += ": ";
-            ret += ExternalVMValue::wrapFromPtr(elementType, *mVM, ptr).dump();
-            ret += ", ";
-            ptr += elementType.getSizeOnStack();
+            ret += elementValue.dump();
+            if(&element != &mType.getStructInfo().elements.back()) {
+                ret += ", ";
+                ptr += elementValue.getDatatype().getSizeOnStack();
+            }
         }
         ret += "}";
         break;
@@ -131,6 +137,9 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
     case DatatypeCategory::struct_:
     case DatatypeCategory::list: {
         return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };
+    }
+    case DatatypeCategory::undetermined_identifier: {
+        return wrapFromPtr(type.completeWithSavedTemplateParameters(), vm, ptr);
     }
     default:
         return ExternalVMValue{ vm, type, std::monostate{} };

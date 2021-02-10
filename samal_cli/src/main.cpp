@@ -84,13 +84,17 @@ struct Vec2 {
 
 struct Rect {
     pos : Vec2,
-    size : Vec2,
-    friend : [Rect]
+    size : Vec2
 }
 
-fn testStruct(p : i32) -> Rect {
-    ret = Rect{friend : [Rect{friend : [:Rect], pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}], pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
-    ret
+struct LinkedList {
+    friend : [LinkedList]
+}
+
+fn testStruct(p : i32) -> (LinkedList, Rect) {
+    list = LinkedList{friend : [LinkedList{friend : [LinkedList{friend : [LinkedList{friend : [:LinkedList]}]}]}]}
+    rect = Rect{pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
+    (list, rect)
 }
 
 fn sum<T>(list : [T]) -> T {
@@ -161,28 +165,28 @@ fn addAndFib<T>(a : T, b : T) -> T {
     std::vector<samal::NativeFunction> nativeFunctions;
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.print",
-        samal::Datatype{ samal::Datatype::createEmptyTuple(), { samal::Datatype("T") } },
+        samal::Datatype::createFunctionType(samal::Datatype::createEmptyTuple(), { samal::Datatype::createUndeterminedIdentifierType("T") }),
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             std::cout << "[Code] " << params.at(0).dump() << "\n";
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.print",
-        samal::Datatype{ samal::Datatype::createEmptyTuple(), { samal::Datatype{ samal::DatatypeCategory::i32 } } },
+        samal::Datatype::createFunctionType(samal::Datatype::createEmptyTuple(), { samal::Datatype::createSimple(samal::DatatypeCategory::i32) }),
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             printf("[Code i32] %i\n", params.at(0).as<int32_t>());
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.print",
-        samal::Datatype{ samal::Datatype::createEmptyTuple(), { samal::Datatype{ samal::DatatypeCategory::i64 } } },
+        samal::Datatype::createFunctionType(samal::Datatype::createEmptyTuple(), { samal::Datatype::createSimple(samal::DatatypeCategory::i64) }),
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             printf("[Code i64] %li\n", params.at(0).as<int64_t>());
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
     nativeFunctions.emplace_back(samal::NativeFunction{
         "Main.identity",
-        samal::Datatype{ samal::Datatype("T"), { samal::Datatype("T") } },
+        samal::Datatype::createFunctionType(samal::Datatype::createUndeterminedIdentifierType("T"), { samal::Datatype::createUndeterminedIdentifierType("T") }),
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
             std::cout << "Identity function called on " << params.at(0).dump() << "\n";
             return params.at(0);

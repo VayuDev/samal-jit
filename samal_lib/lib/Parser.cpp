@@ -101,21 +101,21 @@ Parser::Parser() {
     mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
-            return Datatype{ res[0][5].result.moveValue<Datatype>(), res[0][2].result.moveValue<std::vector<Datatype>>() };
+            return Datatype::createFunctionType(res[0][5].result.moveValue<Datatype>(), res[0][2].result.moveValue<std::vector<Datatype>>());
         case 1:
             return Datatype::createListType(res[0][1].result.moveValue<Datatype>());
         case 2:
-            return Datatype{ DatatypeCategory::i32 };
+            return Datatype::createSimple(DatatypeCategory::i32);
         case 3:
-            return Datatype{ DatatypeCategory::i64 };
+            return Datatype::createSimple(DatatypeCategory::i64);
         case 4:
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple(DatatypeCategory::bool_);
         case 5:
-            return Datatype{ std::string{ std::string_view(res.startTrimmed(), static_cast<size_t>(res.endTrimmed() - res.startTrimmed())) } };
+            return Datatype::createUndeterminedIdentifierType(std::string{ std::string_view(res.startTrimmed(), static_cast<size_t>(res.endTrimmed() - res.startTrimmed())) });
         case 6:
             return res[0][1].result.moveValue<Datatype>();
         case 7:
-            return Datatype{ res[0][1].result.moveValue<std::vector<Datatype>>() };
+            return Datatype::createTupleType(res[0][1].result.moveValue<std::vector<Datatype>>());
         default:
             assert(false);
         }

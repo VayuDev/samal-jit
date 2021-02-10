@@ -441,7 +441,7 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
         throw std::runtime_error{ "Function " + functionName + " not found!" };
     }
     mIp = function->offset;
-    auto returnType = *function->type.getFunctionTypeInfo().first;
+    auto& returnType = function->type.getFunctionTypeInfo().first;
 #ifdef _DEBUG
     auto dump = mStack.dump();
     printf("Dump:\n%s\n", dump.c_str());
@@ -985,7 +985,7 @@ std::string VM::dumpVariablesOnStack() {
 void VM::execNativeFunction(int32_t nativeFuncId) {
     auto& nativeFunc = mProgram.nativeFunctions.at(nativeFuncId);
     const auto& functionTypeInfo = nativeFunc.functionType.getFunctionTypeInfo();
-    auto returnTypeSize = functionTypeInfo.first->getSizeOnStack();
+    auto returnTypeSize = functionTypeInfo.first.getSizeOnStack();
     std::vector<ExternalVMValue> params;
     params.reserve(functionTypeInfo.second.size());
     size_t sizeOfParams = 0;
@@ -996,7 +996,7 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
     mStack.pop(sizeOfParams);
     std::reverse(params.begin(), params.end());
     auto returnValue = nativeFunc.callback(*this, params);
-    assert(returnValue.getDatatype() == *functionTypeInfo.first);
+    assert(returnValue.getDatatype() == functionTypeInfo.first);
     auto returnValueBytes = returnValue.toStackValue(*this);
     mStack.push(returnValueBytes.data(), returnValueBytes.size());
     mStack.popBelow(returnTypeSize, 8);

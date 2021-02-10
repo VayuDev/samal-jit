@@ -14,7 +14,7 @@ std::string Datatype::toString() const {
                 ret += ",";
             }
         }
-        ret += ") -> " + functionInfo.first->toString();
+        ret += ") -> " + functionInfo.first.toString();
         return ret;
     };
     switch(mCategory) {
@@ -39,14 +39,13 @@ std::string Datatype::toString() const {
     }
     case DatatypeCategory::list: {
         return "[" + getListInfo().toString() + "]";
-        ;
     }
     case DatatypeCategory::bool_:
         return "bool";
     case DatatypeCategory::undetermined_identifier:
-        return "<undetermined '" + std::get<std::string>(mFurtherInfo) + "'>";
+        return "<undetermined '" + getUndeterminedIdentifierString() + "'>";
     case DatatypeCategory::struct_:
-        return "<struct " + std::get<StructInfo>(mFurtherInfo).name + ">";
+        return "<struct " + getStructInfo().name + ">";
     default:
         return "DATATYPE";
     }
@@ -54,107 +53,11 @@ std::string Datatype::toString() const {
 Datatype::Datatype()
 : mCategory(DatatypeCategory::invalid) {
 }
-Datatype::Datatype(DatatypeCategory category)
-: mCategory(category) {
-}
-Datatype::Datatype(Datatype returnType, std::vector<Datatype> params) {
-    mFurtherInfo = std::make_pair(
-        std::make_shared<Datatype>(std::move(returnType)),
-        std::move(params));
-    mCategory = DatatypeCategory::function;
-}
-Datatype::Datatype(std::string identifierName)
-: mFurtherInfo(std::move(identifierName)), mCategory(DatatypeCategory::undetermined_identifier) {
-}
-Datatype::Datatype(std::vector<Datatype> params)
-: mFurtherInfo(std::move(params)), mCategory(DatatypeCategory::tuple) {
-}
-const std::pair<sp<Datatype>, std::vector<Datatype>>& Datatype::getFunctionTypeInfo() const& {
-    if(mCategory != DatatypeCategory::function) {
-        throw std::runtime_error{ "Can't call this type!" };
-    }
-    return std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(mFurtherInfo);
-}
-const std::vector<Datatype>& Datatype::getTupleInfo() const {
-    if(mCategory != DatatypeCategory::tuple) {
-        throw std::runtime_error{ "This is not a tuple!" };
-    }
-    return std::get<std::vector<Datatype>>(mFurtherInfo);
-}
-const Datatype& Datatype::getListInfo() const {
-    if(mCategory != DatatypeCategory::list) {
-        throw std::runtime_error{ "This is not a list!" };
-    }
-    return *std::get<sp<Datatype>>(mFurtherInfo);
-}
-const std::string& Datatype::getUndeterminedIdentifierInfo() const {
-    if(mCategory != DatatypeCategory::undetermined_identifier) {
-        throw std::runtime_error{ "This is not an undetermined identifier!" };
-    }
-    return std::get<std::string>(mFurtherInfo);
-}
-const Datatype::StructInfo& Datatype::getStructInfo() const {
-    if(mCategory != DatatypeCategory::struct_) {
-        throw std::runtime_error{ "This is not a struct!" };
-    }
-    return std::get<StructInfo>(mFurtherInfo);
-}
-bool Datatype::operator==(const Datatype& other) const {
-    if(mCategory != other.mCategory)
-        return false;
-    if(mFurtherInfo.index() != other.mFurtherInfo.index())
-        return false;
-    try {
-        // check for function type equality
-        auto& selfValue = std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(mFurtherInfo);
-        auto& otherValue = std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(other.mFurtherInfo);
-        if(selfValue.second != otherValue.second)
-            return false;
-        if(selfValue.first != otherValue.first) {
-            if(selfValue.first && otherValue.first) {
-                if(*selfValue.first != *otherValue.first) {
-                    return false;
-                } else {
-                    return true;
-                }
-            }
-        }
-    } catch(std::bad_variant_access&) {
-        try {
-            // check for array type equality
-            auto& selfValue = std::get<sp<Datatype>>(mFurtherInfo);
-            auto& otherValue = std::get<sp<Datatype>>(other.mFurtherInfo);
-            if(selfValue != otherValue) {
-                if(selfValue && otherValue) {
-                    if(*selfValue != *otherValue) {
-                        return false;
-                    } else {
-                        return true;
-                    }
-                }
-            }
-        } catch(std::bad_variant_access&) {
-            // fall back to simple check
-            if(mFurtherInfo != other.mFurtherInfo) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-bool Datatype::operator!=(const Datatype& other) const {
-    return !(*this == other);
-}
-DatatypeCategory Datatype::getCategory() const {
-    return mCategory;
-}
 Datatype Datatype::createEmptyTuple() {
-    return Datatype(std::vector<Datatype>{});
+    return Datatype(DatatypeCategory::tuple, std::vector<Datatype>{});
 }
 Datatype Datatype::createListType(Datatype baseType) {
-    Datatype ret{ DatatypeCategory::list };
-    ret.mFurtherInfo = std::make_shared<Datatype>(std::move(baseType));
-    return ret;
+    return Datatype(DatatypeCategory::list, std::move(baseType));
 }
 Datatype Datatype::createStructType(const std::string& name, const std::vector<Parameter>& params, const std::vector<Datatype>& templateParams) {
     std::vector<StructInfo::StructElement> elements;
@@ -167,9 +70,70 @@ Datatype Datatype::createStructType(const std::string& name, const std::vector<P
     std::vector<std::string> templateParamNames;
     for(auto& t: templateParams) {
         assert(t.getCategory() == DatatypeCategory::undetermined_identifier);
-        templateParamNames.push_back(t.getUndeterminedIdentifierInfo());
+        templateParamNames.push_back(t.getUndeterminedIdentifierString());
     }
     return Datatype(DatatypeCategory::struct_, StructInfo{.name = name, .elements = std::move(elements), .templateParams = std::move(templateParamNames)});
+}
+Datatype::Datatype(DatatypeCategory cat, ContainedFurtherInfoType furtherInfo)
+    : mFurtherInfo(std::make_unique<ContainedFurtherInfoType>(std::move(furtherInfo))), mCategory(cat) {
+}
+Datatype Datatype::createSimple(DatatypeCategory category) {
+    return Datatype(category, std::monostate{});
+}
+Datatype Datatype::createFunctionType(Datatype returnType, std::vector<Datatype> params) {
+    return Datatype(DatatypeCategory::function, std::make_pair<Datatype, std::vector<Datatype>>(std::move(returnType), std::move(params)));
+}
+Datatype Datatype::createTupleType(std::vector<Datatype> params) {
+    return Datatype(DatatypeCategory::tuple, std::move(params));
+}
+Datatype Datatype::createUndeterminedIdentifierType(std::string name) {
+    return Datatype(DatatypeCategory::undetermined_identifier, std::move(name));
+}
+const std::pair<Datatype, std::vector<Datatype>>& Datatype::getFunctionTypeInfo() const& {
+    if(mCategory != DatatypeCategory::function) {
+        throw std::runtime_error{ "Can't call this type!" };
+    }
+    return std::get<std::pair<Datatype, std::vector<Datatype>>>(*mFurtherInfo);
+}
+const std::vector<Datatype>& Datatype::getTupleInfo() const {
+    if(mCategory != DatatypeCategory::tuple) {
+        throw std::runtime_error{ "This is not a tuple!" };
+    }
+    return std::get<std::vector<Datatype>>(*mFurtherInfo);
+}
+const Datatype& Datatype::getListInfo() const {
+    if(mCategory != DatatypeCategory::list) {
+        throw std::runtime_error{ "This is not a list!" };
+    }
+    return std::get<Datatype>(*mFurtherInfo);
+}
+const std::string& Datatype::getUndeterminedIdentifierString() const {
+    if(mCategory != DatatypeCategory::undetermined_identifier) {
+        throw std::runtime_error{ "This is not an undetermined identifier!" };
+    }
+    return std::get<std::string>(*mFurtherInfo);
+}
+const Datatype::StructInfo& Datatype::getStructInfo() const {
+    if(mCategory != DatatypeCategory::struct_) {
+        throw std::runtime_error{ "This is not a struct!" };
+    }
+    return std::get<StructInfo>(*mFurtherInfo);
+}
+bool Datatype::operator==(const Datatype& other) const {
+    if(mCategory != other.mCategory)
+        return false;
+    if(mFurtherInfo->index() != other.mFurtherInfo->index())
+        return false;
+    if(*mFurtherInfo != *other.mFurtherInfo) {
+        return false;
+    }
+    return true;
+}
+bool Datatype::operator!=(const Datatype& other) const {
+    return !(*this == other);
+}
+DatatypeCategory Datatype::getCategory() const {
+    return mCategory;
 }
 bool Datatype::isInteger() const {
     return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
@@ -225,34 +189,31 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     case DatatypeCategory::string:
         break;
     case DatatypeCategory::function: {
-        auto functionType = getFunctionTypeInfo();
-        std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(cpy.mFurtherInfo).first = std::make_shared<Datatype>(functionType.first->completeWithTemplateParameters(templateParams));
+        const auto& ourFunctionType = getFunctionTypeInfo();
+        auto& cpyFunctionType = std::get<std::pair<Datatype, std::vector<Datatype>>>(*cpy.mFurtherInfo);
+        cpyFunctionType.first = ourFunctionType.first.completeWithTemplateParameters(templateParams);
         size_t i = 0;
-        for(auto& param : functionType.second) {
-            std::get<std::pair<sp<Datatype>, std::vector<Datatype>>>(cpy.mFurtherInfo).second[i] = param.completeWithTemplateParameters(templateParams);
+        for(auto& param : ourFunctionType.second) {
+            cpyFunctionType.second.at(i) = param.completeWithTemplateParameters(templateParams);
             ++i;
         }
         break;
     }
     case DatatypeCategory::undetermined_identifier: {
-        auto maybeReplacementType = templateParams.find(std::get<std::string>(mFurtherInfo));
+        auto maybeReplacementType = templateParams.find(getUndeterminedIdentifierString());
         if(maybeReplacementType != templateParams.end()) {
             cpy = maybeReplacementType->second;
-        }
-        // recursively complete types if the type we replaced our copy with requires template parameters as well; only possible right now if it's a struct
-        if(cpy.getCategory() == DatatypeCategory::struct_) {
-            return cpy.completeWithTemplateParameters(templateParams);
         }
         break;
     }
     case DatatypeCategory::tuple: {
         for(size_t i = 0; i < getTupleInfo().size(); ++i) {
-            std::get<std::vector<Datatype>>(cpy.mFurtherInfo).at(i) = std::get<std::vector<Datatype>>(mFurtherInfo).at(i).completeWithTemplateParameters(templateParams);
+            std::get<std::vector<Datatype>>(*cpy.mFurtherInfo).at(i) = getTupleInfo().at(i).completeWithTemplateParameters(templateParams);
         }
         break;
     }
     case DatatypeCategory::list: {
-        std::get<sp<Datatype>>(cpy.mFurtherInfo) = std::make_shared<Datatype>(getListInfo().completeWithTemplateParameters(templateParams));
+        std::get<Datatype>(*cpy.mFurtherInfo) = getListInfo().completeWithTemplateParameters(templateParams);
         break;
     }
     case DatatypeCategory::struct_: {
@@ -260,9 +221,7 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         auto templateParamsCpy = templateParams;
 
         for(auto& element : getStructInfo().elements) {
-            std::get<StructInfo>(cpy.mFurtherInfo).elements.at(i).lazyType = [baseType = getStructInfo().elements.at(i).baseType, templateParams = templateParamsCpy] () {
-                return baseType.completeWithTemplateParameters(templateParams);
-            };
+            std::get<StructInfo>(*cpy.mFurtherInfo).elements.at(i).baseType = getStructInfo().elements.at(i).baseType.completeWithTemplateParameters(templateParams);
             ++i;
         }
         break;
@@ -270,6 +229,7 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     default:
         assert(false);
     }
+    cpy.attachUndeterminedIdentifierMap(std::make_shared<std::map<std::string, Datatype>>(templateParams));
     return cpy;
 }
 bool Datatype::hasUndeterminedTemplateTypes() const {
@@ -280,7 +240,7 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
     case DatatypeCategory::string:
         return false;
     case DatatypeCategory::function:
-        if(getFunctionTypeInfo().first->hasUndeterminedTemplateTypes())
+        if(getFunctionTypeInfo().first.hasUndeterminedTemplateTypes())
             return true;
         for(auto& param : getFunctionTypeInfo().second) {
             if(param.hasUndeterminedTemplateTypes())
@@ -302,7 +262,7 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
     }
     case DatatypeCategory::struct_: {
         for(auto& element : getStructInfo().elements) {
-            if(!element.lazyType)
+            if(element.baseType.hasUndeterminedTemplateTypes())
                 return true;
         }
         return false;
@@ -311,8 +271,57 @@ bool Datatype::hasUndeterminedTemplateTypes() const {
         assert(false);
     }
 }
-Datatype::Datatype(DatatypeCategory cat, decltype(mFurtherInfo) furtherInfo)
-: mFurtherInfo(std::move(furtherInfo)), mCategory(cat) {
+void Datatype::attachUndeterminedIdentifierMap(sp<std::map<std::string, Datatype>> map) {
+    mUndefinedTypeReplacementMap = map;
+    switch(mCategory) {
+    case DatatypeCategory::bool_:
+    case DatatypeCategory::i32:
+    case DatatypeCategory::i64:
+    case DatatypeCategory::string:
+    case DatatypeCategory::undetermined_identifier:
+        break;
+    case DatatypeCategory::function: {
+        auto& funcType = std::get<std::pair<Datatype, std::vector<Datatype>>>(*mFurtherInfo);
+        funcType.first.attachUndeterminedIdentifierMap(map);
+        for(auto& param: funcType.second) {
+            param.attachUndeterminedIdentifierMap(map);
+        }
+        break;
+    }
+    case DatatypeCategory::tuple: {
+        for(size_t i = 0; i < getTupleInfo().size(); ++i) {
+            std::get<std::vector<Datatype>>(*mFurtherInfo).at(i).attachUndeterminedIdentifierMap(map);
+        }
+        break;
+    }
+    case DatatypeCategory::list: {
+        std::get<Datatype>(*mFurtherInfo).attachUndeterminedIdentifierMap(map);
+        break;
+    }
+    case DatatypeCategory::struct_: {
+        for(size_t i = 0; i < getStructInfo().elements.size(); ++i) {
+            std::get<StructInfo>(*mFurtherInfo).elements.at(i).baseType.attachUndeterminedIdentifierMap(map);
+        }
+        break;
+    }
+    default:
+        assert(false);
+    }
+}
+Datatype::Datatype(const Datatype& other) {
+    operator=(other);
+}
+Datatype& Datatype::operator=(const Datatype& other) {
+    if (this == &other)
+        return *this;
+    mCategory = other.mCategory;
+    mUndefinedTypeReplacementMap = other.mUndefinedTypeReplacementMap;
+    mFurtherInfo = std::make_unique<ContainedFurtherInfoType>(*other.mFurtherInfo);
+    return *this;
+}
+Datatype Datatype::completeWithSavedTemplateParameters() const {
+    assert(mUndefinedTypeReplacementMap);
+    return completeWithTemplateParameters(*mUndefinedTypeReplacementMap);
 }
 
 }

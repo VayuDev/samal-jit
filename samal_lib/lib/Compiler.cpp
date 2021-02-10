@@ -214,12 +214,12 @@ Datatype Compiler::compileLiteralI32(int32_t value) {
     addInstructions(Instruction::PUSH_4, value);
     mStackSize += 4;
 #endif
-    return Datatype(DatatypeCategory::i32);
+    return Datatype::createSimple(DatatypeCategory::i32);
 }
 Datatype Compiler::compileLiteralI64(int64_t value) {
     addInstructions(Instruction::PUSH_8, value, value >> 32);
     mStackSize += 8;
-    return Datatype(DatatypeCategory::i64);
+    return Datatype::createSimple(DatatypeCategory::i64);
 }
 Datatype Compiler::compileLiteralBool(bool value) {
 #ifdef x86_64_BIT_MODE
@@ -229,7 +229,7 @@ Datatype Compiler::compileLiteralBool(bool value) {
     addInstructionOneByteParam(Instruction::PUSH_1, value);
     mStackSize += 1;
 #endif
-    return Datatype(DatatypeCategory::bool_);
+    return Datatype::createSimple(DatatypeCategory::bool_);
 }
 Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExpression) {
     auto lhsType = binaryExpression.getLeft()->compile(*this);
@@ -240,7 +240,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::IS_LIST_EMPTY);
             mStackSize -= lhsType.getSizeOnStack();
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple( DatatypeCategory::bool_ );
         }
     }
 
@@ -260,34 +260,34 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         case BinaryExpressionNode::BinaryOperator::PLUS:
             addInstructions(Instruction::ADD_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype{ DatatypeCategory::i32 };
+            return Datatype::createSimple( DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::MINUS:
             addInstructions(Instruction::SUB_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype{ DatatypeCategory::i32 };
+            return Datatype::createSimple( DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::MULTIPLY:
             addInstructions(Instruction::MUL_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype{ DatatypeCategory::i32 };
+            return Datatype::createSimple( DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::DIVIDE:
             addInstructions(Instruction::DIV_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype{ DatatypeCategory::i32 };
+            return Datatype::createSimple( DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple( DatatypeCategory::bool_);
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
             addInstructions(Instruction::COMPARE_MORE_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple( DatatypeCategory::bool_);
         }
         break;
     case DatatypeCategory::i64:
@@ -295,34 +295,34 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         case BinaryExpressionNode::BinaryOperator::PLUS:
             addInstructions(Instruction::ADD_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64);
-            return Datatype{ DatatypeCategory::i64 };
+            return Datatype::createSimple(DatatypeCategory::i64);
 
         case BinaryExpressionNode::BinaryOperator::MINUS:
             addInstructions(Instruction::SUB_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64);
-            return Datatype{ DatatypeCategory::i64 };
+            return Datatype::createSimple(DatatypeCategory::i64);
 
         case BinaryExpressionNode::BinaryOperator::MULTIPLY:
             addInstructions(Instruction::MUL_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64);
-            return Datatype{ DatatypeCategory::i64 };
+            return Datatype::createSimple(DatatypeCategory::i64);
 
         case BinaryExpressionNode::BinaryOperator::DIVIDE:
             addInstructions(Instruction::DIV_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64);
-            return Datatype{ DatatypeCategory::i64 };
+            return Datatype::createSimple(DatatypeCategory::i64);
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
             addInstructions(Instruction::COMPARE_LESS_THAN_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple( DatatypeCategory::bool_);
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
             addInstructions(Instruction::COMPARE_MORE_THAN_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple( DatatypeCategory::bool_);
         }
         break;
     case DatatypeCategory::list:
@@ -332,7 +332,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, mProgram.auxiliaryDatatypes.size() - 1);
             mStackSize -= lhsType.getSizeOnStack() * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
         break;
     case DatatypeCategory::bool_:
@@ -340,7 +340,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         case BinaryExpressionNode::BinaryOperator::LOGICAL_OR:
             addInstructions(Instruction::LOGICAL_OR);
             mStackSize -= getSimpleSize(DatatypeCategory::bool_);
-            return Datatype{ DatatypeCategory::bool_ };
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
         break;
     }
@@ -542,9 +542,9 @@ Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functio
 
     addInstructions(Instruction::CALL, paramTypesSummedSize);
     mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
-    mStackSize += functionInfo.first->getSizeOnStack();
+    mStackSize += functionInfo.first.getSizeOnStack();
 
-    return Datatype{ *functionInfo.first };
+    return functionInfo.first;
 }
 Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode& functionChain) {
     auto initialValueType = functionChain.getInitialValue()->compile(*this);
@@ -575,16 +575,16 @@ Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode&
 
     addInstructions(Instruction::CALL, paramTypesSummedSize);
     mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
-    mStackSize += functionInfo.first->getSizeOnStack();
+    mStackSize += functionInfo.first.getSizeOnStack();
 
-    return Datatype{ *functionInfo.first };
+    return functionInfo.first;
 }
 Datatype Compiler::compileTupleCreationExpression(const TupleCreationNode& tupleCreation) {
     std::vector<Datatype> paramTypes;
     for(auto& param : tupleCreation.getParams()) {
         paramTypes.emplace_back(param->compile(*this));
     }
-    return Datatype{ std::move(paramTypes) };
+    return Datatype::createTupleType(std::move(paramTypes));
 }
 Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode& tupleAccess) {
     auto tupleType = tupleAccess.getName()->compile(*this);
@@ -657,7 +657,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
     for(auto& param : node.getParameters()) {
         paramTypes.push_back(param.type);
     }
-    return Datatype(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    return Datatype::createFunctionType(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
 }
 Datatype Compiler::compileListCreation(const ListCreationNode& node) {
     std::optional<Datatype> elementType = node.getBaseType();
@@ -755,7 +755,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     for(auto& param : params) {
         parameterTypes.emplace_back(param.second);
     }
-    Datatype functionType{ completedReturnType, std::move(parameterTypes) };
+    auto functionType = Datatype::createFunctionType(completedReturnType, std::move(parameterTypes));
 
     // save the region of the function in the program object to allow locating it
     auto& entry = mProgram.functions.emplace_back(Program::Function{
@@ -795,7 +795,7 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
             node.throwException("Element names of struct don't match / are in the wrong order; expected element " + expectedParam.name + ", got " + nodeParam.name);
         }
         auto paramType = nodeParam.value->compile(*this);
-        auto completedExpectedParamType = expectedParam.lazyType();
+        auto completedExpectedParamType = expectedParam.baseType.completeWithSavedTemplateParameters();
         if(completedExpectedParamType != paramType) {
             node.throwException("Invalid type for element '" + expectedParam.name + "'; expected " + completedExpectedParamType.toString() + ", but got " + paramType.toString());
         }

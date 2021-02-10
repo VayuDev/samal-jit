@@ -442,7 +442,7 @@ void ModuleRootNode::setModuleName(std::string name) {
 }
 Datatype ModuleRootNode::compile(Compiler& comp) const {
     assert(false);
-    return Datatype{ DatatypeCategory::invalid };
+    return Datatype{};
 }
 const std::vector<up<DeclarationNode>>& ModuleRootNode::getDeclarations() const {
     return mDeclarations;
@@ -558,6 +558,6 @@ Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter
     for(auto& param : params) {
         parameterTypes.push_back(param.type);
     }
-    return Datatype{ returnType, std::move(parameterTypes) };
+    return Datatype::createFunctionType(returnType, std::move(parameterTypes));
 }
 }
