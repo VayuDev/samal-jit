@@ -564,7 +564,9 @@ Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode&
     }
     // move initial value back to the top of the stack
     addInstructions(Instruction::REPUSH_FROM_N, initialValueType.getSizeOnStack(), 8);
+    mStackSize += 8;
     addInstructions(Instruction::POP_N_BELOW, initialValueType.getSizeOnStack(), 8 + initialValueType.getSizeOnStack());
+    mStackSize -= 8;
     size_t i = 1;
     int32_t paramTypesSummedSize = initialValueType.getSizeOnStack();
     for(auto& param : functionCall.getParams()) {
@@ -603,9 +605,8 @@ Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode&
         offsetOfAccessedType += tupleInfo.at(i).getSizeOnStack();
     }
     addInstructions(Instruction::REPUSH_FROM_N, accessedType.getSizeOnStack(), offsetOfAccessedType);
-    addInstructions(Instruction::POP_N_BELOW, tupleType.getSizeOnStack(), accessedType.getSizeOnStack());
-
     mStackSize += accessedType.getSizeOnStack();
+    addInstructions(Instruction::POP_N_BELOW, tupleType.getSizeOnStack(), accessedType.getSizeOnStack());
     mStackSize -= tupleType.getSizeOnStack();
     return accessedType;
 }

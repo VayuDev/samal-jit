@@ -472,6 +472,7 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
 #    endif
             if(ret.nativeFunctionToCall) {
                 auto newIp = mIp;
+                mIp -= instructionToWidth(Instruction::CALL);
                 execNativeFunction(ret.nativeFunctionToCall - 1);
                 mIp = newIp;
                 continue;
@@ -500,8 +501,8 @@ bool VM::interpretInstruction() {
 #endif
 #ifdef _DEBUG
     // dump
-    auto varDump = dumpVariablesOnStack();
-    printf("Variables: %s", varDump.c_str());
+    auto varDump = dumpVariablesOnStack(mIp, 0);
+    printf("%s", varDump.c_str());
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
     switch(ins) {
@@ -950,11 +951,11 @@ ExternalVMValue VM::run(const std::string& functionName, const std::vector<Exter
 const Stack& VM::getStack() const {
     return mStack;
 }
-std::string VM::dumpVariablesOnStack() {
+std::string VM::dumpVariablesOnStack(int32_t ip, int32_t offsetFromTop) {
     std::string ret;
     Program::Function* currentFunction = nullptr;
     for(auto& func : mProgram.functions) {
-        if(mIp >= func.offset && mIp < func.offset + func.len) {
+        if(ip >= func.offset && ip < func.offset + func.len) {
             currentFunction = &func;
             break;
         }
@@ -962,8 +963,10 @@ std::string VM::dumpVariablesOnStack() {
     if(!currentFunction) {
         return ret;
     }
-    auto virtualStackSize = currentFunction->stackSizePerIp.at(mIp);
-    auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(mIp);
+    ret += currentFunction->name;
+    ret += "\n";
+    auto virtualStackSize = currentFunction->stackSizePerIp.at(ip);
+    auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(ip);
     assert(stackInfo);
     while(stackInfo) {
         if(stackInfo->isAtPopInstruction()) {
@@ -972,7 +975,7 @@ std::string VM::dumpVariablesOnStack() {
         }
         auto variable = stackInfo->getVarEntry();
         if(variable) {
-            ret += variable->name + ": " + ExternalVMValue::wrapStackedValue(variable->type, *this, virtualStackSize - stackInfo->getStackSize()).dump() + "\n";
+            ret += "  " + variable->name + ": " + ExternalVMValue::wrapStackedValue(variable->type, *this, virtualStackSize - stackInfo->getStackSize() + offsetFromTop).dump() + "\n";
         }
 
         if(stackInfo->getPrevSibling()) {
@@ -981,6 +984,13 @@ std::string VM::dumpVariablesOnStack() {
             stackInfo = stackInfo->getParent();
         }
     }
+    int32_t prevIp;
+    memcpy(&prevIp, mStack.get(offsetFromTop + virtualStackSize + 4), 4);
+    if(prevIp == mProgram.code.size()) {
+        return ret;
+    }
+    int32_t nextOffset = offsetFromTop + virtualStackSize;
+    ret += dumpVariablesOnStack(prevIp, nextOffset);
 
     return ret;
 }
@@ -1002,6 +1012,9 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
     auto returnValueBytes = returnValue.toStackValue(*this);
     mStack.push(returnValueBytes.data(), returnValueBytes.size());
     mStack.popBelow(returnTypeSize, 8);
+}
+int32_t VM::getIp() const {
+    return mIp;
 }
 VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t>& data) {

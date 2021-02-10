@@ -46,7 +46,8 @@ public:
     ExternalVMValue run(const std::string& functionName, const std::vector<ExternalVMValue>& params);
     const Stack& getStack() const;
 
-    std::string dumpVariablesOnStack();
+    std::string dumpVariablesOnStack(int32_t ip, int32_t offsetFromTop);
+    int32_t getIp() const;
 
 private:
     __always_inline bool interpretInstruction();
