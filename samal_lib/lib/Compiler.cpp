@@ -427,12 +427,6 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     }
     auto& declaration = *maybeDeclaration;
     std::string fullFunctionName = declaration.first;
-    if(!declaration.second.type.hasUndeterminedTemplateTypes()) {
-        // normal function
-        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
-        mStackSize += 8;
-        return declaration.second.type;
-    }
     auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
     auto functionTemplateParams = declaration.second.astNode->getTemplateParameterVector();
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
@@ -458,8 +452,10 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
                     identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
                 }
             }
+            // The order her is important because we first need to consider passed template parameters, then ones from the surrounding scope
             auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
-            completedDeclarationType = completedDeclarationType.completeWithTemplateParameters(replacementMap);
+            replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
+            completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap);
         }
         bool found = false;
         // iterate backwards so that we find specified (filled-in) template functions first and the raw undetermined-identifier versions later
@@ -469,7 +465,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
             if(nativeFunction.fullName == fullFunctionName) {
                 if(nativeFunction.functionType == completedDeclarationType) {
                     found = true;
-                } else if(nativeFunction.hasTemplateParams() && nativeFunction.functionType == declaration.second.type) {
+                } else if(nativeFunction.functionType == declaration.second.type) {
                     found = true;
                     auto cpy = mProgram.nativeFunctions.at(i);
                     cpy.functionType = completedDeclarationType;
@@ -487,6 +483,12 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
             identifier.throwException("No native function was found that matches the name " + fullFunctionName + " and type " + completedDeclarationType.toString());
         }
         return completedDeclarationType;
+    }
+    if(!declaration.second.type.hasUndeterminedTemplateTypes()) {
+        // normal function
+        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
+        mStackSize += 8;
+        return declaration.second.type;
     }
     // template function
     // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
@@ -516,7 +518,9 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
     }
     mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
     mStackSize += 8;
-    return declaration.second.type.completeWithTemplateParameters(replacementMap);
+    replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
+    auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap);
+    return returnType;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
     auto functionNameType = functionCall.getName()->compile(*this);
@@ -753,7 +757,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     std::vector<Datatype> parameterTypes;
     parameterTypes.reserve(params.size());
     for(auto& param : params) {
-        parameterTypes.emplace_back(param.second);
+        parameterTypes.emplace_back(param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
     }
     auto functionType = Datatype::createFunctionType(completedReturnType, std::move(parameterTypes));
 
