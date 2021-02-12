@@ -25,6 +25,7 @@ public:
     Program compile();
 
     void compileFunction(const FunctionDeclarationNode& function);
+    Datatype compileLambdaCreationExpression(const LambdaCreationNode&);
     void compileNativeFunction(const NativeFunctionDeclarationNode& function);
     Datatype compileScope(const ScopeNode& scope);
     Datatype compileLiteralI32(int32_t value);
@@ -42,7 +43,6 @@ public:
     Datatype compileTupleCreationExpression(const TupleCreationNode&);
     Datatype compileTupleAccessExpression(const TupleAccessExpressionNode&);
     Datatype compileAssignmentExpression(const AssignmentExpression&);
-    Datatype compileLambdaCreationExpression(const LambdaCreationNode&);
     Datatype compileListCreation(const ListCreationNode&);
     Datatype compileListPropertyAccess(const ListPropertyAccessExpression&);
     Datatype compileStructCreation(const StructCreationNode&);

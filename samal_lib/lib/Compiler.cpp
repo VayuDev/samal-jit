@@ -134,7 +134,78 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
     for(auto& param : function.getParameters()) {
         functionParams.emplace_back(param.name->getName(), param.type);
     }
-    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), std::move(functionParams), {}, *function.getBody());
+    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), functionParams, {}, *function.getBody());
+}
+Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
+    std::vector<std::pair<std::string, Datatype>> normalParameters;
+    for(auto& realParam : lambdaToCompile.lambda->getParameters()) {
+        normalParameters.emplace_back(realParam.name->getName(), realParam.type);
+    }
+    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), normalParameters, lambdaToCompile.copiedParameters, *lambdaToCompile.lambda->getBody());
+}
+Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body) {
+    printf("\nCompiling function %s\n", fullFunctionName.c_str());
+
+    auto start = mProgram.code.size();
+    pushStackFrame();
+
+    mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
+    mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
+
+    const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    for(const auto& param : params) {
+        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        mStackSize += type.getSizeOnStack();
+        saveVariableLocation(param.first, type, StorageType::Parameter);
+    }
+    for(const auto& param: implicitParams) {
+        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        mStackSize += type.getSizeOnStack();
+        saveVariableLocation(param.first, type, StorageType::ImplicitlyCopied);
+    }
+    mStackFrames.top().stackFrameSize = mStackSize;
+    auto bodyReturnType = body.compile(*this);
+    if(bodyReturnType != completedReturnType) {
+        // TODO call node.throwException instead
+        throw std::runtime_error{ "Function's declared return type " + completedReturnType.toString() + " and actual return type " + bodyReturnType.toString() + " don't match" };
+    }
+
+    // pop all parameters of the stack
+    {
+        auto bytesToPop = mStackFrames.top().stackFrameSize;
+        if(bytesToPop > 0) {
+            addInstructions(Instruction::POP_N_BELOW, bytesToPop, completedReturnType.getSizeOnStack());
+            mStackSize -= bytesToPop;
+        }
+        mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::Yes));
+        mStackFrames.pop();
+    }
+    assert(mStackSize == static_cast<int32_t>(completedReturnType.getSizeOnStack()));
+    addInstructions(Instruction::RETURN, completedReturnType.getSizeOnStack());
+    mStackSize = 0;
+
+    // figure out type of function
+    std::vector<Datatype> parameterTypes;
+    parameterTypes.reserve(params.size());
+    for(auto& param : params) {
+        parameterTypes.emplace_back(param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
+    }
+    auto functionType = Datatype::createFunctionType(completedReturnType, std::move(parameterTypes));
+
+    // save the region of the function in the program object to allow locating it
+    auto& entry = mProgram.functions.emplace_back(Program::Function{
+        .offset = static_cast<int32_t>(start),
+        .len = static_cast<int32_t>(mProgram.code.size() - start),
+        .type = functionType,
+        .name = fullFunctionName,
+        .templateParameters = mCurrentTemplateTypeReplacementMap,
+        .stackInformation = std::move(mCurrentStackInfoTree),
+        .stackSizePerIp = std::move(mIpToStackSize) });
+    assert(mCurrentStackInfoTreeNode);
+    assert(mCurrentStackInfoTreeNode->getParent() == nullptr);
+    mCurrentStackInfoTreeNode = nullptr;
+    mIpToStackSize = {};
+    return entry;
 }
 Datatype Compiler::compileScope(const ScopeNode& scope) {
     auto& expressions = scope.getExpressions();
@@ -713,77 +784,6 @@ Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression&
         return listType;
     }
     assert(false);
-}
-Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
-    std::vector<std::pair<std::string, Datatype>> normalParameters;
-    for(auto& realParam : lambdaToCompile.lambda->getParameters()) {
-        normalParameters.emplace_back(realParam.name->getName(), realParam.type);
-    }
-    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), normalParameters, lambdaToCompile.copiedParameters, *lambdaToCompile.lambda->getBody());
-}
-Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body) {
-    printf("\nCompiling function %s\n", fullFunctionName.c_str());
-
-    auto start = mProgram.code.size();
-    pushStackFrame();
-
-    mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
-    mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
-
-    const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
-    for(const auto& param : params) {
-        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
-        mStackSize += type.getSizeOnStack();
-        saveVariableLocation(param.first, type, StorageType::Parameter);
-    }
-    for(const auto& param: implicitParams) {
-        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
-        mStackSize += type.getSizeOnStack();
-        saveVariableLocation(param.first, type, StorageType::ImplicitlyCopied);
-    }
-    mStackFrames.top().stackFrameSize = mStackSize;
-    auto bodyReturnType = body.compile(*this);
-    if(bodyReturnType != completedReturnType) {
-        // TODO call node.throwException instead
-        throw std::runtime_error{ "Function's declared return type " + completedReturnType.toString() + " and actual return type " + bodyReturnType.toString() + " don't match" };
-    }
-
-    // pop all parameters of the stack
-    {
-        auto bytesToPop = mStackFrames.top().stackFrameSize;
-        if(bytesToPop > 0) {
-            addInstructions(Instruction::POP_N_BELOW, bytesToPop, completedReturnType.getSizeOnStack());
-            mStackSize -= bytesToPop;
-        }
-        mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::Yes));
-        mStackFrames.pop();
-    }
-    assert(mStackSize == static_cast<int32_t>(completedReturnType.getSizeOnStack()));
-    addInstructions(Instruction::RETURN, completedReturnType.getSizeOnStack());
-    mStackSize = 0;
-
-    // figure out type of function
-    std::vector<Datatype> parameterTypes;
-    parameterTypes.reserve(params.size());
-    for(auto& param : params) {
-        parameterTypes.emplace_back(param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
-    }
-    auto functionType = Datatype::createFunctionType(completedReturnType, std::move(parameterTypes));
-
-    // save the region of the function in the program object to allow locating it
-    auto& entry = mProgram.functions.emplace_back(Program::Function{
-        .offset = static_cast<int32_t>(start),
-        .len = static_cast<int32_t>(mProgram.code.size() - start),
-        .type = functionType,
-        .name = fullFunctionName,
-        .templateParameters = mCurrentTemplateTypeReplacementMap,
-        .stackInformation = std::move(mCurrentStackInfoTree),
-        .stackSizePerIp = std::move(mIpToStackSize) });
-    assert(mCurrentStackInfoTreeNode);
-    assert(mCurrentStackInfoTreeNode->getParent() == nullptr);
-    mCurrentStackInfoTreeNode = nullptr;
-    mIpToStackSize = {};
-    return entry;
 }
 void Compiler::saveVariableLocation(std::string name, Datatype type, StorageType storageType) {
     mStackFrames.top().variables.erase(name);
