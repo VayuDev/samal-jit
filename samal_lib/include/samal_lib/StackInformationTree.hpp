@@ -8,7 +8,8 @@ namespace samal {
 
 enum class StorageType {
     Local,
-    Parameter
+    Parameter,
+    ImplicitlyCopied
 };
 
 class StackInformationTree {

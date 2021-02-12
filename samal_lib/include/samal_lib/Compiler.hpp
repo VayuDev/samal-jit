@@ -62,11 +62,7 @@ private:
     void saveVariableLocation(std::string name, Datatype type, StorageType storageType);
     void saveCurrentStackSizeToDebugInfo();
 
-    enum class IsLambda {
-        Yes,
-        No
-    };
-    Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body, IsLambda);
+    Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body);
 
     int32_t addLabel(Instruction futureInstruction);
     uint8_t* labelToPtr(int32_t label);

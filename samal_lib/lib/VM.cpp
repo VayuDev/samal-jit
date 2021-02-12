@@ -978,9 +978,11 @@ std::string VM::dumpVariablesOnStack(int32_t ip, const int32_t offsetFromTop) {
         }
         auto variable = stackInfo->getVarEntry();
         if(variable) {
+            // after we hit a pop, we don't dump any variables on the stack anymore as they might have been popped of
             if(!afterPop) {
                 ret += "  " + variable->name + ": " + ExternalVMValue::wrapStackedValue(variable->datatype, *this, virtualStackSize - stackInfo->getStackSize() + offsetFromTop).dump() + "\n";
             }
+            // but we still need to account for the size of the parameters on the stack, as those are more related to the previous stackframe
             if(variable->storageType == StorageType::Parameter) {
                 nextFunctionOffset -= variable->datatype.getSizeOnStack();
             }
@@ -994,9 +996,6 @@ std::string VM::dumpVariablesOnStack(int32_t ip, const int32_t offsetFromTop) {
             stackInfo = stackInfo->getParent();
         }
     }
-    /*for(auto& param: currentFunction->type.getFunctionTypeInfo().second) {
-        nextFunctionOffset -= param.getSizeOnStack();
-    }*/
     int32_t prevIp;
     memcpy(&prevIp, mStack.get(offsetFromTop + virtualStackSize + 4), 4);
     if(prevIp == mProgram.code.size()) {

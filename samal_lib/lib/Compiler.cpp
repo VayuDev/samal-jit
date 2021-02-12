@@ -134,7 +134,7 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
     for(auto& param : function.getParameters()) {
         functionParams.emplace_back(param.name->getName(), param.type);
     }
-    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), std::move(functionParams), *function.getBody(), IsLambda::No);
+    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), std::move(functionParams), {}, *function.getBody());
 }
 Datatype Compiler::compileScope(const ScopeNode& scope) {
     auto& expressions = scope.getExpressions();
@@ -715,14 +715,13 @@ Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression&
     assert(false);
 }
 Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
-    std::vector<std::pair<std::string, Datatype>> parameters;
+    std::vector<std::pair<std::string, Datatype>> normalParameters;
     for(auto& realParam : lambdaToCompile.lambda->getParameters()) {
-        parameters.emplace_back(realParam.name->getName(), realParam.type);
+        normalParameters.emplace_back(realParam.name->getName(), realParam.type);
     }
-    parameters.insert(parameters.end(), lambdaToCompile.copiedParameters.begin(), lambdaToCompile.copiedParameters.end());
-    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), parameters, *lambdaToCompile.lambda->getBody(), IsLambda::Yes);
+    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), normalParameters, lambdaToCompile.copiedParameters, *lambdaToCompile.lambda->getBody());
 }
-Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const ScopeNode& body, IsLambda isLambda) {
+Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body) {
     printf("\nCompiling function %s\n", fullFunctionName.c_str());
 
     auto start = mProgram.code.size();
@@ -736,6 +735,11 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
         mStackSize += type.getSizeOnStack();
         saveVariableLocation(param.first, type, StorageType::Parameter);
+    }
+    for(const auto& param: implicitParams) {
+        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        mStackSize += type.getSizeOnStack();
+        saveVariableLocation(param.first, type, StorageType::ImplicitlyCopied);
     }
     mStackFrames.top().stackFrameSize = mStackSize;
     auto bodyReturnType = body.compile(*this);
