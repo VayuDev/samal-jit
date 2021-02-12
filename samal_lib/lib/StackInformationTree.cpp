@@ -4,8 +4,8 @@ namespace samal {
 StackInformationTree::StackInformationTree(int32_t startIp, int32_t totalStackSize, IsAtPopInstruction isAtPop)
 : mStartIp(startIp), mTotalStackSize(totalStackSize), mIsAtPopInstruction(isAtPop) {
 }
-StackInformationTree::StackInformationTree(int32_t startIp, int32_t totalStackSize, std::string name, Datatype type)
-: mStartIp(startIp), mTotalStackSize(totalStackSize), mVariable(VariableEntry{ .name = std::move(name), .type = std::move(type) }) {
+StackInformationTree::StackInformationTree(int32_t startIp, int32_t totalStackSize, std::string name, Datatype datatype, StorageType storageType)
+: mStartIp(startIp), mTotalStackSize(totalStackSize), mVariable(VariableEntry{ .name = std::move(name), .datatype = std::move(datatype), .storageType = storageType }) {
 }
 StackInformationTree* StackInformationTree::addChild(up<StackInformationTree> child) {
     if(mLastChild) {

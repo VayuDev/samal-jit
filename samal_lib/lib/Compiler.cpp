@@ -399,7 +399,7 @@ Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
 
     return *returnType;
 }
-Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
+Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, AllowGlobalLoad allowGlobalLoad) {
     auto stackCpy = mStackFrames;
 
     // try looking through the stack
@@ -412,6 +412,10 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier) {
             return maybeVariable->second.type;
         }
         stackCpy.pop();
+    }
+
+    if(allowGlobalLoad == AllowGlobalLoad::No) {
+        throw std::runtime_error{"Couldn't load identifier " + identifier.getName() + " from local scope"};
     }
 
     // try looking through other functions
@@ -613,10 +617,10 @@ Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode&
 Datatype Compiler::compileAssignmentExpression(const AssignmentExpression& assignment) {
     auto rhsType = assignment.getRight()->compile(*this);
     auto& lhs = *assignment.getLeft();
-    addInstructions(Instruction::REPUSH_FROM_N, rhsType.getSizeOnStack(), 0);
-    mStackSize += rhsType.getSizeOnStack();
-    saveVariableLocation(lhs.getName(), rhsType);
-    mStackFrames.top().stackFrameSize += rhsType.getSizeOnStack();
+    //addInstructions(Instruction::REPUSH_FROM_N, rhsType.getSizeOnStack(), 0);
+    //mStackSize += rhsType.getSizeOnStack();
+    saveVariableLocation(lhs.getName(), rhsType, StorageType::Local);
+    //mStackFrames.top().stackFrameSize += rhsType.getSizeOnStack();
     return rhsType;
 }
 Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& node) {
@@ -642,7 +646,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
         // if not, check in the surrounding scope
         if(!isParameter) {
             try {
-                auto identifierType = compileIdentifierLoad(*identifier);
+                auto identifierType = compileIdentifierLoad(*identifier, AllowGlobalLoad::No);
                 sizeOfCopiedScopeValues += identifierType.getSizeOnStack();
                 usedIdentifiersWithType.emplace_back(identifier->getName(), identifierType);
             } catch(std::exception& e) {
@@ -731,7 +735,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     for(const auto& param : params) {
         auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
         mStackSize += type.getSizeOnStack();
-        saveVariableLocation(param.first, type);
+        saveVariableLocation(param.first, type, StorageType::Parameter);
     }
     mStackFrames.top().stackFrameSize = mStackSize;
     auto bodyReturnType = body.compile(*this);
@@ -777,10 +781,10 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     mIpToStackSize = {};
     return entry;
 }
-void Compiler::saveVariableLocation(std::string name, Datatype type) {
+void Compiler::saveVariableLocation(std::string name, Datatype type, StorageType storageType) {
     mStackFrames.top().variables.erase(name);
     mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
-    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, name, std::move(type)));
+    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, name, std::move(type), storageType));
 }
 void Compiler::saveCurrentStackSizeToDebugInfo() {
     mIpToStackSize.emplace(mProgram.code.size(), mStackSize);

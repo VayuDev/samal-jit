@@ -6,6 +6,11 @@
 
 namespace samal {
 
+enum class StorageType {
+    Local,
+    Parameter
+};
+
 class StackInformationTree {
 public:
     // If we hit a pop instruction while traversing the tree later,
@@ -16,7 +21,7 @@ public:
         No
     };
     StackInformationTree(int32_t startIp, int32_t totalStackSize, IsAtPopInstruction);
-    StackInformationTree(int32_t startIp, int32_t totalStackSize, std::string name, Datatype type);
+    StackInformationTree(int32_t startIp, int32_t totalStackSize, std::string name, Datatype type, StorageType);
     StackInformationTree* addChild(up<StackInformationTree> child);
     StackInformationTree* getParent();
     StackInformationTree* getBestNodeForIp(int32_t ip);
@@ -30,7 +35,8 @@ public:
 private:
     struct VariableEntry {
         std::string name;
-        Datatype type;
+        Datatype datatype;
+        StorageType storageType;
     };
     StackInformationTree* mParent{ nullptr };
     up<StackInformationTree> mPrevSibling;

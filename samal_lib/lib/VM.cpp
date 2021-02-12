@@ -951,7 +951,8 @@ ExternalVMValue VM::run(const std::string& functionName, const std::vector<Exter
 const Stack& VM::getStack() const {
     return mStack;
 }
-std::string VM::dumpVariablesOnStack(int32_t ip, int32_t offsetFromTop) {
+std::string VM::dumpVariablesOnStack(int32_t ip, const int32_t offsetFromTop) {
+    //assert(offsetFromTop >= 0);
     std::string ret;
     Program::Function* currentFunction = nullptr;
     for(auto& func : mProgram.functions) {
@@ -965,32 +966,43 @@ std::string VM::dumpVariablesOnStack(int32_t ip, int32_t offsetFromTop) {
     }
     ret += currentFunction->name;
     ret += "\n";
-    auto virtualStackSize = currentFunction->stackSizePerIp.at(ip);
+    const auto virtualStackSize = currentFunction->stackSizePerIp.at(ip);
     auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(ip);
     assert(stackInfo);
+
+    int32_t nextFunctionOffset = offsetFromTop + virtualStackSize;
+    bool afterPop = false;
     while(stackInfo) {
         if(stackInfo->isAtPopInstruction()) {
-            stackInfo = stackInfo->getParent();
-            continue;
+            afterPop = true;
         }
         auto variable = stackInfo->getVarEntry();
         if(variable) {
-            ret += "  " + variable->name + ": " + ExternalVMValue::wrapStackedValue(variable->type, *this, virtualStackSize - stackInfo->getStackSize() + offsetFromTop).dump() + "\n";
+            if(!afterPop) {
+                ret += "  " + variable->name + ": " + ExternalVMValue::wrapStackedValue(variable->datatype, *this, virtualStackSize - stackInfo->getStackSize() + offsetFromTop).dump() + "\n";
+            }
+            if(variable->storageType == StorageType::Parameter) {
+                nextFunctionOffset -= variable->datatype.getSizeOnStack();
+            }
         }
+
 
         if(stackInfo->getPrevSibling()) {
             stackInfo = stackInfo->getPrevSibling();
         } else {
+            afterPop = false;
             stackInfo = stackInfo->getParent();
         }
     }
+    /*for(auto& param: currentFunction->type.getFunctionTypeInfo().second) {
+        nextFunctionOffset -= param.getSizeOnStack();
+    }*/
     int32_t prevIp;
     memcpy(&prevIp, mStack.get(offsetFromTop + virtualStackSize + 4), 4);
     if(prevIp == mProgram.code.size()) {
         return ret;
     }
-    int32_t nextOffset = offsetFromTop + virtualStackSize;
-    ret += dumpVariablesOnStack(prevIp, nextOffset);
+    ret += dumpVariablesOnStack(prevIp - instructionToWidth(Instruction::CALL), nextFunctionOffset);
 
     return ret;
 }

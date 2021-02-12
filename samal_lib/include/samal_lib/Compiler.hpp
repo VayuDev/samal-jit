@@ -2,6 +2,7 @@
 #include "Forward.hpp"
 #include "Instruction.hpp"
 #include "Program.hpp"
+#include "StackInformationTree.hpp"
 #include <queue>
 #include <stack>
 #include <unordered_map>
@@ -31,7 +32,11 @@ public:
     Datatype compileLiteralBool(bool value);
     Datatype compileBinaryExpression(const BinaryExpressionNode&);
     Datatype compileIfExpression(const IfExpressionNode&);
-    Datatype compileIdentifierLoad(const IdentifierNode&);
+    enum class AllowGlobalLoad {
+        Yes,
+        No
+    };
+    Datatype compileIdentifierLoad(const IdentifierNode&, AllowGlobalLoad = AllowGlobalLoad::Yes);
     Datatype compileFunctionCall(const FunctionCallExpressionNode&);
     Datatype compileChainedFunctionCall(const FunctionChainExpressionNode&);
     Datatype compileTupleCreationExpression(const TupleCreationNode&);
@@ -54,7 +59,7 @@ private:
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
 
-    void saveVariableLocation(std::string name, Datatype type);
+    void saveVariableLocation(std::string name, Datatype type, StorageType storageType);
     void saveCurrentStackSizeToDebugInfo();
 
     enum class IsLambda {
