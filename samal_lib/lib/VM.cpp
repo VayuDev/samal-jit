@@ -988,7 +988,6 @@ std::string VM::dumpVariablesOnStack(int32_t ip, const int32_t offsetFromTop) {
             }
         }
 
-
         if(stackInfo->getPrevSibling()) {
             stackInfo = stackInfo->getPrevSibling();
         } else {

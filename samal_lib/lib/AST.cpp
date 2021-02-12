@@ -254,7 +254,7 @@ Datatype StructCreationNode::compile(Compiler& comp) const {
     return comp.compileStructCreation(*this);
 }
 void StructCreationNode::findUsedVariables(VariableSearcher& searcher) const {
-    for(auto& p: mParams) {
+    for(auto& p : mParams) {
         p.value->findUsedVariables(searcher);
     }
 }

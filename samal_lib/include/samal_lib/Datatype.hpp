@@ -26,6 +26,7 @@ enum class DatatypeCategory {
 
 class Datatype {
     struct StructInfo;
+
 public:
     Datatype();
     static Datatype createEmptyTuple();

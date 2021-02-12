@@ -32,7 +32,7 @@ Program Compiler::compile() {
         Module module;
         module.name = moduleNode->getModuleName();
         for(auto& moduleNodeInner : mRoots) {
-            for(auto& declNode: moduleNodeInner->getDeclarations()) {
+            for(auto& declNode : moduleNodeInner->getDeclarations()) {
                 auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
                 if(!declNodeAsStructDecl)
                     continue;
@@ -158,7 +158,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         mStackSize += type.getSizeOnStack();
         saveVariableLocation(param.first, type, StorageType::Parameter);
     }
-    for(const auto& param: implicitParams) {
+    for(const auto& param : implicitParams) {
         auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
         mStackSize += type.getSizeOnStack();
         saveVariableLocation(param.first, type, StorageType::ImplicitlyCopied);
@@ -311,7 +311,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::IS_LIST_EMPTY);
             mStackSize -= lhsType.getSizeOnStack();
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype::createSimple( DatatypeCategory::bool_ );
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
     }
 
@@ -331,34 +331,34 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         case BinaryExpressionNode::BinaryOperator::PLUS:
             addInstructions(Instruction::ADD_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype::createSimple( DatatypeCategory::i32);
+            return Datatype::createSimple(DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::MINUS:
             addInstructions(Instruction::SUB_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype::createSimple( DatatypeCategory::i32);
+            return Datatype::createSimple(DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::MULTIPLY:
             addInstructions(Instruction::MUL_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype::createSimple( DatatypeCategory::i32);
+            return Datatype::createSimple(DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::DIVIDE:
             addInstructions(Instruction::DIV_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
-            return Datatype::createSimple( DatatypeCategory::i32);
+            return Datatype::createSimple(DatatypeCategory::i32);
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype::createSimple( DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
             addInstructions(Instruction::COMPARE_MORE_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype::createSimple( DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
         break;
     case DatatypeCategory::i64:
@@ -387,13 +387,13 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::COMPARE_LESS_THAN_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype::createSimple( DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
             addInstructions(Instruction::COMPARE_MORE_THAN_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype::createSimple( DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
         break;
     case DatatypeCategory::list:
@@ -486,7 +486,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     }
 
     if(allowGlobalLoad == AllowGlobalLoad::No) {
-        throw std::runtime_error{"Couldn't load identifier " + identifier.getName() + " from local scope"};
+        throw std::runtime_error{ "Couldn't load identifier " + identifier.getName() + " from local scope" };
     }
 
     // try looking through other functions

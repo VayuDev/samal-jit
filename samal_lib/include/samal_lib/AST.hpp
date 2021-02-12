@@ -23,7 +23,7 @@ public:
     explicit ASTNode(SourceCodeRef source);
     virtual ~ASTNode() = default;
     virtual Datatype compile(Compiler& comp) const {
-        return Datatype{ };
+        return Datatype{};
     };
     virtual void findUsedVariables(VariableSearcher&) const = 0;
     [[nodiscard]] virtual std::string dump(unsigned indent) const;
@@ -199,7 +199,6 @@ public:
         up<ExpressionNode> value;
         inline StructCreationParameter(std::string name, up<ExpressionNode> value)
         : name(std::move(name)), value(std::move(value)) {
-
         }
     };
     explicit StructCreationNode(SourceCodeRef source, Datatype structType, std::vector<StructCreationParameter> params);

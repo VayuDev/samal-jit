@@ -291,7 +291,8 @@ Parser::Parser() {
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
     mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression "
-                                       " | StructCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+                                       " | StructCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
+        >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             if(res[0][2].subs.empty()) {
@@ -337,13 +338,12 @@ Parser::Parser() {
         return std::move(res[0].result);
     };
     mPegParser["StructParameterVectorRec"] << "Identifier ':' Expression (',' StructParameterVectorRec)?" >> [](peg::MatchInfo& res) {
-        up<IdentifierNode> identifier{res[0].result.move<IdentifierNode*>()};
+        up<IdentifierNode> identifier{ res[0].result.move<IdentifierNode*>() };
         auto identifierAsString = identifier->getName();
         std::vector<StructCreationNode::StructCreationParameter> structParams;
         structParams.emplace_back(
             identifierAsString,
-            up<ExpressionNode>{res[2].result.move<ExpressionNode*>()}
-        );
+            up<ExpressionNode>{ res[2].result.move<ExpressionNode*>() });
         // recursive child
         if(!res[3].subs.empty()) {
             auto childParams = res[3][0][1].result.moveValue<std::vector<StructCreationNode::StructCreationParameter>>();

@@ -1,6 +1,6 @@
 #include "samal_lib/Datatype.hpp"
-#include <cassert>
 #include "samal_lib/AST.hpp"
+#include <cassert>
 
 namespace samal {
 
@@ -61,21 +61,21 @@ Datatype Datatype::createListType(Datatype baseType) {
 }
 Datatype Datatype::createStructType(const std::string& name, const std::vector<Parameter>& params, const std::vector<Datatype>& templateParams) {
     std::vector<StructInfo::StructElement> elements;
-    for(const auto& p: params) {
-        elements.push_back(StructInfo::StructElement{.name = p.name->getName(), .baseType = p.type});
+    for(const auto& p : params) {
+        elements.push_back(StructInfo::StructElement{ .name = p.name->getName(), .baseType = p.type });
     }
     std::sort(elements.begin(), elements.end(), [](auto& a, auto& b) -> bool {
         return a.name < b.name;
     });
     std::vector<std::string> templateParamNames;
-    for(auto& t: templateParams) {
+    for(auto& t : templateParams) {
         assert(t.getCategory() == DatatypeCategory::undetermined_identifier);
         templateParamNames.push_back(t.getUndeterminedIdentifierString());
     }
-    return Datatype(DatatypeCategory::struct_, StructInfo{.name = name, .elements = std::move(elements), .templateParams = std::move(templateParamNames)});
+    return Datatype(DatatypeCategory::struct_, StructInfo{ .name = name, .elements = std::move(elements), .templateParams = std::move(templateParamNames) });
 }
 Datatype::Datatype(DatatypeCategory cat, ContainedFurtherInfoType furtherInfo)
-    : mFurtherInfo(std::make_unique<ContainedFurtherInfoType>(std::move(furtherInfo))), mCategory(cat) {
+: mFurtherInfo(std::make_unique<ContainedFurtherInfoType>(std::move(furtherInfo))), mCategory(cat) {
 }
 Datatype Datatype::createSimple(DatatypeCategory category) {
     return Datatype(category, std::monostate{});
@@ -283,7 +283,7 @@ void Datatype::attachUndeterminedIdentifierMap(sp<std::map<std::string, Datatype
     case DatatypeCategory::function: {
         auto& funcType = std::get<std::pair<Datatype, std::vector<Datatype>>>(*mFurtherInfo);
         funcType.first.attachUndeterminedIdentifierMap(map);
-        for(auto& param: funcType.second) {
+        for(auto& param : funcType.second) {
             param.attachUndeterminedIdentifierMap(map);
         }
         break;
@@ -312,7 +312,7 @@ Datatype::Datatype(const Datatype& other) {
     operator=(other);
 }
 Datatype& Datatype::operator=(const Datatype& other) {
-    if (this == &other)
+    if(this == &other)
         return *this;
     mCategory = other.mCategory;
     mUndefinedTypeReplacementMap = other.mUndefinedTypeReplacementMap;
