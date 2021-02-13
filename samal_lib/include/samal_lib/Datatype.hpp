@@ -66,7 +66,12 @@ private:
         struct StructElement;
         std::vector<StructElement> elements;
         std::vector<std::string> templateParams;
-        bool operator==(const StructInfo&) const = default;
+        inline bool operator==(const StructInfo& other) const {
+            return name == other.name && elements == other.elements && templateParams == other.templateParams;
+        }
+        inline bool operator!=(const StructInfo& other) const {
+            return !operator==(other);
+        }
     };
     using ContainedFurtherInfoType = std::variant<
         std::monostate,
@@ -94,7 +99,12 @@ private:
 struct Datatype::StructInfo::StructElement {
     std::string name;
     Datatype baseType;
-    bool operator==(const StructElement&) const = default;
+    inline bool operator==(const StructElement& other) const {
+        return name == other.name && baseType == other.baseType;
+    }
+    inline bool operator!=(const StructElement& other) const {
+        return !operator==(other);
+    }
 };
 
 static inline size_t getSimpleSize(DatatypeCategory type) {
