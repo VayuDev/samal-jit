@@ -41,3 +41,8 @@ fn testStruct3(p : i32) -> [Vec2] {
     x = add(5, 3, 5)
     l
 }
+
+fn testStruct4(p : i32) -> i32 {
+    s = Vec2{x : 5, y : 6}
+    s:y
+}

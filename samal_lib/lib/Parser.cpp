@@ -250,7 +250,7 @@ Parser::Parser() {
         };
     };
     // this is stupid because we don't handle left recursion correctly in the peg parser :c
-    mPegParser["PostfixExpression"] << "LiteralExpression ~nws~(~nws~(~nws~'(' ExpressionVector ')') | ~nws~(~nws~':' ~nws~[\\d]+) | ~nws~(~nws~':head') | ~nws~(~nws~':tail'))*" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["PostfixExpression"] << "LiteralExpression ~nws~(~nws~(~nws~'(' ExpressionVector ')') | ~nws~(~nws~':' ~nws~[\\d]+) | ~nws~(~nws~':head') | ~nws~(~nws~':tail') | ~nws~(~nws~':' ~nws~Identifier))*" >> [](peg::MatchInfo& res) -> peg::Any {
         peg::Any ret = std::move(res[0].result);
         while(!res[1].subs.empty()) {
             switch(*res[1][0].choice) {
@@ -278,6 +278,11 @@ Parser::Parser() {
             }
             case 3: {
                 ret = ListPropertyAccessExpression{ toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, ListPropertyAccessExpression::ListProperty::TAIL };
+                break;
+            }
+            case 4: {
+                up<IdentifierNode> fieldName{res[1][0][0][1].result.move<IdentifierNode*>()};
+                ret = StructFieldAccessExpression{ toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, fieldName->getName() };
                 break;
             }
             default:

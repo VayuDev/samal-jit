@@ -668,7 +668,7 @@ Datatype Compiler::compileTupleCreationExpression(const TupleCreationNode& tuple
     return Datatype::createTupleType(std::move(paramTypes));
 }
 Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode& tupleAccess) {
-    auto tupleType = tupleAccess.getName()->compile(*this);
+    auto tupleType = tupleAccess.getTuple()->compile(*this);
     if(tupleType.getCategory() != DatatypeCategory::tuple) {
         tupleAccess.throwException("Trying to access a tuple-element of non-tuple type " + tupleType.toString());
     }
@@ -773,7 +773,7 @@ Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression&
         node.throwException("Trying to access list-property of type " + listType.toString());
     }
     if(node.getProperty() == ListPropertyAccessExpression::ListProperty::HEAD) {
-        addInstructions(Instruction::LIST_GET_HEAD, listType.getListInfo().getSizeOnStack());
+        addInstructions(Instruction::LOAD_FROM_PTR, listType.getListInfo().getSizeOnStack(), 8);
         mStackSize += listType.getListInfo().getSizeOnStack();
         mStackSize -= 8;
         return listType.getListInfo();
@@ -819,6 +819,32 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
     mStackSize += 8;
 
     return structType;
+}
+Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& node) {
+    auto structType = node.getStruct()->compile(*this).completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    if(structType.getCategory() != DatatypeCategory::struct_) {
+        node.throwException("Trying to access a field of " + structType.toString() + " which is not a struct");
+    }
+    // find field in struct
+    int32_t offset = 0;
+    bool foundField = false;
+    Datatype foundFieldType;
+
+    for(auto& structField: structType.getStructInfo().elements) {
+        if(structField.name == node.getFieldName()) {
+            foundField = true;
+            foundFieldType = structField.baseType;
+            break;
+        }
+        offset += structField.baseType.getSizeOnStack();
+    }
+    if(!foundField) {
+        node.throwException("The struct " + structType.toString() + " doesn't have the field " + node.getFieldName());
+    }
+    addInstructions(Instruction::LOAD_FROM_PTR, foundFieldType.getSizeOnStack(), offset);
+    mStackSize -= structType.getSizeOnStack();
+    mStackSize += foundFieldType.getSizeOnStack();
+    return foundFieldType;
 }
 
 VariableSearcher::VariableSearcher(std::vector<const IdentifierNode*>& identifiers)

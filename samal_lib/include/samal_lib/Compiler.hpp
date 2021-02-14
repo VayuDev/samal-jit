@@ -46,6 +46,7 @@ public:
     Datatype compileListCreation(const ListCreationNode&);
     Datatype compileListPropertyAccess(const ListPropertyAccessExpression&);
     Datatype compileStructCreation(const StructCreationNode&);
+    Datatype compileStructFieldAccess(const StructFieldAccessExpression&);
 
 private:
     Program mProgram;

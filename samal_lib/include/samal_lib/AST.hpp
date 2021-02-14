@@ -354,8 +354,8 @@ class TupleAccessExpressionNode : public ExpressionNode {
 public:
     TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index);
     Datatype compile(Compiler& comp) const override;
-    [[nodiscard]] const auto& getName() const {
-        return mName;
+    [[nodiscard]] const auto& getTuple() const {
+        return mTuple;
     }
     [[nodiscard]] auto getIndex() const {
         return mIndex;
@@ -365,8 +365,27 @@ public:
     [[nodiscard]] inline const char* getClassName() const override { return "TupleAccessExpressionNode"; }
 
 private:
-    up<ExpressionNode> mName;
+    up<ExpressionNode> mTuple;
     uint32_t mIndex;
+};
+
+class StructFieldAccessExpression : public ExpressionNode {
+public:
+    StructFieldAccessExpression(SourceCodeRef source, up<ExpressionNode> struct_, std::string fieldName);
+    Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] const auto& getStruct() const {
+        return mStruct;
+    }
+    [[nodiscard]] auto getFieldName() const {
+        return mFieldName;
+    }
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "StructFieldAccessExpression"; }
+
+private:
+    up<ExpressionNode> mStruct;
+    std::string mFieldName;
 };
 
 class DeclarationNode : public ASTNode {

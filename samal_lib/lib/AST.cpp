@@ -397,7 +397,7 @@ std::string ListPropertyAccessExpression::dump(unsigned int indent) const {
 }
 
 TupleAccessExpressionNode::TupleAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, uint32_t index)
-: ExpressionNode(std::move(source)), mName(std::move(name)), mIndex(index) {
+: ExpressionNode(std::move(source)), mTuple(std::move(name)), mIndex(index) {
 }
 Datatype TupleAccessExpressionNode::compile(Compiler& comp) const {
     return comp.compileTupleAccessExpression(*this);
@@ -405,13 +405,27 @@ Datatype TupleAccessExpressionNode::compile(Compiler& comp) const {
 std::string TupleAccessExpressionNode::dump(unsigned int indent) const {
     auto ret = ASTNode::dump(indent);
     ret += createIndent(indent + 1) + "Name:\n";
-    ret += mName->dump(indent + 2);
+    ret += mTuple->dump(indent + 2);
     ret += createIndent(indent + 1) + "Index:";
     ret += std::to_string(mIndex) + "\n";
     return ret;
 }
 void TupleAccessExpressionNode::findUsedVariables(VariableSearcher& searcher) const {
-    mName->findUsedVariables(searcher);
+    mTuple->findUsedVariables(searcher);
+}
+
+StructFieldAccessExpression::StructFieldAccessExpression(SourceCodeRef source, up<ExpressionNode> name, std::string fieldName)
+: ExpressionNode(std::move(source)), mStruct(std::move(name)), mFieldName(std::move(fieldName)) {
+
+}
+Datatype StructFieldAccessExpression::compile(Compiler& comp) const {
+    return comp.compileStructFieldAccess(*this);
+}
+void StructFieldAccessExpression::findUsedVariables(VariableSearcher& searcher) const {
+    mStruct->findUsedVariables(searcher);
+}
+std::string StructFieldAccessExpression::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
 }
 
 DeclarationNode::DeclarationNode(SourceCodeRef source)

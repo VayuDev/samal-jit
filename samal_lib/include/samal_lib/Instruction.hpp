@@ -36,12 +36,12 @@ namespace samal {
     INSTRUCTION(CALL, 5)                        \
     INSTRUCTION(CREATE_LAMBDA, 5)               \
     INSTRUCTION(CREATE_LIST, 9)                 \
-    INSTRUCTION(LIST_GET_HEAD, 5)               \
+    INSTRUCTION(LOAD_FROM_PTR, 9)               \
     INSTRUCTION(LIST_GET_TAIL, 1)               \
     INSTRUCTION(COMPARE_COMPLEX_EQUALITY, 5)    \
     INSTRUCTION(LIST_PREPEND, 5)                \
     INSTRUCTION(IS_LIST_EMPTY, 1)               \
-    INSTRUCTION(CREATE_STRUCT, 5)
+    INSTRUCTION(CREATE_STRUCT, 5)               \
 
 enum class Instruction : uint8_t {
 #define INSTRUCTION(name, width) name,

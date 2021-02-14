@@ -330,8 +330,9 @@ public:
                 L(after);
                 break;
             }
-            case Instruction::LIST_GET_HEAD: {
+            case Instruction::LOAD_FROM_PTR: {
                 auto sizeOfElement = *(int32_t*)&instructions.at(i + 1);
+                auto offset = *(int32_t*)&instructions.at(i + 5);
 
                 cmp(qword[rsp], 0);
                 Xbyak::Label after;
@@ -340,7 +341,7 @@ public:
                 pop(rax);
                 assert(sizeOfElement % 8 == 0);
                 for(int32_t i = 0; i < sizeOfElement / 8; ++i) {
-                    mov(rbx, qword[rax + (8 * (i + 1))]);
+                    mov(rbx, qword[rax + (8 * i + offset)]);
                     push(rbx);
                 }
                 L(after);
@@ -859,8 +860,9 @@ bool VM::interpretInstruction() {
         }
         break;
     }
-    case Instruction::LIST_GET_HEAD: {
+    case Instruction::LOAD_FROM_PTR: {
         auto size = *(int32_t*)&mProgram.code.at(mIp + 1);
+        auto offset = *(int32_t*)&mProgram.code.at(mIp + 5);
         auto ptr = *(uint8_t**)mStack.get(0);
         if(ptr == nullptr) {
             // TODO throw some kind of language-internal exception
@@ -868,7 +870,7 @@ bool VM::interpretInstruction() {
         }
         mStack.pop(8);
         char buffer[size];
-        memcpy(buffer, ptr + 8, size);
+        memcpy(buffer, ptr + offset, size);
         mStack.push(buffer, size);
         break;
     }
