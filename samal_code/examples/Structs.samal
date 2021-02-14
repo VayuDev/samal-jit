@@ -1,0 +1,43 @@
+struct Vec2 {
+    x : i32,
+    y : i32
+}
+
+struct Rect {
+    pos : Vec2,
+    size : Vec2
+}
+struct LinkedList {
+    friend : [LinkedList]
+}
+
+fn pureIdentity<T>(v : T) -> T {
+    v
+}
+
+fn testStruct(p : i32) -> (LinkedList, Rect) {
+    list = LinkedList{friend : [LinkedList{friend : [LinkedList{friend : [LinkedList{friend : [:LinkedList]}]}]}]}
+    rect = Rect{pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
+    (list, rect)
+}
+
+fn add(a : i32, b : i32, c: i32) -> i32 {
+    f = [a, b, c]
+    Core.sum<i32>([a, b, c])
+}
+
+fn testStruct2(p : i32) -> [Vec2] {
+    p = 100 + p
+    list =
+        Core.createFilledList<Vec2>(Vec2{x : 0, y : 5}, 10)
+        |> Core.map<Vec2, Vec2>(fn(p2 : Vec2) -> Vec2 {
+            i = pureIdentity<i32>(p)
+            Vec2{x : i, y : 0}
+        })
+}
+
+fn testStruct3(p : i32) -> [Vec2] {
+    l = [Vec2{x : 5, y : 10}]
+    x = add(5, 3, 5)
+    l
+}

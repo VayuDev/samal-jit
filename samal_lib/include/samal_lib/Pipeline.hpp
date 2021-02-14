@@ -1,0 +1,24 @@
+#pragma once
+#include "VM.hpp"
+#include "Forward.hpp"
+#include "peg_parser/PegForward.hpp"
+#include <string>
+
+namespace samal {
+
+class Pipeline final {
+public:
+    Pipeline();
+    ~Pipeline();
+    void addFile(const std::string& path);
+    void addFileFromMemory(std::string moduleName, std::string fileContents);
+    void addNativeFunction(NativeFunction function);
+    samal::VM compile();
+private:
+    up<samal::Parser> mParser;
+    std::vector<up<samal::ModuleRootNode>> mModules;
+    std::vector<peg::PegTokenizer> mTokenizers;
+    std::vector<NativeFunction> mNativeFunctions;
+};
+
+}

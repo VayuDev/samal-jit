@@ -35,5 +35,6 @@ class VM;
 class Stack;
 struct Program;
 class VariableSearcher;
+class Parser;
 
 }

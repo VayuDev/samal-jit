@@ -70,6 +70,23 @@ static inline std::string concat(const std::vector<std::string>& splitName) {
     return ret;
 }
 
+class DestructorWrapper {
+public:
+    explicit inline DestructorWrapper(std::function<void()> callback) {
+        mCallback = std::move(callback);
+        assert(mCallback);
+    }
+    inline ~DestructorWrapper() {
+        mCallback();
+    }
+    DestructorWrapper(const DestructorWrapper&) = delete;
+    DestructorWrapper(DestructorWrapper&&) = delete;
+    void operator=(const DestructorWrapper&) = delete;
+    void operator=(DestructorWrapper&&) = delete;
+private:
+    std::function<void()> mCallback;
+};
+
 #define todo() assert(false)
 
 }
