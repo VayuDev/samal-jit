@@ -92,7 +92,7 @@ Program Compiler::compile() {
         mCurrentTemplateTypeReplacementMap = mCurrentUndeterminedTypeReplacementMap;
 
         auto& currentModule = mModules.at(mDeclarationNodeToModuleId.at(function));
-        mCurrentUndeterminedTypeReplacementMap.merge(currentModule.structTypeReplacementMap);
+        mCurrentUndeterminedTypeReplacementMap.insert(currentModule.structTypeReplacementMap.cbegin(), currentModule.structTypeReplacementMap.cend());
         mCurrentModuleName = currentModule.name;
 
         function->compile(*this);
@@ -159,7 +159,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         saveVariableLocation(param.first, type, StorageType::Parameter);
     }
     for(const auto& param : implicitParams) {
-        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        auto type = param.second;
         mStackSize += type.getSizeOnStack();
         saveVariableLocation(param.first, type, StorageType::ImplicitlyCopied);
     }
@@ -505,6 +505,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
     auto functionTemplateParams = declaration.second.astNode->getTemplateParameterVector();
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
+    const bool functionIsTemplateFunction = !declaration.second.astNode->getTemplateParameterVector().empty();
 
     // check parameter count for template arguments
     if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
@@ -518,12 +519,12 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
             identifier.throwException("Identifier is not a function");
         }
         // it's a native function, maybe it is a template-native function?
-        if(declaration.second.type.hasUndeterminedTemplateTypes()) {
+        if(functionIsTemplateFunction) {
             // we have a templated native function, so we need to build a replacement map to get the correct type
             std::vector<Datatype> passedTemplateParameters;
             for(auto& param : identifier.getTemplateParameters()) {
                 passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
-                if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
+                if(passedTemplateParameters.back().getCategory() == DatatypeCategory::undetermined_identifier) {
                     identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
                 }
             }
@@ -559,7 +560,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
         }
         return completedDeclarationType;
     }
-    if(!declaration.second.type.hasUndeterminedTemplateTypes()) {
+    if(!functionIsTemplateFunction) {
         // normal function
         mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
         mStackSize += 8;
@@ -570,7 +571,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     std::vector<Datatype> passedTemplateParameters;
     for(auto& param : identifier.getTemplateParameters()) {
         passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
-        if(passedTemplateParameters.back().hasUndeterminedTemplateTypes()) {
+        if(passedTemplateParameters.back().getCategory() == DatatypeCategory::undetermined_identifier) {
             identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
         }
     }
@@ -821,7 +822,7 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
     return structType;
 }
 Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& node) {
-    auto structType = node.getStruct()->compile(*this).completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    auto structType = node.getStruct()->compile(*this);
     if(structType.getCategory() != DatatypeCategory::struct_) {
         node.throwException("Trying to access a field of " + structType.toString() + " which is not a struct");
     }
@@ -831,12 +832,13 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     Datatype foundFieldType;
 
     for(auto& structField: structType.getStructInfo().elements) {
+        auto structFieldType = structField.baseType.completeWithSavedTemplateParameters();
         if(structField.name == node.getFieldName()) {
             foundField = true;
-            foundFieldType = structField.baseType;
+            foundFieldType = structFieldType;
             break;
         }
-        offset += structField.baseType.getSizeOnStack();
+        offset += structFieldType.getSizeOnStack();
     }
     if(!foundField) {
         node.throwException("The struct " + structType.toString() + " doesn't have the field " + node.getFieldName());

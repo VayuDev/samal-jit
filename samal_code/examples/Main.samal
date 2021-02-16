@@ -1,7 +1,11 @@
 
-fn main(p : i32) -> i32 {
+fn main2(p : i32) -> i32 {
     Lists.testListSpeed(p)
     |> Core.reduce<i32, i32>(0, fn(e : i32, state : i32) -> i32 {
         state + e
     })
+}
+
+fn main(p : i32) -> i32 {
+    Structs.testStruct5(p)
 }

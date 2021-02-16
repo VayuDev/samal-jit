@@ -392,7 +392,7 @@ class DeclarationNode : public ASTNode {
 public:
     explicit DeclarationNode(SourceCodeRef source);
     [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
-    [[nodiscard]] virtual std::vector<Datatype> getTemplateParameterVector() const = 0;
+    [[nodiscard]] virtual std::vector<std::string> getTemplateParameterVector() const = 0;
     [[nodiscard]] virtual const IdentifierNode* getIdentifier() const = 0;
     [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
 
@@ -427,7 +427,7 @@ class FunctionDeclarationNode : public CallableDeclarationNode {
 public:
     FunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> params, Datatype returnType, up<ScopeNode> body);
     [[nodiscard]] bool hasTemplateParameters() const override;
-    [[nodiscard]] std::vector<Datatype> getTemplateParameterVector() const override;
+    [[nodiscard]] std::vector<std::string> getTemplateParameterVector() const override;
     [[nodiscard]] const IdentifierNode* getIdentifier() const override;
     [[nodiscard]] inline const std::vector<Parameter>& getParameters() const {
         return mParameters;
@@ -455,7 +455,7 @@ class NativeFunctionDeclarationNode : public CallableDeclarationNode {
 public:
     NativeFunctionDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> params, Datatype returnType);
     [[nodiscard]] bool hasTemplateParameters() const override;
-    [[nodiscard]] std::vector<Datatype> getTemplateParameterVector() const override;
+    [[nodiscard]] std::vector<std::string> getTemplateParameterVector() const override;
     [[nodiscard]] const IdentifierNode* getIdentifier() const override;
     [[nodiscard]] inline const std::vector<Parameter>& getParameters() const {
         return mParameters;
@@ -479,7 +479,7 @@ class StructDeclarationNode : public DeclarationNode {
 public:
     StructDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> values);
     [[nodiscard]] bool hasTemplateParameters() const override;
-    [[nodiscard]] std::vector<Datatype> getTemplateParameterVector() const override;
+    [[nodiscard]] std::vector<std::string> getTemplateParameterVector() const override;
     [[nodiscard]] const IdentifierNode* getIdentifier() const override;
     [[nodiscard]] inline const std::vector<Parameter>& getValues() const {
         return mValues;

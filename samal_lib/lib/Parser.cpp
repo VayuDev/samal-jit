@@ -98,7 +98,7 @@ Parser::Parser() {
         }
         return IdentifierNode{ toRef(res), std::move(parts), std::move(templateParameters) };
     };
-    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | Identifier | '(' Datatype ')' | '(' DatatypeVector ')'" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | IdentifierWithTemplate | '(' Datatype ')' | '(' DatatypeVector ')'" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             return Datatype::createFunctionType(res[0][5].result.moveValue<Datatype>(), res[0][2].result.moveValue<std::vector<Datatype>>());
@@ -110,8 +110,10 @@ Parser::Parser() {
             return Datatype::createSimple(DatatypeCategory::i64);
         case 4:
             return Datatype::createSimple(DatatypeCategory::bool_);
-        case 5:
-            return Datatype::createUndeterminedIdentifierType(std::string{ std::string_view(res.startTrimmed(), static_cast<size_t>(res.endTrimmed() - res.startTrimmed())) });
+        case 5: {
+            up<IdentifierNode> identifier{res[0].result.move<IdentifierNode*>()};
+            return Datatype::createUndeterminedIdentifierType(*identifier);
+        }
         case 6:
             return res[0][1].result.moveValue<Datatype>();
         case 7:

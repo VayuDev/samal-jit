@@ -30,6 +30,17 @@ static std::string dumpParameterVector(unsigned indent, const std::vector<Parame
     return ret;
 }
 
+static std::vector<std::string> extractUndeterminedIdentifierNames(const ASTNode& source, const std::vector<Datatype>& datatypes) {
+    std::vector<std::string> ret;
+    for(auto& dt: datatypes) {
+        ret.push_back(dt.getUndeterminedIdentifierString());
+        if(!dt.getUndeterminedIdentifierTemplateParams().empty()) {
+            source.throwException("Template parameters are not allowed here");
+        }
+    }
+    return ret;
+}
+
 ASTNode::ASTNode(SourceCodeRef source)
 : mSourceCodeRef(std::move(source)) {
 }
@@ -496,8 +507,8 @@ Datatype FunctionDeclarationNode::compile(Compiler& comp) const {
 bool FunctionDeclarationNode::hasTemplateParameters() const {
     return !mName->getTemplateParameters().empty();
 }
-std::vector<Datatype> FunctionDeclarationNode::getTemplateParameterVector() const {
-    return mName->getTemplateParameters();
+std::vector<std::string> FunctionDeclarationNode::getTemplateParameterVector() const {
+    return extractUndeterminedIdentifierNames(*this, mName->getTemplateParameters());
 }
 const IdentifierNode* FunctionDeclarationNode::getIdentifier() const {
     return mName.get();
@@ -519,8 +530,8 @@ NativeFunctionDeclarationNode::NativeFunctionDeclarationNode(SourceCodeRef sourc
 bool NativeFunctionDeclarationNode::hasTemplateParameters() const {
     return !mName->getTemplateParameters().empty();
 }
-std::vector<Datatype> NativeFunctionDeclarationNode::getTemplateParameterVector() const {
-    return mName->getTemplateParameters();
+std::vector<std::string> NativeFunctionDeclarationNode::getTemplateParameterVector() const {
+    return extractUndeterminedIdentifierNames(*this, mName->getTemplateParameters());
 }
 const IdentifierNode* NativeFunctionDeclarationNode::getIdentifier() const {
     return mName.get();
@@ -551,8 +562,8 @@ StructDeclarationNode::StructDeclarationNode(SourceCodeRef source, up<Identifier
 bool StructDeclarationNode::hasTemplateParameters() const {
     return !mName->getTemplateParameters().empty();
 }
-std::vector<Datatype> StructDeclarationNode::getTemplateParameterVector() const {
-    return mName->getTemplateParameters();
+std::vector<std::string> StructDeclarationNode::getTemplateParameterVector() const {
+    return extractUndeterminedIdentifierNames(*this, mName->getTemplateParameters());
 }
 const IdentifierNode* StructDeclarationNode::getIdentifier() const {
     return mName.get();

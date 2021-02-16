@@ -31,11 +31,12 @@ public:
     Datatype();
     static Datatype createEmptyTuple();
     static Datatype createListType(Datatype baseType);
-    static Datatype createStructType(const std::string& name, const std::vector<Parameter>& params, const std::vector<Datatype>& templateParams);
+    static Datatype createStructType(const std::string& name, const std::vector<Parameter>& params, std::vector<std::string> templateParams);
     static Datatype createSimple(DatatypeCategory category);
     static Datatype createFunctionType(Datatype returnType, std::vector<Datatype> params);
     static Datatype createTupleType(std::vector<Datatype> params);
     static Datatype createUndeterminedIdentifierType(std::string name);
+    static Datatype createUndeterminedIdentifierType(const IdentifierNode& name);
 
     Datatype(const Datatype& other);
     Datatype& operator=(const Datatype& other);
@@ -46,6 +47,7 @@ public:
     [[nodiscard]] const std::vector<Datatype>& getTupleInfo() const;
     [[nodiscard]] const Datatype& getListInfo() const;
     [[nodiscard]] const std::string& getUndeterminedIdentifierString() const;
+    [[nodiscard]] const std::vector<Datatype>& getUndeterminedIdentifierTemplateParams() const;
     [[nodiscard]] const StructInfo& getStructInfo() const;
 
     bool operator==(const Datatype& other) const;
@@ -58,9 +60,12 @@ public:
     [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams) const;
     [[nodiscard]] Datatype completeWithSavedTemplateParameters() const;
 
-    [[nodiscard]] bool hasUndeterminedTemplateTypes() const;
-
 private:
+    enum class InternalCall {
+        Yes,
+        No
+    };
+    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, InternalCall internalCall) const;
     struct StructInfo {
         std::string name;
         struct StructElement;
@@ -73,9 +78,19 @@ private:
             return !operator==(other);
         }
     };
+    struct IdentifierInfo {
+        std::string name;
+        std::vector<Datatype> templateParams;
+        inline bool operator==(const IdentifierInfo& other) const {
+            return name == other.name && templateParams == other.templateParams;
+        }
+        inline bool operator!=(const IdentifierInfo& other) const {
+            return !operator==(other);
+        }
+    };
     using ContainedFurtherInfoType = std::variant<
         std::monostate,
-        std::string,
+        IdentifierInfo,
         sp<class EnumDeclarationNode>,
         sp<class StructDeclarationNode>,
         std::pair<Datatype, std::vector<Datatype>>,

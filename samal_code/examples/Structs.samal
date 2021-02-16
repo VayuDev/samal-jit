@@ -46,3 +46,28 @@ fn testStruct4(p : i32) -> i32 {
     s = Vec2{x : 5, y : 6}
     s:y
 }
+
+struct Point<T> {
+    x : T,
+    y : T
+}
+
+fn templ<T>() -> i32 {
+    point = Point<T>{x : 5, y : 3}
+    point:y
+}
+
+fn makePoint<T>(a : T, b : T) -> fn() -> Point<T> {
+    fn() -> Point<T> {
+        Point<T>{x : a, y : b}
+    }
+}
+
+fn testStruct5(p : i32) -> i32 {
+    bp = makePoint<bool>(false, true)()
+    if bp:x {
+        templ<i32>()
+    } else {
+        3329
+    }
+}
