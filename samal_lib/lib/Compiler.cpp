@@ -26,29 +26,26 @@ Program Compiler::compile() {
             }
         }
     }
-    // 2. create module list which importantly contains the structTypeReplacementMap
-    //    and create mDeclarationNodeToModuleId list
+    // 2. create module list
     for(auto& moduleNode : mRoots) {
         Module module;
         module.name = moduleNode->getModuleName();
-        for(auto& moduleNodeInner : mRoots) {
-            for(auto& declNode : moduleNodeInner->getDeclarations()) {
-                auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
-                if(!declNodeAsStructDecl)
-                    continue;
-
-                std::string structName = declNodeAsStructDecl->getIdentifier()->getName();
-                std::string fullStructName = moduleNodeInner->getModuleName() + "." + structName;
-                if(moduleNode.get() != moduleNodeInner.get()) {
-                    structName = fullStructName;
-                }
-                module.structTypeReplacementMap.emplace(structName, Datatype::createStructType(fullStructName, declNodeAsStructDecl->getValues(), declNodeAsStructDecl->getTemplateParameterVector()));
-            }
-        }
         mModules.emplace_back(std::move(module));
         // map all child declaration nodes to the index of the module
         for(auto& decl : moduleNode->getDeclarations()) {
             mDeclarationNodeToModuleId.emplace(decl.get(), mModules.size() - 1);
+        }
+    }
+    // 3. create mStructTypeReplacementMap
+    for(auto& moduleNode : mRoots) {
+        for(auto& declNode : moduleNode->getDeclarations()) {
+            auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
+            if(!declNodeAsStructDecl)
+                continue;
+
+            std::string structName = declNodeAsStructDecl->getIdentifier()->getName();
+            std::string fullStructName = moduleNode->getModuleName() + "." + structName;
+            mStructTypeReplacementMap.emplace(fullStructName, Datatype::createStructType(fullStructName, declNodeAsStructDecl->getValues(), declNodeAsStructDecl->getTemplateParameterVector()));
         }
     }
 
@@ -77,7 +74,7 @@ Program Compiler::compile() {
         mCurrentModuleName = module->getModuleName();
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
-                mCurrentUndeterminedTypeReplacementMap = mModules.at(mDeclarationNodeToModuleId.at(decl.get())).structTypeReplacementMap;
+                mCurrentUndeterminedTypeReplacementMap = mStructTypeReplacementMap;
                 mCurrentTemplateTypeReplacementMap.clear();
                 decl->compile(*this);
                 compileLambdaFunctions();
@@ -92,7 +89,7 @@ Program Compiler::compile() {
         mCurrentTemplateTypeReplacementMap = mCurrentUndeterminedTypeReplacementMap;
 
         auto& currentModule = mModules.at(mDeclarationNodeToModuleId.at(function));
-        mCurrentUndeterminedTypeReplacementMap.insert(currentModule.structTypeReplacementMap.cbegin(), currentModule.structTypeReplacementMap.cend());
+        mCurrentUndeterminedTypeReplacementMap.insert(mStructTypeReplacementMap.cbegin(), mStructTypeReplacementMap.cend());
         mCurrentModuleName = currentModule.name;
 
         function->compile(*this);
@@ -502,7 +499,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     }
     auto& declaration = *maybeDeclaration;
     std::string fullFunctionName = declaration.first;
-    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, Datatype::AllowIncompleteTypes::Yes);
     auto functionTemplateParams = declaration.second.astNode->getTemplateParameterVector();
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
     const bool functionIsTemplateFunction = !declaration.second.astNode->getTemplateParameterVector().empty();
@@ -564,7 +561,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
         // normal function
         mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
         mStackSize += 8;
-        return declaration.second.type;
+        return completedDeclarationType;
     }
     // template function
     // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)

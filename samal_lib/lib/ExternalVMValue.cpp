@@ -139,7 +139,11 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
         return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };
     }
     case DatatypeCategory::undetermined_identifier: {
-        return wrapFromPtr(type.completeWithSavedTemplateParameters(), vm, ptr);
+        auto completedType = type.completeWithSavedTemplateParameters();
+        if(completedType.getCategory() == DatatypeCategory::undetermined_identifier) {
+            throw std::runtime_error{"Recursive undetermined identifier " + completedType.getUndeterminedIdentifierString()};
+        }
+        return wrapFromPtr(completedType, vm, ptr);
     }
     default:
         return ExternalVMValue{ vm, type, std::monostate{} };

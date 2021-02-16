@@ -82,9 +82,9 @@ private:
 
     struct Module {
         std::string name;
-        // Maps strings of structs like 'Vec2' (or from external modules like 'Math.Vec3') to the actual datatype. This is later merged with the mTemplateReplacementMap
-        std::map<std::string, Datatype> structTypeReplacementMap;
     };
+    // Maps strings of structs like 'Vec2' (or from external modules like 'Math.Vec3') to the actual datatype. This is later merged with the mTemplateReplacementMap
+    std::map<std::string, Datatype> mStructTypeReplacementMap;
     std::vector<Module> mModules;
     std::unordered_map<DeclarationNode*, size_t> mDeclarationNodeToModuleId;
     std::string mCurrentModuleName;

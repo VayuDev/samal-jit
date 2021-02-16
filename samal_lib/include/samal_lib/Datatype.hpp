@@ -57,15 +57,19 @@ public:
     [[nodiscard]] bool isInteger() const;
     [[nodiscard]] size_t getSizeOnStack() const;
 
-    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams) const;
-    [[nodiscard]] Datatype completeWithSavedTemplateParameters() const;
+    enum class AllowIncompleteTypes {
+        Yes,
+        No
+    };
+    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, AllowIncompleteTypes = AllowIncompleteTypes::No) const;
+    [[nodiscard]] Datatype completeWithSavedTemplateParameters(AllowIncompleteTypes = AllowIncompleteTypes::No) const;
 
 private:
     enum class InternalCall {
         Yes,
         No
     };
-    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, InternalCall internalCall) const;
+    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, InternalCall internalCall, AllowIncompleteTypes) const;
     struct StructInfo {
         std::string name;
         struct StructElement;

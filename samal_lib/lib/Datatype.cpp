@@ -64,9 +64,6 @@ Datatype Datatype::createStructType(const std::string& name, const std::vector<P
     for(const auto& p : params) {
         elements.push_back(StructInfo::StructElement{ .name = p.name->getName(), .baseType = p.type });
     }
-    std::sort(elements.begin(), elements.end(), [](auto& a, auto& b) -> bool {
-        return a.name < b.name;
-    });
     return Datatype(DatatypeCategory::struct_, StructInfo{ .name = name, .elements = std::move(elements), .templateParams = std::move(templateParams) });
 }
 Datatype::Datatype(DatatypeCategory cat, ContainedFurtherInfoType furtherInfo)
@@ -184,10 +181,12 @@ size_t Datatype::getSizeOnStack() const {
         assert(false);
     }
 }
-Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams) const {
-    return completeWithTemplateParameters(templateParams, InternalCall::No);
+Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, AllowIncompleteTypes allowIncompleteTypes) const {
+    return completeWithTemplateParameters(templateParams, InternalCall::No, allowIncompleteTypes);
 }
 void Datatype::attachUndeterminedIdentifierMap(sp<std::map<std::string, Datatype>> map) {
+    if(mUndefinedTypeReplacementMap)
+        return;
     mUndefinedTypeReplacementMap = map;
     switch(mCategory) {
     case DatatypeCategory::bool_:
@@ -235,11 +234,11 @@ Datatype& Datatype::operator=(const Datatype& other) {
     mFurtherInfo = std::make_unique<ContainedFurtherInfoType>(*other.mFurtherInfo);
     return *this;
 }
-Datatype Datatype::completeWithSavedTemplateParameters() const {
+Datatype Datatype::completeWithSavedTemplateParameters(AllowIncompleteTypes allowIncompleteTypes) const {
     assert(mUndefinedTypeReplacementMap);
-    return completeWithTemplateParameters(*mUndefinedTypeReplacementMap, InternalCall::Yes);
+    return completeWithTemplateParameters(*mUndefinedTypeReplacementMap, InternalCall::Yes, allowIncompleteTypes);
 }
-Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, Datatype::InternalCall internalCall) const {
+Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, Datatype::InternalCall internalCall, AllowIncompleteTypes allowIncompleteTypes) const {
     // This assertion ensures that we don't accidentally call completeWithTemplateParameters twice, overwriting the mUndefinedTypeReplacementMap
     assert(!(internalCall == InternalCall::No && mUndefinedTypeReplacementMap));
     Datatype cpy = *this;
@@ -252,10 +251,10 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     case DatatypeCategory::function: {
         const auto& ourFunctionType = getFunctionTypeInfo();
         auto& cpyFunctionType = std::get<std::pair<Datatype, std::vector<Datatype>>>(*cpy.mFurtherInfo);
-        cpyFunctionType.first = ourFunctionType.first.completeWithTemplateParameters(templateParams, internalCall);
+        cpyFunctionType.first = ourFunctionType.first.completeWithTemplateParameters(templateParams, internalCall, allowIncompleteTypes);
         size_t i = 0;
         for(auto& param : ourFunctionType.second) {
-            cpyFunctionType.second.at(i) = param.completeWithTemplateParameters(templateParams, internalCall);
+            cpyFunctionType.second.at(i) = param.completeWithTemplateParameters(templateParams, internalCall, allowIncompleteTypes);
             ++i;
         }
         break;
@@ -268,30 +267,33 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
                 // add template params to replacement map
                 std::vector<Datatype> undeterminedIdentifierTemplateParameters;
                 for(auto& dt: getUndeterminedIdentifierTemplateParams()) {
-                    undeterminedIdentifierTemplateParameters.emplace_back(dt.completeWithTemplateParameters(templateParams, internalCall));
+                    undeterminedIdentifierTemplateParameters.emplace_back(dt.completeWithTemplateParameters(templateParams, internalCall, allowIncompleteTypes));
                 }
                 auto additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);
                 additionalMap.insert(templateParams.cbegin(), templateParams.cend());
                 cpy.attachUndeterminedIdentifierMap(std::make_shared<std::map<std::string, Datatype>>(additionalMap));
-                return cpy;
             }
+            return cpy;
+        }
+        if(allowIncompleteTypes == AllowIncompleteTypes::No) {
+            assert(false);
         }
         break;
     }
     case DatatypeCategory::tuple: {
         for(size_t i = 0; i < getTupleInfo().size(); ++i) {
-            std::get<std::vector<Datatype>>(*cpy.mFurtherInfo).at(i) = getTupleInfo().at(i).completeWithTemplateParameters(templateParams, internalCall);
+            std::get<std::vector<Datatype>>(*cpy.mFurtherInfo).at(i) = getTupleInfo().at(i).completeWithTemplateParameters(templateParams, internalCall, allowIncompleteTypes);
         }
         break;
     }
     case DatatypeCategory::list: {
-        std::get<Datatype>(*cpy.mFurtherInfo) = getListInfo().completeWithTemplateParameters(templateParams, internalCall);
+        std::get<Datatype>(*cpy.mFurtherInfo) = getListInfo().completeWithTemplateParameters(templateParams, internalCall, allowIncompleteTypes);
         break;
     }
     case DatatypeCategory::struct_: {
         size_t i = 0;
         for(auto& element : getStructInfo().elements) {
-            std::get<StructInfo>(*cpy.mFurtherInfo).elements.at(i).baseType = getStructInfo().elements.at(i).baseType.completeWithTemplateParameters(templateParams, internalCall);
+            std::get<StructInfo>(*cpy.mFurtherInfo).elements.at(i).baseType = getStructInfo().elements.at(i).baseType.completeWithTemplateParameters(templateParams, internalCall, allowIncompleteTypes);
             ++i;
         }
         break;
