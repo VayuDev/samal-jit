@@ -6,6 +6,6 @@ fn main2(p : i32) -> i32 {
     })
 }
 
-fn main(p : i32) -> i32 {
-    Structs.testStruct5(p)
+fn main(p : i32) -> Structs.LinkedList<i32> {
+    Structs.testStruct(p):0
 }

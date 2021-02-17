@@ -61,7 +61,7 @@ public:
         Yes,
         No
     };
-    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, AllowIncompleteTypes = AllowIncompleteTypes::No) const;
+    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes = AllowIncompleteTypes::No) const;
     [[nodiscard]] Datatype completeWithSavedTemplateParameters(AllowIncompleteTypes = AllowIncompleteTypes::No) const;
 
 private:
@@ -69,7 +69,7 @@ private:
         Yes,
         No
     };
-    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, InternalCall internalCall, AllowIncompleteTypes) const;
+    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, const std::vector<std::string>& modules, InternalCall internalCall, AllowIncompleteTypes) const;
     struct StructInfo {
         std::string name;
         struct StructElement;
@@ -112,8 +112,12 @@ private:
     // the stored map, going down one recursion level.
     // This system is necessary for infinite types that contain themselves as it wouldn't be possible
     // to complete them in one go until there is nothing left.
-    void attachUndeterminedIdentifierMap(sp<std::map<std::string, Datatype>> map);
-    sp<std::map<std::string, Datatype>> mUndefinedTypeReplacementMap;
+    struct UndeterminedIdentifierCompletionInfo {
+        std::map<std::string, Datatype> map;
+        std::vector<std::string> includedModules;
+    };
+    void attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompletionInfo> map);
+    sp<UndeterminedIdentifierCompletionInfo> mUndefinedTypeReplacementMap;
 };
 struct Datatype::StructInfo::StructElement {
     std::string name;

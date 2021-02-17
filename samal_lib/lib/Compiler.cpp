@@ -71,7 +71,7 @@ Program Compiler::compile() {
     };
     // compile all normal functions
     for(auto& module : mRoots) {
-        mCurrentModuleName = module->getModuleName();
+        mUsingModuleNames = { module->getModuleName() };
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
                 mCurrentUndeterminedTypeReplacementMap = mStructTypeReplacementMap;
@@ -90,7 +90,7 @@ Program Compiler::compile() {
 
         auto& currentModule = mModules.at(mDeclarationNodeToModuleId.at(function));
         mCurrentUndeterminedTypeReplacementMap.insert(mStructTypeReplacementMap.cbegin(), mStructTypeReplacementMap.cend());
-        mCurrentModuleName = currentModule.name;
+        mUsingModuleNames = { currentModule.name };
 
         function->compile(*this);
 
@@ -149,9 +149,9 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
     mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
 
-    const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
     for(const auto& param : params) {
-        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
         mStackSize += type.getSizeOnStack();
         saveVariableLocation(param.first, type, StorageType::Parameter);
     }
@@ -185,7 +185,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     std::vector<Datatype> parameterTypes;
     parameterTypes.reserve(params.size());
     for(auto& param : params) {
-        parameterTypes.emplace_back(param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
+        parameterTypes.emplace_back(param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames));
     }
     auto functionType = Datatype::createFunctionType(completedReturnType, std::move(parameterTypes));
 
@@ -487,19 +487,20 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     }
 
     // try looking through other functions
-    std::string fullName;
+    auto maybeDeclaration = mCallableDeclarations.end();
     if(identifier.getNameSplit().size() > 1) {
-        fullName = identifier.getName();
+        maybeDeclaration = mCallableDeclarations.find(identifier.getName());
     } else {
-        fullName = mCurrentModuleName + "." + identifier.getName();
+        for(auto& module: mUsingModuleNames) {
+            maybeDeclaration = mCallableDeclarations.find(module + "." + identifier.getName());
+        }
     }
-    auto maybeDeclaration = mCallableDeclarations.find(fullName);
     if(maybeDeclaration == mCallableDeclarations.end()) {
         identifier.throwException("Identifier not found");
     }
     auto& declaration = *maybeDeclaration;
     std::string fullFunctionName = declaration.first;
-    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, Datatype::AllowIncompleteTypes::Yes);
+    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames, Datatype::AllowIncompleteTypes::Yes);
     auto functionTemplateParams = declaration.second.astNode->getTemplateParameterVector();
     auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
     const bool functionIsTemplateFunction = !declaration.second.astNode->getTemplateParameterVector().empty();
@@ -520,7 +521,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
             // we have a templated native function, so we need to build a replacement map to get the correct type
             std::vector<Datatype> passedTemplateParameters;
             for(auto& param : identifier.getTemplateParameters()) {
-                passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
+                passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames));
                 if(passedTemplateParameters.back().getCategory() == DatatypeCategory::undetermined_identifier) {
                     identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
                 }
@@ -528,7 +529,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
             // The order her is important because we first need to consider passed template parameters, then ones from the surrounding scope
             auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
             replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
-            completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap);
+            completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap, mUsingModuleNames);
         }
         bool found = false;
         // iterate backwards so that we find specified (filled-in) template functions first and the raw undetermined-identifier versions later
@@ -567,7 +568,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
     std::vector<Datatype> passedTemplateParameters;
     for(auto& param : identifier.getTemplateParameters()) {
-        passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap));
+        passedTemplateParameters.push_back(param.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames));
         if(passedTemplateParameters.back().getCategory() == DatatypeCategory::undetermined_identifier) {
             identifier.throwException("Passed parameter " + passedTemplateParameters.back().toString() + " couldn't be deduced");
         }
@@ -592,7 +593,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
     mStackSize += 8;
     replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
-    auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap);
+    auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, mUsingModuleNames);
     return returnType;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
@@ -735,7 +736,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
     for(auto& param : node.getParameters()) {
         paramTypes.push_back(param.type);
     }
-    return Datatype::createFunctionType(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    return Datatype::createFunctionType(node.getReturnType(), std::move(paramTypes)).completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
 }
 Datatype Compiler::compileListCreation(const ListCreationNode& node) {
     std::optional<Datatype> elementType = node.getBaseType();
@@ -743,7 +744,7 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
         node.throwException("Unable to infer list type; if you want to create an empty list, use the following syntax: [:i32]");
     }
     if(elementType) {
-        elementType = elementType->completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+        elementType = elementType->completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
     }
     for(auto& param : node.getParams()) {
         auto paramType = param->compile(*this);
@@ -792,7 +793,7 @@ void Compiler::saveCurrentStackSizeToDebugInfo() {
     mIpToStackSize.emplace(mProgram.code.size(), mStackSize);
 }
 Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
-    auto structType = node.getStructType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap);
+    auto structType = node.getStructType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
     const auto& structTypeInfo = structType.getStructInfo();
     int32_t sizeOfCopiedParams = 0;
 

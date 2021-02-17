@@ -87,7 +87,7 @@ private:
     std::map<std::string, Datatype> mStructTypeReplacementMap;
     std::vector<Module> mModules;
     std::unordered_map<DeclarationNode*, size_t> mDeclarationNodeToModuleId;
-    std::string mCurrentModuleName;
+    std::vector<std::string> mUsingModuleNames;
 
     std::map<std::string, Datatype> mCurrentUndeterminedTypeReplacementMap;
     std::map<std::string, Datatype> mCurrentTemplateTypeReplacementMap;

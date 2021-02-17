@@ -7,17 +7,18 @@ struct Rect {
     pos : Vec2,
     size : Vec2
 }
-struct LinkedList {
-    friend : [LinkedList]
+struct LinkedList<T> {
+    value : T,
+    friend : [Structs.LinkedList<T>]
 }
 
 fn pureIdentity<T>(v : T) -> T {
     v
 }
 
-fn testStruct(p : i32) -> (LinkedList, Rect) {
-    list = LinkedList{friend : [LinkedList{friend : [LinkedList{friend : [LinkedList{friend : [:LinkedList]}]}]}]}
-    rect = Rect{pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
+fn testStruct(p : i32) -> (Structs.LinkedList<i32>, Structs.Rect) {
+    list = Structs.LinkedList<i32>{value : 5, friend : [Structs.LinkedList<i32>{value : 5, friend : [Structs.LinkedList<i32>{value : 5, friend : [:Structs.LinkedList<i32>]}]}]}
+    rect = Structs.Rect{pos : Structs.Vec2{x : p * 5, y : p}, size : Structs.Vec2{x : 3, y : 3}}
     (list, rect)
 }
 
@@ -26,7 +27,7 @@ fn add(a : i32, b : i32, c: i32) -> i32 {
     Core.sum<i32>([a, b, c])
 }
 
-fn testStruct2(p : i32) -> [Vec2] {
+fn testStruct2(p : i32) -> [Structs.Vec2] {
     p = 100 + p
     list =
         Core.createFilledList<Vec2>(Vec2{x : 0, y : 5}, 10)
