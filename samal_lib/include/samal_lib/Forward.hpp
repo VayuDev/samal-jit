@@ -37,5 +37,6 @@ class Stack;
 struct Program;
 class VariableSearcher;
 class Parser;
+struct StackTrace;
 
 }

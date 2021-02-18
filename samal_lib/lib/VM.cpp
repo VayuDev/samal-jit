@@ -426,7 +426,7 @@ class JitCode {
 #endif
 
 VM::VM(Program program)
-: mProgram(std::move(program)) {
+: mProgram(std::move(program)), mGC(*this) {
 #ifdef SAMAL_ENABLE_JIT
     mCompiledCode = std::make_unique<JitCode>(mProgram.code);
 #endif
@@ -502,7 +502,7 @@ bool VM::interpretInstruction() {
 #endif
 #ifdef _DEBUG
     // dump
-    auto varDump = dumpVariablesOnStack(mIp, 0);
+    auto varDump = dumpVariablesOnStack();
     printf("%s", varDump.c_str());
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
@@ -850,8 +850,8 @@ bool VM::interpretInstruction() {
         // store length of buffer & ip of the function on the stack
         ((int32_t*)dataOnHeap)[0] = functionIpOffset;
         ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIpOffset);
-        ((int32_t*)dataOnHeap)[3] = lambdaCapturedTypesId;
-        ((int32_t*)dataOnHeap)[4] = 0;
+        ((int32_t*)dataOnHeap)[2] = lambdaCapturedTypesId;
+        ((int32_t*)dataOnHeap)[3] = 0;
         memcpy(dataOnHeap + 16, mStack.get(0), functionIpOffset);
         mStack.pop(functionIpOffset + 8);
         mStack.push(&dataOnHeap, 8);
@@ -966,6 +966,10 @@ bool VM::interpretInstruction() {
         mStack.push(&result, BOOL_SIZE);
         break;
     }
+    case Instruction::RUN_GC: {
+        mGC.requestCollection();
+        break;
+    }
     default:
         fprintf(stderr, "Unhandled instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
         assert(false);
@@ -988,57 +992,82 @@ ExternalVMValue VM::run(const std::string& functionName, const std::vector<Exter
 const Stack& VM::getStack() const {
     return mStack;
 }
-std::string VM::dumpVariablesOnStack(int32_t ip, const int32_t offsetFromTop) {
-    //assert(offsetFromTop >= 0);
+std::string VM::dumpVariablesOnStack() {
     std::string ret;
-    Program::Function* currentFunction = nullptr;
-    for(auto& func : mProgram.functions) {
-        if(ip >= func.offset && ip < func.offset + func.len) {
-            currentFunction = &func;
+    auto stackTrace = generateStacktrace();
+    for(const auto& frame: stackTrace.stackFrames) {
+        ret += frame.functionName;
+        ret += "\n";
+        for(auto& var: frame.variables) {
+            ret += " " + var.name + ": " + ExternalVMValue::wrapFromPtr(var.type, *this, var.ptr).dump() + "\n";
+        }
+    }
+    return ret;
+}
+StackTrace VM::generateStacktrace() const {
+    // FIXME: This function isn't quite correct
+    StackTrace ret;
+    int32_t ip = mIp;
+    int32_t offsetFromTop = 0;
+    while(true) {
+        //assert(offsetFromTop >= 0);
+        const Program::Function* currentFunction = nullptr;
+        for(auto& func : mProgram.functions) {
+            if(ip >= func.offset && ip < func.offset + func.len) {
+                currentFunction = &func;
+                break;
+            }
+        }
+        if(!currentFunction) {
+            return ret;
+        }
+        auto& stackFrame = ret.stackFrames.emplace_back();
+        stackFrame.functionName = currentFunction->name;
+        const auto virtualStackSize = currentFunction->stackSizePerIp.at(ip);
+        auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(ip);
+        assert(stackInfo);
+        const bool isAtReturn = static_cast<Instruction>(mProgram.code.at(ip)) == Instruction::RETURN;
+
+        int32_t nextFunctionOffset = offsetFromTop + virtualStackSize;
+        bool afterPop = false;
+        while(stackInfo) {
+            if(stackInfo->isAtPopInstruction()) {
+                afterPop = true;
+            }
+            auto variable = stackInfo->getVarEntry();
+            if(variable) {
+                // after we hit a pop, we don't dump any variables on the stack anymore as they might have been popped of
+                if(!afterPop) {
+                    auto& var = stackFrame.variables.emplace_back();
+                    var.name = variable->name;
+                    var.type = variable->datatype;
+                    var.ptr = mStack.getTopPtr() + virtualStackSize - stackInfo->getStackSize() + offsetFromTop;
+                }
+                // but we still need to account for the size of the parameters on the stack, as those are more related to the previous stackframe
+                if(variable->storageType == StorageType::Parameter) {
+                    nextFunctionOffset -= variable->datatype.getSizeOnStack();
+                }
+            }
+
+            if(stackInfo->getPrevSibling()) {
+                stackInfo = stackInfo->getPrevSibling();
+            } else {
+                afterPop = false;
+                stackInfo = stackInfo->getParent();
+            }
+        }
+        int32_t prevIp;
+        memcpy(&prevIp, mStack.get(offsetFromTop + virtualStackSize + 4), 4);
+        if(prevIp == mProgram.code.size()) {
             break;
         }
-    }
-    if(!currentFunction) {
-        return ret;
-    }
-    ret += currentFunction->name;
-    ret += "\n";
-    const auto virtualStackSize = currentFunction->stackSizePerIp.at(ip);
-    auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(ip);
-    assert(stackInfo);
-
-    int32_t nextFunctionOffset = offsetFromTop + virtualStackSize;
-    bool afterPop = false;
-    while(stackInfo) {
-        if(stackInfo->isAtPopInstruction()) {
-            afterPop = true;
+        if(nextFunctionOffset < 0) {
+            // FIXME this shouldn't happen, but it does
+            break;
         }
-        auto variable = stackInfo->getVarEntry();
-        if(variable) {
-            // after we hit a pop, we don't dump any variables on the stack anymore as they might have been popped of
-            if(!afterPop) {
-                ret += "  " + variable->name + ": " + ExternalVMValue::wrapStackedValue(variable->datatype, *this, virtualStackSize - stackInfo->getStackSize() + offsetFromTop).dump() + "\n";
-            }
-            // but we still need to account for the size of the parameters on the stack, as those are more related to the previous stackframe
-            if(variable->storageType == StorageType::Parameter) {
-                nextFunctionOffset -= variable->datatype.getSizeOnStack();
-            }
-        }
-
-        if(stackInfo->getPrevSibling()) {
-            stackInfo = stackInfo->getPrevSibling();
-        } else {
-            afterPop = false;
-            stackInfo = stackInfo->getParent();
-        }
+        ip = prevIp - instructionToWidth(Instruction::CALL);
+        offsetFromTop = nextFunctionOffset;
     }
-    int32_t prevIp;
-    memcpy(&prevIp, mStack.get(offsetFromTop + virtualStackSize + 4), 4);
-    if(prevIp == mProgram.code.size()) {
-        return ret;
-    }
-    ret += dumpVariablesOnStack(prevIp - instructionToWidth(Instruction::CALL), nextFunctionOffset);
-
     return ret;
 }
 void VM::execNativeFunction(int32_t nativeFuncId) {
@@ -1063,6 +1092,9 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
 int32_t VM::getIp() const {
     return mIp;
 }
+const Program& VM::getProgram() const {
+    return mProgram;
+}
 VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t>& data) {
     push(data.data(), data.size());
@@ -1079,6 +1111,9 @@ void Stack::repush(size_t offset, size_t len) {
     memcpy(mDataTop, mDataTop + len + offset, len);
 }
 void* Stack::get(size_t offset) {
+    return mDataTop + offset;
+}
+const void* Stack::get(size_t offset) const {
     return mDataTop + offset;
 }
 void Stack::popBelow(size_t offset, size_t len) {
@@ -1103,7 +1138,7 @@ std::string Stack::dump() {
     return ret;
 }
 Stack::Stack() {
-    mDataReserved = 1024 * 1024 * 8;
+    mDataReserved = 1024 * 1024 * 80;
     mDataStart = (uint8_t*)malloc(mDataReserved);
     mDataEnd = mDataStart + mDataReserved;
     mDataTop = mDataEnd;

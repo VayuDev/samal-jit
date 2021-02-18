@@ -160,13 +160,13 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         mStackSize += type.getSizeOnStack();
         saveVariableLocation(param.first, type, StorageType::ImplicitlyCopied);
     }
+    addInstructions(Instruction::RUN_GC);
     mStackFrames.top().stackFrameSize = mStackSize;
     auto bodyReturnType = body.compile(*this);
     if(bodyReturnType != completedReturnType) {
         // TODO call node.throwException instead
         throw std::runtime_error{ "Function's declared return type " + completedReturnType.toString() + " and actual return type " + bodyReturnType.toString() + " don't match" };
     }
-
     // pop all parameters of the stack
     {
         auto bytesToPop = mStackFrames.top().stackFrameSize;

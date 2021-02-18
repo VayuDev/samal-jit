@@ -20,6 +20,7 @@ public:
     void popBelow(size_t offset, size_t len);
     void pop(size_t len);
     void* get(size_t offset);
+    const void* get(size_t offset) const;
     std::string dump();
     uint8_t* getBasePtr();
     uint8_t* getTopPtr();
@@ -38,15 +39,30 @@ private:
     size_t mDataReserved{ 0 };
 };
 
+struct StackTrace {
+    struct StackFrame {
+        struct Variable {
+            std::string name;
+            Datatype type;
+            const uint8_t* ptr { nullptr };
+        };
+        std::vector<Variable> variables;
+        std::string functionName;
+    };
+    std::vector<StackFrame> stackFrames;
+};
+
 class VM final {
 public:
     explicit VM(Program program);
     ~VM();
     ExternalVMValue run(const std::string& functionName, std::vector<uint8_t> initialStack);
     ExternalVMValue run(const std::string& functionName, const std::vector<ExternalVMValue>& params);
-    const Stack& getStack() const;
+    [[nodiscard]] const Stack& getStack() const;
+    [[nodiscard]] const Program& getProgram() const;
 
-    std::string dumpVariablesOnStack(int32_t ip, int32_t offsetFromTop);
+    StackTrace generateStacktrace() const;
+    std::string dumpVariablesOnStack();
     int32_t getIp() const;
 
 private:
