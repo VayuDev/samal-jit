@@ -261,7 +261,7 @@ public:
                 // lambda
                 // setup rsi
                 mov(rsi, rbx);
-                add(rsi, 8);
+                add(rsi, 16);
                 // rsi points to the start of the buffer in ram
                 // extract length & ip
                 mov(ecx, dword[rbx]);
@@ -809,7 +809,7 @@ bool VM::interpretInstruction() {
             *(int32_t*)mStack.get(offset) = 0;
 
             uint8_t buffer[lambdaParamsLen];
-            memcpy(buffer, lambdaParams + 8, lambdaParamsLen);
+            memcpy(buffer, lambdaParams + 16, lambdaParamsLen);
             mStack.push(buffer, lambdaParamsLen);
         } else {
             // it's a default function call or a native function call
@@ -845,11 +845,14 @@ bool VM::interpretInstruction() {
     }
     case Instruction::CREATE_LAMBDA: {
         auto functionIpOffset = *(int32_t*)&mProgram.code.at(mIp + 1);
-        auto* dataOnHeap = (uint8_t*)mGC.alloc(functionIpOffset + 8);
+        auto lambdaCapturedTypesId = *(int32_t*)&mProgram.code.at(mIp + 5);
+        auto* dataOnHeap = (uint8_t*)mGC.alloc(functionIpOffset + 16);
         // store length of buffer & ip of the function on the stack
         ((int32_t*)dataOnHeap)[0] = functionIpOffset;
         ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIpOffset);
-        memcpy(dataOnHeap + 8, mStack.get(0), functionIpOffset);
+        ((int32_t*)dataOnHeap)[3] = lambdaCapturedTypesId;
+        ((int32_t*)dataOnHeap)[4] = 0;
+        memcpy(dataOnHeap + 16, mStack.get(0), functionIpOffset);
         mStack.pop(functionIpOffset + 8);
         mStack.push(&dataOnHeap, 8);
         break;

@@ -417,9 +417,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         break;
     case DatatypeCategory::list:
         if(binaryExpression.getOperator() == BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS) {
-            // TODO check if already in list
-            mProgram.auxiliaryDatatypes.push_back(lhsType);
-            addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, mProgram.auxiliaryDatatypes.size() - 1);
+            addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, saveAuxiliaryDatatypeToProgram(lhsType));
             mStackSize -= lhsType.getSizeOnStack() * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
@@ -725,6 +723,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
     mStackSize += 8;
 
     // push lambda parameters outside of this scope
+    std::vector<Datatype> usedIdentifierTypes;
     std::vector<std::pair<std::string, Datatype>> usedIdentifiersWithType;
     int32_t sizeOfCopiedScopeValues = 0;
     for(auto& identifier : usedIdentifiersInLambda) {
@@ -740,6 +739,7 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
             try {
                 auto identifierType = compileIdentifierLoad(*identifier, AllowGlobalLoad::No);
                 sizeOfCopiedScopeValues += identifierType.getSizeOnStack();
+                usedIdentifierTypes.emplace_back(identifierType);
                 usedIdentifiersWithType.emplace_back(identifier->getName(), identifierType);
             } catch(std::exception& e) {
                 // If we can't find the identifier in the surrounding scope, it could just be that the identifier
@@ -748,8 +748,11 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
         }
     }
 
-    // create the lambda, moving all previously copied parameters to the heap and storing the pointer (always 8 bytes) to the stack
-    addInstructions(Instruction::CREATE_LAMBDA, sizeOfCopiedScopeValues);
+    auto auxiliaryType = Datatype::createTupleType(std::move(usedIdentifierTypes));
+    // Create the lambda, moving all previously copied parameters to the heap and storing the pointer (always 8 bytes) to the stack.
+    // We also store a reference to an auxiliary type on the stack which contains the types of all copied parameters. This is useful
+    // for inferring the types of the captured parameters of a lambda because it isn't contained in the type signature.
+    addInstructions(Instruction::CREATE_LAMBDA, sizeOfCopiedScopeValues, saveAuxiliaryDatatypeToProgram(auxiliaryType));
     mStackSize -= sizeOfCopiedScopeValues + 8;
     mStackSize += 8;
     mLambdasToCompile.emplace(LambdaToCompile{ .lambda = &node, .copiedParameters = std::move(usedIdentifiersWithType) });
@@ -867,6 +870,10 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     mStackSize -= structType.getSizeOnStack();
     mStackSize += foundFieldType.getSizeOnStack();
     return foundFieldType;
+}
+int32_t Compiler::saveAuxiliaryDatatypeToProgram(Datatype type) {
+    mProgram.auxiliaryDatatypes.emplace_back(type);
+    return mProgram.auxiliaryDatatypes.size() - 1;
 }
 
 VariableSearcher::VariableSearcher(std::vector<const IdentifierNode*>& identifiers)

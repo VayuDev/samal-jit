@@ -38,7 +38,7 @@ namespace samal {
     INSTRUCTION(REPUSH_FROM_N, 9)               \
     INSTRUCTION(RETURN, 5)                      \
     INSTRUCTION(CALL, 5)                        \
-    INSTRUCTION(CREATE_LAMBDA, 5)               \
+    INSTRUCTION(CREATE_LAMBDA, 9)               \
     INSTRUCTION(CREATE_LIST, 9)                 \
     INSTRUCTION(LOAD_FROM_PTR, 9)               \
     INSTRUCTION(LIST_GET_TAIL, 1)               \

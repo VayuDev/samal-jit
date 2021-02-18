@@ -68,6 +68,8 @@ private:
     int32_t addLabel(Instruction futureInstruction);
     uint8_t* labelToPtr(int32_t label);
 
+    int32_t saveAuxiliaryDatatypeToProgram(Datatype type);
+
     struct TemplateFunctionToInstantiate {
         FunctionDeclarationNode* function{ nullptr };
         // this is e.g. <i32, i64, (i32, bool)>
