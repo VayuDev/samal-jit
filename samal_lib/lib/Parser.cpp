@@ -240,14 +240,28 @@ Parser::Parser() {
         };
     };
 
-    mPegParser["DotExpression"] << "PostfixExpression (('*' | '/') DotExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["DotExpression"] << "PostfixExpression (('*' | '/' | '%') DotExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
         if(res[1].subs.empty()) {
             return std::move(res[0].result);
+        }
+        BinaryExpressionNode::BinaryOperator op;
+        switch(*res[1][0][0].choice) {
+        case 0:
+            op = BinaryExpressionNode::BinaryOperator::MULTIPLY;
+            break;
+        case 1:
+            op = BinaryExpressionNode::BinaryOperator::DIVIDE;
+            break;
+        case 2:
+            op = BinaryExpressionNode::BinaryOperator::MODULO;
+            break;
+        default:
+            assert(false);
         }
         return BinaryExpressionNode{
             toRef(res),
             up<ExpressionNode>{ res[0].result.move<ExpressionNode*>() },
-            *res[1][0][0].choice == 0 ? BinaryExpressionNode::BinaryOperator::MULTIPLY : BinaryExpressionNode::BinaryOperator::DIVIDE,
+            op,
             up<ExpressionNode>{ res[1][0][1].result.move<ExpressionNode*>() }
         };
     };

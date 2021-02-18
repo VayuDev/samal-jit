@@ -345,6 +345,11 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i32);
             return Datatype::createSimple(DatatypeCategory::i32);
 
+        case BinaryExpressionNode::BinaryOperator::MODULO:
+            addInstructions(Instruction::MODULO_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32);
+            return Datatype::createSimple(DatatypeCategory::i32);
+
         case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
             addInstructions(Instruction::COMPARE_LESS_THAN_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
@@ -353,6 +358,12 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
             addInstructions(Instruction::COMPARE_MORE_THAN_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS:
+            addInstructions(Instruction::COMPARE_EQUALS_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
@@ -380,6 +391,11 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i64);
             return Datatype::createSimple(DatatypeCategory::i64);
 
+        case BinaryExpressionNode::BinaryOperator::MODULO:
+            addInstructions(Instruction::MODULO_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64);
+            return Datatype::createSimple(DatatypeCategory::i64);
+
         case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN:
             addInstructions(Instruction::COMPARE_LESS_THAN_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
@@ -388,6 +404,12 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
             addInstructions(Instruction::COMPARE_MORE_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS:
+            addInstructions(Instruction::COMPARE_EQUALS_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);

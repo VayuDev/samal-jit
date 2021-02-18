@@ -64,6 +64,7 @@ public:
         MINUS,
         MULTIPLY,
         DIVIDE,
+        MODULO,
         LOGICAL_AND,
         LOGICAL_OR,
         LOGICAL_EQUALS,

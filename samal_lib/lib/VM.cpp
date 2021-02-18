@@ -612,6 +612,22 @@ bool VM::interpretInstruction() {
 #endif
         break;
     }
+    case Instruction::MODULO_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
+        int64_t res = lhs % rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
+        int32_t res = lhs % rhs;
+        mStack.pop(8);
+        mStack.push(&res, 4);
+#endif
+        break;
+    }
     case Instruction::COMPARE_LESS_THAN_I32: {
 #ifdef x86_64_BIT_MODE
         auto lhs = *(int32_t*)mStack.get(8);
@@ -672,6 +688,22 @@ bool VM::interpretInstruction() {
         auto rhs = *(int32_t*)mStack.get(0);
         mStack.pop(8);
         bool res = lhs >= rhs;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
+    case Instruction::COMPARE_EQUALS_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
+        mStack.pop(16);
+        int64_t res = lhs == rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
+        mStack.pop(8);
+        bool res = lhs == rhs;
         mStack.push(&res, 1);
 #endif
         break;
@@ -1081,7 +1113,6 @@ Stack::~Stack() {
 }
 void Stack::ensureSpace(size_t additionalLen) {
     if(mDataReserved <= getSize() + additionalLen) {
-        todo();
         mDataReserved *= 2;
         mDataStart = (uint8_t*)realloc(mDataStart, mDataReserved);
         mDataEnd = mDataStart + mDataReserved;
