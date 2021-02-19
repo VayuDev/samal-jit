@@ -31,6 +31,9 @@ public:
     inline StackInformationTree* getPrevSibling() {
         return mPrevSibling;
     }
+    inline int32_t getIp() const {
+        return mStartIp;
+    }
     [[nodiscard]] int32_t getStackSize() const;
     [[nodiscard]] inline bool isAtPopInstruction() const {
         return mIsAtPopInstruction == IsAtPopInstruction::Yes;

@@ -1002,11 +1002,11 @@ std::string VM::dumpVariablesOnStack() {
     return ret;
 }
 void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const Datatype&, const std::string& name)>& variableCallback, const std::function<void(const std::string&)>& functionCallback) const {
-    // FIXME: This function isn't quite correct
     int32_t ip = mIp;
     int32_t offsetFromTop = 0;
+    bool firstIteration = true;
     while(true) {
-        //assert(offsetFromTop >= 0);
+        assert(offsetFromTop >= 0);
         const Program::Function* currentFunction = nullptr;
         for(auto& func : mProgram.functions) {
             if(ip >= func.offset && ip < func.offset + func.len) {
@@ -1022,7 +1022,6 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
         const auto virtualStackSize = currentFunction->stackSizePerIp.at(ip);
         auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(ip);
         assert(stackInfo);
-        const bool isAtReturn = static_cast<Instruction>(mProgram.code.at(ip)) == Instruction::RETURN;
 
         int32_t nextFunctionOffset = offsetFromTop + virtualStackSize;
         bool afterPop = false;
@@ -1034,12 +1033,12 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
             if(variable) {
                 // after we hit a pop, we don't dump any variables on the stack anymore as they might have been popped of
                 if(!afterPop) {
-                    if(variableCallback)
-                        variableCallback(mStack.getTopPtr() + virtualStackSize - stackInfo->getStackSize() + offsetFromTop, variable->datatype, variable->name);
-                }
-                // but we still need to account for the size of the parameters on the stack, as those are more related to the previous stackframe
-                if(variable->storageType == StorageType::Parameter) {
-                    nextFunctionOffset -= variable->datatype.getSizeOnStack();
+                    // check that the variable isn't assigned to the return value of the function;
+                    // this would not be valid because the function actually hasn't returned yet
+                    if(!(!firstIteration && stackInfo->getIp() == ip)) {
+                        if(variableCallback)
+                            variableCallback(mStack.getTopPtr() + virtualStackSize - stackInfo->getStackSize() + offsetFromTop, variable->datatype, variable->name);
+                    }
                 }
             }
 
@@ -1055,12 +1054,12 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
         if(prevIp == mProgram.code.size()) {
             break;
         }
-        if(nextFunctionOffset < 0) {
-            // FIXME this shouldn't happen, but it does
-            break;
-        }
-        ip = prevIp - instructionToWidth(Instruction::CALL);
+        nextFunctionOffset -= currentFunction->type.getFunctionTypeInfo().first.getSizeOnStack();
+        nextFunctionOffset += 8;
+        assert(nextFunctionOffset > 0);
+        ip = prevIp;
         offsetFromTop = nextFunctionOffset;
+        firstIteration = false;
     }
 }
 void VM::execNativeFunction(int32_t nativeFuncId) {

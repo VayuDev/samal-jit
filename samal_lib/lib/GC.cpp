@@ -24,6 +24,7 @@ uint8_t* GC::alloc(int32_t num) {
     }
 }
 void GC::markAndSweep() {
+    Stopwatch stopwatch{"GC"};
     // mark all as not found
     for(auto& alloc: mAllocations) {
         alloc.second = false;
@@ -115,8 +116,7 @@ void GC::markPtrAsFound(const uint8_t* ptr) {
 }
 void GC::requestCollection() {
     callsSinceLastRun++;
-    if(callsSinceLastRun > 2000000) {
-        printf("Running GC\n");
+    if(callsSinceLastRun > 200000000) {
         markAndSweep();
         callsSinceLastRun = 0;
     }
