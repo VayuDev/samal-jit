@@ -39,19 +39,6 @@ private:
     size_t mDataReserved{ 0 };
 };
 
-struct StackTrace {
-    struct StackFrame {
-        struct Variable {
-            std::string name;
-            Datatype type;
-            const uint8_t* ptr { nullptr };
-        };
-        std::vector<Variable> variables;
-        std::string functionName;
-    };
-    std::vector<StackFrame> stackFrames;
-};
-
 class VM final {
 public:
     explicit VM(Program program);
@@ -61,7 +48,7 @@ public:
     [[nodiscard]] const Stack& getStack() const;
     [[nodiscard]] const Program& getProgram() const;
 
-    StackTrace generateStacktrace() const;
+    void generateStacktrace(const std::function<void(const uint8_t* ptr, const Datatype&, const std::string& name)>& variableCallback, const std::function<void(const std::string&)>& functionCallback) const;
     std::string dumpVariablesOnStack();
     int32_t getIp() const;
 

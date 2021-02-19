@@ -12,7 +12,7 @@ enum class StorageType {
     ImplicitlyCopied
 };
 
-class StackInformationTree {
+class StackInformationTree final {
 public:
     // If we hit a pop instruction while traversing the tree later,
     // this means that all previous variables have already been popped
@@ -24,11 +24,17 @@ public:
     StackInformationTree(int32_t startIp, int32_t totalStackSize, IsAtPopInstruction);
     StackInformationTree(int32_t startIp, int32_t totalStackSize, std::string name, Datatype type, StorageType);
     StackInformationTree* addChild(up<StackInformationTree> child);
-    StackInformationTree* getParent();
+    inline StackInformationTree* getParent() {
+        return mParent;
+    }
     StackInformationTree* getBestNodeForIp(int32_t ip);
-    StackInformationTree* getPrevSibling();
+    inline StackInformationTree* getPrevSibling() {
+        return mPrevSibling;
+    }
     [[nodiscard]] int32_t getStackSize() const;
-    [[nodiscard]] bool isAtPopInstruction() const;
+    [[nodiscard]] inline bool isAtPopInstruction() const {
+        return mIsAtPopInstruction == IsAtPopInstruction::Yes;
+    }
     [[nodiscard]] inline const auto& getVarEntry() const {
         return mVariable;
     }
@@ -39,12 +45,11 @@ private:
         Datatype datatype;
         StorageType storageType;
     };
-    StackInformationTree* mParent{ nullptr };
-    up<StackInformationTree> mPrevSibling;
+    StackInformationTree* mParent{ nullptr }, *mPrevSibling{ nullptr };
     int32_t mStartIp{ -1 };
     int32_t mTotalStackSize{ 0 };
     std::optional<VariableEntry> mVariable;
-    up<StackInformationTree> mLastChild;
+    std::vector<up<StackInformationTree>> mChildren;
     IsAtPopInstruction mIsAtPopInstruction{ IsAtPopInstruction::No };
 };
 

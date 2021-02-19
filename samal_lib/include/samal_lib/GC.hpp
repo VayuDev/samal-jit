@@ -3,12 +3,14 @@
 #include "Util.hpp"
 #include <cstdint>
 #include <vector>
+#include <list>
 
 namespace samal {
 
 class GC final {
 public:
     explicit GC(VM&);
+    ~GC();
     GC(const GC&) = delete;
     void operator=(const GC&) = delete;
     uint8_t* alloc(int32_t num);
@@ -16,12 +18,8 @@ public:
 
 private:
     int32_t callsSinceLastRun { 0 };
-    struct Allocation {
-        bool found{ false };
-        std::unique_ptr<uint8_t, void (*)(uint8_t*)> ptr;
-    };
     VM& mVM;
-    std::vector<Allocation> mAllocations;
+    std::unordered_map<uint8_t*, bool> mAllocations;
 
     void searchForPtrs(const uint8_t* ptr, const Datatype& type);
     void markPtrAsFound(const uint8_t* ptr);

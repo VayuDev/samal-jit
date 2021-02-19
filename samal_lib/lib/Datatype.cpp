@@ -38,7 +38,7 @@ std::string Datatype::toString() const {
         return ret;
     }
     case DatatypeCategory::list: {
-        return "[" + getListInfo().toString() + "]";
+        return "[" + getListContainedType().toString() + "]";
     }
     case DatatypeCategory::bool_:
         return "bool";
@@ -96,12 +96,6 @@ const std::vector<Datatype>& Datatype::getTupleInfo() const {
     }
     return std::get<std::vector<Datatype>>(*mFurtherInfo);
 }
-const Datatype& Datatype::getListInfo() const {
-    if(mCategory != DatatypeCategory::list) {
-        throw std::runtime_error{ "This is not a list!" };
-    }
-    return std::get<Datatype>(*mFurtherInfo);
-}
 const std::string& Datatype::getUndeterminedIdentifierString() const {
     if(mCategory != DatatypeCategory::undetermined_identifier) {
         throw std::runtime_error{ "This is not an undetermined identifier!" };
@@ -132,9 +126,6 @@ bool Datatype::operator==(const Datatype& other) const {
 }
 bool Datatype::operator!=(const Datatype& other) const {
     return !(*this == other);
-}
-DatatypeCategory Datatype::getCategory() const {
-    return mCategory;
 }
 bool Datatype::isInteger() const {
     return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
@@ -297,7 +288,7 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         break;
     }
     case DatatypeCategory::list: {
-        std::get<Datatype>(*cpy.mFurtherInfo) = getListInfo().completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
+        std::get<Datatype>(*cpy.mFurtherInfo) = getListContainedType().completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
         break;
     }
     case DatatypeCategory::struct_: {

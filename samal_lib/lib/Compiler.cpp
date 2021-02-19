@@ -313,7 +313,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
     }
 
     auto rhsType = binaryExpression.getRight()->compile(*this);
-    if(rhsType.getCategory() == DatatypeCategory::list && rhsType.getListInfo() == lhsType) {
+    if(rhsType.getCategory() == DatatypeCategory::list && rhsType.getListContainedType() == lhsType) {
         // prepend to list
         addInstructions(Instruction::LIST_PREPEND, lhsType.getSizeOnStack());
         mStackSize -= lhsType.getSizeOnStack();
@@ -797,10 +797,10 @@ Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression&
         node.throwException("Trying to access list-property of type " + listType.toString());
     }
     if(node.getProperty() == ListPropertyAccessExpression::ListProperty::HEAD) {
-        addInstructions(Instruction::LOAD_FROM_PTR, listType.getListInfo().getSizeOnStack(), 8);
-        mStackSize += listType.getListInfo().getSizeOnStack();
+        addInstructions(Instruction::LOAD_FROM_PTR, listType.getListContainedType().getSizeOnStack(), 8);
+        mStackSize += listType.getListContainedType().getSizeOnStack();
         mStackSize -= 8;
-        return listType.getListInfo();
+        return listType.getListContainedType();
     }
 
     if(node.getProperty() == ListPropertyAccessExpression::ListProperty::TAIL) {

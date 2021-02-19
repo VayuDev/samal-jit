@@ -75,7 +75,7 @@ std::string ExternalVMValue::dump() const {
         ret += "[";
         auto* current = std::get<const uint8_t*>(mValue);
         while(current != nullptr) {
-            ret += ExternalVMValue::wrapFromPtr(mType.getListInfo(), *mVM, current + 8).dump();
+            ret += ExternalVMValue::wrapFromPtr(mType.getListContainedType(), *mVM, current + 8).dump();
             current = *(uint8_t**)current;
             if(current != nullptr)
                 ret += ", ";

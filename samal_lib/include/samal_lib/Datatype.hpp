@@ -45,14 +45,21 @@ public:
 
     [[nodiscard]] const std::pair<Datatype, std::vector<Datatype>>& getFunctionTypeInfo() const&;
     [[nodiscard]] const std::vector<Datatype>& getTupleInfo() const;
-    [[nodiscard]] const Datatype& getListInfo() const;
+    [[nodiscard]] inline const Datatype& getListContainedType() const {
+        if(mCategory != DatatypeCategory::list) {
+            throw std::runtime_error{ "This is not a list!" };
+        }
+        return std::get<Datatype>(*mFurtherInfo);
+    }
     [[nodiscard]] const std::string& getUndeterminedIdentifierString() const;
     [[nodiscard]] const std::vector<Datatype>& getUndeterminedIdentifierTemplateParams() const;
     [[nodiscard]] const StructInfo& getStructInfo() const;
 
     bool operator==(const Datatype& other) const;
     bool operator!=(const Datatype& other) const;
-    [[nodiscard]] DatatypeCategory getCategory() const;
+    [[nodiscard]] inline DatatypeCategory getCategory() const {
+        return mCategory;
+    }
 
     [[nodiscard]] bool isInteger() const;
     [[nodiscard]] size_t getSizeOnStack() const;

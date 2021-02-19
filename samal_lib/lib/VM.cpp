@@ -928,7 +928,7 @@ bool VM::interpretInstruction() {
                     if(lhsPtr && !rhsPtr) {
                         return false;
                     }
-                    if(!isEqual(type.getListInfo(), lhsPtr + 8, rhsPtr + 8)) {
+                    if(!isEqual(type.getListContainedType(), lhsPtr + 8, rhsPtr + 8)) {
                         return false;
                     }
                     lhsPtr = *(uint8_t**)lhsPtr;
@@ -994,19 +994,15 @@ const Stack& VM::getStack() const {
 }
 std::string VM::dumpVariablesOnStack() {
     std::string ret;
-    auto stackTrace = generateStacktrace();
-    for(const auto& frame: stackTrace.stackFrames) {
-        ret += frame.functionName;
-        ret += "\n";
-        for(auto& var: frame.variables) {
-            ret += " " + var.name + ": " + ExternalVMValue::wrapFromPtr(var.type, *this, var.ptr).dump() + "\n";
-        }
-    }
+    generateStacktrace([&](const uint8_t* ptr, const Datatype& type, const std::string& name){
+            ret += " " + name + ": " + ExternalVMValue::wrapFromPtr(type, *this, ptr).dump() + "\n";
+        }, [&](const std::string& functionName) {
+            ret += functionName + "\n";
+        });
     return ret;
 }
-StackTrace VM::generateStacktrace() const {
+void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const Datatype&, const std::string& name)>& variableCallback, const std::function<void(const std::string&)>& functionCallback) const {
     // FIXME: This function isn't quite correct
-    StackTrace ret;
     int32_t ip = mIp;
     int32_t offsetFromTop = 0;
     while(true) {
@@ -1019,10 +1015,10 @@ StackTrace VM::generateStacktrace() const {
             }
         }
         if(!currentFunction) {
-            return ret;
+            return;
         }
-        auto& stackFrame = ret.stackFrames.emplace_back();
-        stackFrame.functionName = currentFunction->name;
+        if(functionCallback)
+            functionCallback(currentFunction->name);
         const auto virtualStackSize = currentFunction->stackSizePerIp.at(ip);
         auto stackInfo = currentFunction->stackInformation->getBestNodeForIp(ip);
         assert(stackInfo);
@@ -1034,14 +1030,12 @@ StackTrace VM::generateStacktrace() const {
             if(stackInfo->isAtPopInstruction()) {
                 afterPop = true;
             }
-            auto variable = stackInfo->getVarEntry();
+            auto& variable = stackInfo->getVarEntry();
             if(variable) {
                 // after we hit a pop, we don't dump any variables on the stack anymore as they might have been popped of
                 if(!afterPop) {
-                    auto& var = stackFrame.variables.emplace_back();
-                    var.name = variable->name;
-                    var.type = variable->datatype;
-                    var.ptr = mStack.getTopPtr() + virtualStackSize - stackInfo->getStackSize() + offsetFromTop;
+                    if(variableCallback)
+                        variableCallback(mStack.getTopPtr() + virtualStackSize - stackInfo->getStackSize() + offsetFromTop, variable->datatype, variable->name);
                 }
                 // but we still need to account for the size of the parameters on the stack, as those are more related to the previous stackframe
                 if(variable->storageType == StorageType::Parameter) {
@@ -1068,7 +1062,6 @@ StackTrace VM::generateStacktrace() const {
         ip = prevIp - instructionToWidth(Instruction::CALL);
         offsetFromTop = nextFunctionOffset;
     }
-    return ret;
 }
 void VM::execNativeFunction(int32_t nativeFuncId) {
     auto& nativeFunc = mProgram.nativeFunctions.at(nativeFuncId);
