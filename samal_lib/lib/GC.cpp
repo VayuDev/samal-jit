@@ -70,7 +70,10 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
     case DatatypeCategory::list: {
         const uint8_t *current = *(const uint8_t**)ptr;
         while(current) {
-            markPtrAsFound(current);
+            bool alreadyFound = markPtrAsFound(current);
+            if(alreadyFound) {
+                break;
+            }
             searchForPtrs(current + 8, type.getListContainedType());
             current = *(const uint8_t**)current;
         }
@@ -86,7 +89,10 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         // it's a lambda
         auto lambdaPtr = *(uint8_t**)ptr;
         assert((uint64_t)lambdaPtr % 2 == 0);
-        markPtrAsFound(lambdaPtr);
+        bool alreadyFound = markPtrAsFound(lambdaPtr);
+        if(alreadyFound) {
+            break;
+        }
         int32_t capturedLambaTypesId;
         memcpy(&capturedLambaTypesId, lambdaPtr + 8, 4);
         searchForPtrs(lambdaPtr + 16, mVM.getProgram().auxiliaryDatatypes.at(capturedLambaTypesId));
@@ -94,7 +100,10 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
     }
     case DatatypeCategory::struct_: {
         uint8_t* structPtr = *(uint8_t**)ptr;
-        markPtrAsFound(structPtr);
+        bool alreadyFound = markPtrAsFound(structPtr);
+        if(alreadyFound) {
+            break;
+        }
         int32_t offset = 0;
         for(auto& field: type.getStructInfo().elements) {
             searchForPtrs(structPtr + offset, field.baseType);
@@ -106,13 +115,15 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         assert(false);
     }
 }
-void GC::markPtrAsFound(const uint8_t* ptr) {
+bool GC::markPtrAsFound(const uint8_t* ptr) {
     auto maybeAllocation = mAllocations.find((uint8_t*)ptr);
     if(maybeAllocation == mAllocations.end()) {
         assert(false);
         throw std::runtime_error{"Allocation not found!"};
     }
+    bool prevValue = maybeAllocation->second;
     maybeAllocation->second = true;
+    return prevValue;
 }
 void GC::requestCollection() {
     callsSinceLastRun++;

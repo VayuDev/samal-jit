@@ -22,7 +22,7 @@ private:
     std::unordered_map<uint8_t*, bool> mAllocations;
 
     void searchForPtrs(const uint8_t* ptr, const Datatype& type);
-    void markPtrAsFound(const uint8_t* ptr);
+    bool markPtrAsFound(const uint8_t* ptr);
     void markAndSweep();
 };
 
