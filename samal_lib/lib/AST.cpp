@@ -60,6 +60,26 @@ ExpressionNode::ExpressionNode(SourceCodeRef source)
 : ASTNode(source) {
 }
 
+StatementNode::StatementNode(SourceCodeRef source)
+: ASTNode(source) {
+}
+
+TailCallSelfStatementNode::TailCallSelfStatementNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
+: StatementNode(source), mParams(std::move(params)) {
+}
+Datatype TailCallSelfStatementNode::compile(Compiler& comp) const {
+    return comp.compileTailCallSelf(*this);
+}
+
+void TailCallSelfStatementNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& p: mParams) {
+        p->findUsedVariables(searcher);
+    }
+}
+[[nodiscard]] std::string TailCallSelfStatementNode::dump(unsigned indent) const {
+    return ASTNode::dump(indent);
+}
+
 AssignmentExpression::AssignmentExpression(SourceCodeRef source, up<IdentifierNode> left, up<ExpressionNode> right)
 : ExpressionNode(std::move(source)), mLeft(std::move(left)), mRight(std::move(right)) {
 }

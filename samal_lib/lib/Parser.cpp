@@ -137,12 +137,17 @@ Parser::Parser() {
         }
         return params;
     };
-    mPegParser["ScopeExpression"] << "'{' (Expression ~snn~'\n')* '}'" >> [](peg::MatchInfo& res) {
+    mPegParser["ScopeExpression"] << "'{' (Statement ~snn~'\n')* '}'" >> [](peg::MatchInfo& res) {
         std::vector<up<ExpressionNode>> expressions;
         for(auto& expr : res[1].subs) {
             expressions.emplace_back(expr[0].result.move<ExpressionNode*>());
         }
         return ScopeNode{ toRef(res), std::move(expressions) };
+    };
+    mPegParser["Statement"] << "('@tail_call_self(' ExpressionVector ')') | Expression" >> [](peg::MatchInfo& res) -> peg::Any {
+        if(*res.choice == 1)
+            return std::move(res[0].result);
+        return TailCallSelfStatementNode{toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>()};
     };
     mPegParser["Expression"] << "BasicExpression ('|>' BasicExpression)*" >> [](peg::MatchInfo& res) -> peg::Any {
         // create chained function calls

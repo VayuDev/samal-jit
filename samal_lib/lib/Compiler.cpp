@@ -144,12 +144,14 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
     printf("\nCompiling function %s\n", fullFunctionName.c_str());
 
     auto start = mProgram.code.size();
+    mCurrentFunctionStartingIp = start;
     pushStackFrame();
 
     mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
     mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
 
     const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
+    mCurrentFunctionReturnType = completedReturnType;
     for(const auto& param : params) {
         auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
         mStackSize += type.getSizeOnStack();
@@ -870,6 +872,21 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     mStackSize -= structType.getSizeOnStack();
     mStackSize += foundFieldType.getSizeOnStack();
     return foundFieldType;
+}
+Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
+    // TODO check if at the end of a function/branch
+    auto oldStackSize = mStackSize;
+    int32_t paramsSize = 0;
+    for(auto& p: node.getParams()) {
+        auto paramType = p->compile(*this);
+        paramsSize += paramType.getSizeOnStack();
+    }
+    addInstructions(Instruction::POP_N_BELOW, oldStackSize, paramsSize);
+    mStackSize -= oldStackSize;
+    addInstructions(Instruction::JUMP, mCurrentFunctionStartingIp);
+    // This isn't actually true but it's what is expected
+    mStackSize = oldStackSize + mCurrentFunctionReturnType.getSizeOnStack();
+    return mCurrentFunctionReturnType;
 }
 int32_t Compiler::saveAuxiliaryDatatypeToProgram(Datatype type) {
     mProgram.auxiliaryDatatypes.emplace_back(type);

@@ -42,6 +42,28 @@ public:
 private:
 };
 
+class StatementNode : public ASTNode {
+public:
+    explicit StatementNode(SourceCodeRef source);
+    [[nodiscard]] inline const char* getClassName() const override { return "StatementNode"; }
+
+private:
+};
+
+class TailCallSelfStatementNode : public StatementNode {
+public:
+    TailCallSelfStatementNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params);
+    Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const auto& getParams() const {
+        return mParams;
+    }
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "TailCallSelfStatementNode"; }
+private:
+    std::vector<up<ExpressionNode>> mParams;
+};
+
 class AssignmentExpression : public ExpressionNode {
 public:
     AssignmentExpression(SourceCodeRef source, up<IdentifierNode> left, up<ExpressionNode> right);

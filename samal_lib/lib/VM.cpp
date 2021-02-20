@@ -1143,6 +1143,8 @@ Stack::~Stack() {
 }
 void Stack::ensureSpace(size_t additionalLen) {
     if(mDataReserved <= getSize() + additionalLen) {
+        todo();
+        // This function hasn't been adjusted for a downwards-growing stack yet
         mDataReserved *= 2;
         mDataStart = (uint8_t*)realloc(mDataStart, mDataReserved);
         mDataEnd = mDataStart + mDataReserved;

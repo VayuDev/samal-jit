@@ -47,6 +47,7 @@ public:
     Datatype compileListPropertyAccess(const ListPropertyAccessExpression&);
     Datatype compileStructCreation(const StructCreationNode&);
     Datatype compileStructFieldAccess(const StructFieldAccessExpression&);
+    Datatype compileTailCallSelf(const TailCallSelfStatementNode&);
 
 private:
     Program mProgram;
@@ -93,6 +94,9 @@ private:
 
     std::map<std::string, Datatype> mCurrentUndeterminedTypeReplacementMap;
     std::map<std::string, Datatype> mCurrentTemplateTypeReplacementMap;
+
+    int32_t mCurrentFunctionStartingIp { -1 };
+    Datatype mCurrentFunctionReturnType;
 
     struct VariableOnStack {
         int32_t offsetFromBottom{ 0 };

@@ -26,6 +26,7 @@ class ListCreationNode;
 class ListPropertyAccessExpression;
 class StructCreationNode;
 class StructFieldAccessExpression;
+class TailCallSelfStatementNode;
 
 struct Parameter;
 
