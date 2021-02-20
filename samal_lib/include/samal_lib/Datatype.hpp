@@ -4,6 +4,7 @@
 #include <samal_lib/Util.hpp>
 #include <variant>
 #include <vector>
+#include <stdexcept>
 
 namespace samal {
 
