@@ -129,3 +129,65 @@ fn test() -> [i32] {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{});
     REQUIRE(vmRet.dump() == "[3, 4, 5, 3, 4, 5]");
 }
+TEST_CASE("Euler problem 1", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn sumRec<T>(current : T, list : [T]) -> T {
+    if list == [] {
+        current
+    } else {
+        @tail_call_self(current + list:head, list:tail)
+    }
+}
+fn sum<T>(list : [T]) -> T {
+    sumRec<T>(0, list)
+}
+
+fn filter<T>(list : [T], condition : fn(T) -> bool) -> [T] {
+    if list == [] {
+        [:T]
+    } else {
+        head = list:head
+        if condition(head) {
+            head + filter<T>(list:tail, condition)
+        } else {
+            filter<T>(list:tail, condition)
+        }
+    }
+}
+
+fn seqRec<T>(index : T, limit: T) -> [T] {
+    if limit < 1 {
+        [:T]
+    } else {
+        index + seqRec<T>(index + 1, limit - 1)
+    }
+}
+
+fn seq<T>(limit: T) -> [T] {
+    seqRec<T>(0, limit)
+}
+
+fn problem1() -> i32 {
+    seq<i32>(10)
+    |> filter<i32>(fn(i : i32) -> bool {
+        i % 5 == 0 || i % 3 == 0
+    })
+    |> sum<i32>()
+})");
+    auto vmRet = vm.run("Main.problem1", std::vector<samal::ExternalVMValue>{});
+    REQUIRE(vmRet.dump() == "23");
+}
+
+
+TEST_CASE("Ensure that tail recursion works", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn test(n : i32) -> i32 {
+    if n > 1000 {
+        5
+    } else {
+        @tail_call_self(n + 1)
+    }
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{samal::ExternalVMValue::wrapInt32(vm, 0)});
+    REQUIRE(vmRet.dump() == "5");
+}
