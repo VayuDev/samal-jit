@@ -3,7 +3,8 @@
 #include "Util.hpp"
 #include <cstdint>
 #include <vector>
-#include <list>
+#include <set>
+#include <unordered_set>
 
 namespace samal {
 
@@ -19,7 +20,8 @@ public:
 private:
     int32_t callsSinceLastRun { 0 };
     VM& mVM;
-    std::unordered_map<uint8_t*, bool> mAllocations;
+    std::unordered_set<uint8_t*> mAllocations;
+    std::unordered_set<uint8_t*> mFoundAllocations;
 
     void searchForPtrs(const uint8_t* ptr, const Datatype& type);
     bool markPtrAsFound(const uint8_t* ptr);

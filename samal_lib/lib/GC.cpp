@@ -1,6 +1,7 @@
 #include "samal_lib/GC.hpp"
 #include "samal_lib/Program.hpp"
 #include "samal_lib/VM.hpp"
+#include <algorithm>
 
 namespace samal {
 
@@ -9,14 +10,14 @@ GC::GC(VM& vm)
 }
 GC::~GC() {
     for(auto& alloc: mAllocations) {
-        free(alloc.first);
+        free(alloc);
     }
     mAllocations.clear();
 }
 uint8_t* GC::alloc(int32_t num) {
     auto ptr = static_cast<uint8_t*>(malloc(num));
     try {
-        mAllocations[ptr] = false;
+        mAllocations.emplace(ptr);
         return ptr;
     } catch(...) {
         free(ptr);
@@ -24,32 +25,32 @@ uint8_t* GC::alloc(int32_t num) {
     }
 }
 void GC::markAndSweep() {
-    Stopwatch stopwatch{"GC"};
+    //printf("Before: %lu\n", mAllocations.size());
+    //Stopwatch stopwatch{"GC"};
     // mark all as not found
-    for(auto& alloc: mAllocations) {
-        alloc.second = false;
-    }
+    //Stopwatch firstStopwatch{"GC first"};
+    mFoundAllocations.clear();
+    //firstStopwatch.stop();
 
     // start marking the ones we find
+    //Stopwatch secondStopwatch{"GC second"};
     mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name){
         searchForPtrs(ptr, type);
     }, {});
-    // sweep those we didn't find
+    //secondStopwatch.stop();
+
+   // Stopwatch thirdStopwatch{"GC third"};
     for(auto it = mAllocations.begin(); it != mAllocations.end();) {
-        auto& alloc = *it;
-        if(!alloc.second) {
-#ifdef _DEBUG
-            printf("Erasing %p\n", alloc.first);
-#endif
-            free(alloc.first);
+        if(!mFoundAllocations.contains(*it)) {
+            free(*it);
             it = mAllocations.erase(it);
         } else {
             ++it;
-#ifdef _DEBUG
-            printf("Keeping %p\n", alloc.first);
-#endif
         }
     }
+    //thirdStopwatch.stop();
+    //printf("After: %lu\n", mAllocations.size());
+
 }
 void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
     switch(type.getCategory()) {
@@ -115,19 +116,14 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         assert(false);
     }
 }
+
+
 bool GC::markPtrAsFound(const uint8_t* ptr) {
-    auto maybeAllocation = mAllocations.find((uint8_t*)ptr);
-    if(maybeAllocation == mAllocations.end()) {
-        assert(false);
-        throw std::runtime_error{"Allocation not found!"};
-    }
-    bool prevValue = maybeAllocation->second;
-    maybeAllocation->second = true;
-    return prevValue;
+    return !mFoundAllocations.emplace((uint8_t*)ptr).second;
 }
 void GC::requestCollection() {
     callsSinceLastRun++;
-    if(callsSinceLastRun > 200000000) {
+    if(callsSinceLastRun > 20000) {
         markAndSweep();
         callsSinceLastRun = 0;
     }
