@@ -8,6 +8,7 @@ int main(int argc, char **argv) {
     pipeline.addFile("samal_code/examples/Templ.samal");
     pipeline.addFile("samal_code/examples/Lists.samal");
     pipeline.addFile("samal_code/examples/Structs.samal");
+    pipeline.addFile("samal_code/examples/Euler.samal");
     pipeline.addFile("samal_code/examples/Main.samal");
     pipeline.addNativeFunction(samal::NativeFunction{
         "Core.print",
@@ -34,10 +35,13 @@ int main(int argc, char **argv) {
         "Core.dumpStackTrace",
         samal::Datatype::createFunctionType(samal::Datatype::createEmptyTuple(), {}),
         [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
-            std::cout << "[Stacktrace] " << vm.dumpVariablesOnStack(vm.getIp(), 0);
+            std::cout << "[Stacktrace] " << vm.dumpVariablesOnStack();
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
     samal::VM vm = pipeline.compile();
+    std::cout << vm.getProgram().disassemble() << "\n";
+    samal::Stopwatch vmStopwatch{"VM execution"};
     auto ret = vm.run("Main.main", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 5) });
+    vmStopwatch.stop();
     std::cout << "Func2 returned " << ret.dump() << "\n";
 }
