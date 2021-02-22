@@ -54,12 +54,15 @@ fn createFilledList<T>(value : T, length : i32) -> [T] {
     }
 }
 
-fn sum<T>(list : [T]) -> T {
+fn sumRec<T>(current : T, list : [T]) -> T {
     if list == [] {
-        0
+        current
     } else {
-        list:head + sum<T>(list:tail)
+        @tail_call_self(current + list:head, list:tail)
     }
+}
+fn sum<T>(list : [T]) -> T {
+    sumRec<T>(0, list)
 }
 
 fn reduce<S, T>(list : [S], initial : T, lambda : fn(S, T) -> T) -> T {
@@ -68,5 +71,18 @@ fn reduce<S, T>(list : [S], initial : T, lambda : fn(S, T) -> T) -> T {
     } else {
         val = lambda(list:head, initial)
         reduce<S, T>(list:tail, val, lambda)
+    }
+}
+
+fn filter<T>(list : [T], condition : fn(T) -> bool) -> [T] {
+    if list == [] {
+        [:T]
+    } else {
+        head = list:head
+        if condition(head) {
+            head + filter<T>(list:tail, condition)
+        } else {
+            filter<T>(list:tail, condition)
+        }
     }
 }
