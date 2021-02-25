@@ -19,7 +19,7 @@ Features already implemented include:
  * Native functions
  * Easy API for embedding samal into your project
 
-＊ Will change with the introduction of generators.
+＊ Lists will change with the introduction of generators.
 
 ## Planned Features
 
@@ -47,7 +47,7 @@ Fibonacci:
         }
     }
 
-Sum all elements of a list up, making use of explicit tail recursion:
+Sum up all elements of a list, making use of explicit tail recursion:
 
     fn sumRec<T>(current : T, list : [T]) -> T {
         if list == [] {
@@ -72,7 +72,7 @@ Iterate over a list, calling the specified callback on each element and returnin
     }
 
 
-Combine two lists, creating one list where each element is a tuple with one element from each list of that index:
+Combine two lists, creating one list where each element is a tuple with one element from each list:
 
     fn zip<S, T>(l1 : [S], l2 : [T]) -> [(S, T)] {
         if l1 == [] || l2 == [] {
@@ -125,14 +125,15 @@ not well beyond bounds) and I don't care about compilation speed (as long as it 
 So, what's bad about samal right now?
 
  * It uses a custom-written peg parser with horrendous error messages - if you have a parsing error, the fastest 
-   thing will probably be to just try to find it yourself using the line information that is sometimes correct.
+   thing will probably be to just try to find it yourself using the line information that it gives you (which is only
+   sometimes correct).
  * As we don't have generators yet, the GC pressure is just insane, which means that the most time is actually
-   spend in the gc itself. Once we have generators, we can skip allocating temporary lists and instead create them
+   spend in the GC itself. Once we have generators, we can skip allocating temporary lists and instead create them
    on the fly when they're needed.
  * Calling native functions is slow.
  * There are unit tests, but they don't cover all features.
  * The Compiler class is bigger and messier than I want it to be.
- * It's still missing a lot of basic features.
+ * We're still missing a lot of basic features.
 
-But with your help, I'm sure we can fix all of those problems! Feel free to open a pull request if you want to
-improve the language, in any way, shape or form.
+But with your help, I'm sure we can fix all of these problems! Feel free to open a pull request if you want to
+improve the language, in any way, shape or form. Just ask yourself: What does the perfect language look like for me?
