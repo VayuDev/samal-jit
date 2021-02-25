@@ -83,6 +83,7 @@ public:
     DestructorWrapper(DestructorWrapper&&) = delete;
     void operator=(const DestructorWrapper&) = delete;
     void operator=(DestructorWrapper&&) = delete;
+
 private:
     std::function<void()> mCallback;
 };

@@ -1,8 +1,8 @@
-#include "samal_lib/Pipeline.hpp"
 #include "samal_lib/ExternalVMValue.hpp"
+#include "samal_lib/Pipeline.hpp"
 #include <iostream>
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     samal::Pipeline pipeline;
     pipeline.addFile("samal_code/lib/Core.samal");
     pipeline.addFile("samal_code/examples/Templ.samal");
@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
         } });
     samal::VM vm = pipeline.compile();
     std::cout << vm.getProgram().disassemble() << "\n";
-    samal::Stopwatch vmStopwatch{"VM execution"};
+    samal::Stopwatch vmStopwatch{ "VM execution" };
     auto ret = vm.run("Main.main", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 5) });
     vmStopwatch.stop();
     std::cout << "Func2 returned " << ret.dump() << "\n";

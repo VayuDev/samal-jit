@@ -513,7 +513,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     if(identifier.getNameSplit().size() > 1) {
         maybeDeclaration = mCallableDeclarations.find(identifier.getName());
     } else {
-        for(auto& module: mUsingModuleNames) {
+        for(auto& module : mUsingModuleNames) {
             maybeDeclaration = mCallableDeclarations.find(module + "." + identifier.getName());
         }
     }
@@ -856,7 +856,7 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     bool foundField = false;
     Datatype foundFieldType;
 
-    for(auto& structField: structType.getStructInfo().elements) {
+    for(auto& structField : structType.getStructInfo().elements) {
         auto structFieldType = structField.baseType.completeWithSavedTemplateParameters();
         if(structField.name == node.getFieldName()) {
             foundField = true;
@@ -877,7 +877,7 @@ Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
     // TODO check if at the end of a function/branch
     auto oldStackSize = mStackSize;
     int32_t paramsSize = 0;
-    for(auto& p: node.getParams()) {
+    for(auto& p : node.getParams()) {
         auto paramType = p->compile(*this);
         paramsSize += paramType.getSizeOnStack();
     }

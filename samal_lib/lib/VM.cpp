@@ -994,11 +994,7 @@ const Stack& VM::getStack() const {
 }
 std::string VM::dumpVariablesOnStack() {
     std::string ret;
-    generateStacktrace([&](const uint8_t* ptr, const Datatype& type, const std::string& name){
-            ret += " " + name + ": " + ExternalVMValue::wrapFromPtr(type, *this, ptr).dump() + "\n";
-        }, [&](const std::string& functionName) {
-            ret += functionName + "\n";
-        });
+    generateStacktrace([&](const uint8_t* ptr, const Datatype& type, const std::string& name) { ret += " " + name + ": " + ExternalVMValue::wrapFromPtr(type, *this, ptr).dump() + "\n"; }, [&](const std::string& functionName) { ret += functionName + "\n"; });
     return ret;
 }
 void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const Datatype&, const std::string& name)>& variableCallback, const std::function<void(const std::string&)>& functionCallback) const {

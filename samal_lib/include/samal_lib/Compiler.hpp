@@ -95,7 +95,7 @@ private:
     std::map<std::string, Datatype> mCurrentUndeterminedTypeReplacementMap;
     std::map<std::string, Datatype> mCurrentTemplateTypeReplacementMap;
 
-    int32_t mCurrentFunctionStartingIp { -1 };
+    int32_t mCurrentFunctionStartingIp{ -1 };
     Datatype mCurrentFunctionReturnType;
 
     struct VariableOnStack {

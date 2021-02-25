@@ -60,6 +60,7 @@ public:
     void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
     [[nodiscard]] inline const char* getClassName() const override { return "TailCallSelfStatementNode"; }
+
 private:
     std::vector<up<ExpressionNode>> mParams;
 };

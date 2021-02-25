@@ -2,9 +2,9 @@
 #include "Forward.hpp"
 #include "Util.hpp"
 #include <cstdint>
-#include <vector>
 #include <set>
 #include <unordered_set>
+#include <vector>
 
 namespace samal {
 
@@ -18,7 +18,7 @@ public:
     void requestCollection();
 
 private:
-    int32_t callsSinceLastRun { 0 };
+    int32_t callsSinceLastRun{ 0 };
     VM& mVM;
     std::unordered_set<uint8_t*> mAllocations;
     std::unordered_set<uint8_t*> mFoundAllocations;

@@ -24,7 +24,7 @@ using TemplateInstantiationInfo = std::vector<std::vector<Datatype>>;
 // which could be fib<T> -> T, so it becomes i32
 static inline std::map<std::string, Datatype> createTemplateParamMap(const std::vector<std::string>& identifierTemplateInfo /*<T>*/, const std::vector<Datatype>& templateParameterInfo /*<i32>*/) {
     if(identifierTemplateInfo.size() != templateParameterInfo.size()) {
-        throw std::runtime_error{"Template parameter sizes don't match"};
+        throw std::runtime_error{ "Template parameter sizes don't match" };
     }
     std::map<std::string, Datatype> ret;
     size_t i = 0;

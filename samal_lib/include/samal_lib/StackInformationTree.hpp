@@ -48,7 +48,7 @@ private:
         Datatype datatype;
         StorageType storageType;
     };
-    StackInformationTree* mParent{ nullptr }, *mPrevSibling{ nullptr };
+    StackInformationTree *mParent{ nullptr }, *mPrevSibling{ nullptr };
     int32_t mStartIp{ -1 };
     int32_t mTotalStackSize{ 0 };
     std::optional<VariableEntry> mVariable;

@@ -22,7 +22,7 @@ StackInformationTree* StackInformationTree::getBestNodeForIp(int32_t ip) {
     if(mStartIp > ip) {
         return nullptr;
     }
-    StackInformationTree *childBestNode = mChildren.back().get();
+    StackInformationTree* childBestNode = mChildren.back().get();
     for(auto it = mChildren.begin(); it != mChildren.end(); ++it) {
         auto ret = (*it)->getBestNodeForIp(ip);
         if(!ret) {

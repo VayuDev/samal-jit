@@ -178,7 +178,6 @@ fn problem1() -> i32 {
     REQUIRE(vmRet.dump() == "23");
 }
 
-
 TEST_CASE("Ensure that tail recursion works", "[samal_whole_system]") {
     auto vm = compileSimple(R"(
 fn test(n : i32) -> i32 {
@@ -188,6 +187,6 @@ fn test(n : i32) -> i32 {
         @tail_call_self(n + 1)
     }
 })");
-    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{samal::ExternalVMValue::wrapInt32(vm, 0)});
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 0) });
     REQUIRE(vmRet.dump() == "5");
 }

@@ -79,10 +79,10 @@ Datatype Datatype::createTupleType(std::vector<Datatype> params) {
     return Datatype(DatatypeCategory::tuple, std::move(params));
 }
 Datatype Datatype::createUndeterminedIdentifierType(std::string name) {
-    return Datatype(DatatypeCategory::undetermined_identifier, IdentifierInfo{std::move(name), {}});
+    return Datatype(DatatypeCategory::undetermined_identifier, IdentifierInfo{ std::move(name), {} });
 }
 Datatype Datatype::createUndeterminedIdentifierType(const IdentifierNode& name) {
-  return Datatype(DatatypeCategory::undetermined_identifier, IdentifierInfo{name.getName(), name.getTemplateParameters()});
+    return Datatype(DatatypeCategory::undetermined_identifier, IdentifierInfo{ name.getName(), name.getTemplateParameters() });
 }
 const std::pair<Datatype, std::vector<Datatype>>& Datatype::getFunctionTypeInfo() const& {
     if(mCategory != DatatypeCategory::function) {
@@ -252,7 +252,7 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     }
     case DatatypeCategory::undetermined_identifier: {
         auto maybeReplacementType = templateParams.end();
-        for(auto& module: modules) {
+        for(auto& module : modules) {
             maybeReplacementType = templateParams.find(module + "." + getUndeterminedIdentifierString());
             if(maybeReplacementType != templateParams.end()) {
                 break;
@@ -267,12 +267,12 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
             if(cpy.getCategory() == DatatypeCategory::struct_) {
                 // add template params to replacement map
                 std::vector<Datatype> undeterminedIdentifierTemplateParameters;
-                for(auto& dt: getUndeterminedIdentifierTemplateParams()) {
+                for(auto& dt : getUndeterminedIdentifierTemplateParams()) {
                     undeterminedIdentifierTemplateParameters.emplace_back(dt.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes));
                 }
                 auto additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);
                 additionalMap.insert(templateParams.cbegin(), templateParams.cend());
-                cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{.map = additionalMap, .includedModules = modules}));
+                cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = additionalMap, .includedModules = modules }));
             }
             return cpy;
         }
@@ -302,7 +302,7 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     default:
         assert(false);
     }
-    cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{.map = templateParams, .includedModules = modules}));
+    cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
     return cpy;
 }
 

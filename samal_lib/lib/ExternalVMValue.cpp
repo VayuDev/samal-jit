@@ -141,7 +141,7 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
     case DatatypeCategory::undetermined_identifier: {
         auto completedType = type.completeWithSavedTemplateParameters();
         if(completedType.getCategory() == DatatypeCategory::undetermined_identifier) {
-            throw std::runtime_error{"Recursive undetermined identifier " + completedType.getUndeterminedIdentifierString()};
+            throw std::runtime_error{ "Recursive undetermined identifier " + completedType.getUndeterminedIdentifierString() };
         }
         return wrapFromPtr(completedType, vm, ptr);
     }

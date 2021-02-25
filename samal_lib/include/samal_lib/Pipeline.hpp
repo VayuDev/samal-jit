@@ -1,6 +1,6 @@
 #pragma once
-#include "VM.hpp"
 #include "Forward.hpp"
+#include "VM.hpp"
 #include "peg_parser/PegForward.hpp"
 #include <string>
 
@@ -14,6 +14,7 @@ public:
     void addFileFromMemory(std::string moduleName, std::string fileContents);
     void addNativeFunction(NativeFunction function);
     samal::VM compile();
+
 private:
     up<samal::Parser> mParser;
     std::vector<up<samal::ModuleRootNode>> mModules;

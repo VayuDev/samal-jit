@@ -32,7 +32,7 @@ static std::string dumpParameterVector(unsigned indent, const std::vector<Parame
 
 static std::vector<std::string> extractUndeterminedIdentifierNames(const ASTNode& source, const std::vector<Datatype>& datatypes) {
     std::vector<std::string> ret;
-    for(auto& dt: datatypes) {
+    for(auto& dt : datatypes) {
         ret.push_back(dt.getUndeterminedIdentifierString());
         if(!dt.getUndeterminedIdentifierTemplateParams().empty()) {
             source.throwException("Template parameters are not allowed here");
@@ -72,7 +72,7 @@ Datatype TailCallSelfStatementNode::compile(Compiler& comp) const {
 }
 
 void TailCallSelfStatementNode::findUsedVariables(VariableSearcher& searcher) const {
-    for(auto& p: mParams) {
+    for(auto& p : mParams) {
         p->findUsedVariables(searcher);
     }
 }
@@ -447,7 +447,6 @@ void TupleAccessExpressionNode::findUsedVariables(VariableSearcher& searcher) co
 
 StructFieldAccessExpression::StructFieldAccessExpression(SourceCodeRef source, up<ExpressionNode> name, std::string fieldName)
 : ExpressionNode(std::move(source)), mStruct(std::move(name)), mFieldName(std::move(fieldName)) {
-
 }
 Datatype StructFieldAccessExpression::compile(Compiler& comp) const {
     return comp.compileStructFieldAccess(*this);

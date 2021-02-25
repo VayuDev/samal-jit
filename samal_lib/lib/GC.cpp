@@ -9,7 +9,7 @@ GC::GC(VM& vm)
 : mVM(vm) {
 }
 GC::~GC() {
-    for(auto& alloc: mAllocations) {
+    for(auto& alloc : mAllocations) {
         free(alloc);
     }
     mAllocations.clear();
@@ -34,12 +34,13 @@ void GC::markAndSweep() {
 
     // start marking the ones we find
     //Stopwatch secondStopwatch{"GC second"};
-    mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name){
+    mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name) {
         searchForPtrs(ptr, type);
-    }, {});
+    },
+        {});
     //secondStopwatch.stop();
 
-   // Stopwatch thirdStopwatch{"GC third"};
+    // Stopwatch thirdStopwatch{"GC third"};
     for(auto it = mAllocations.begin(); it != mAllocations.end();) {
         if(!mFoundAllocations.contains(*it)) {
             free(*it);
@@ -50,7 +51,6 @@ void GC::markAndSweep() {
     }
     //thirdStopwatch.stop();
     //printf("After: %lu\n", mAllocations.size());
-
 }
 void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
     switch(type.getCategory()) {
@@ -69,7 +69,7 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         break;
     }
     case DatatypeCategory::list: {
-        const uint8_t *current = *(const uint8_t**)ptr;
+        const uint8_t* current = *(const uint8_t**)ptr;
         while(current) {
             bool alreadyFound = markPtrAsFound(current);
             if(alreadyFound) {
@@ -106,7 +106,7 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
             break;
         }
         int32_t offset = 0;
-        for(auto& field: type.getStructInfo().elements) {
+        for(auto& field : type.getStructInfo().elements) {
             searchForPtrs(structPtr + offset, field.baseType);
             offset += field.baseType.getSizeOnStack();
         }
@@ -116,7 +116,6 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         assert(false);
     }
 }
-
 
 bool GC::markPtrAsFound(const uint8_t* ptr) {
     return !mFoundAllocations.emplace((uint8_t*)ptr).second;

@@ -111,7 +111,7 @@ Parser::Parser() {
         case 4:
             return Datatype::createSimple(DatatypeCategory::bool_);
         case 5: {
-            up<IdentifierNode> identifier{res[0].result.move<IdentifierNode*>()};
+            up<IdentifierNode> identifier{ res[0].result.move<IdentifierNode*>() };
             return Datatype::createUndeterminedIdentifierType(*identifier);
         }
         case 6:
@@ -147,7 +147,7 @@ Parser::Parser() {
     mPegParser["Statement"] << "('@tail_call_self(' ExpressionVector ')') | Expression" >> [](peg::MatchInfo& res) -> peg::Any {
         if(*res.choice == 1)
             return std::move(res[0].result);
-        return TailCallSelfStatementNode{toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>()};
+        return TailCallSelfStatementNode{ toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>() };
     };
     mPegParser["Expression"] << "BasicExpression ('|>' BasicExpression)*" >> [](peg::MatchInfo& res) -> peg::Any {
         // create chained function calls
@@ -302,7 +302,7 @@ Parser::Parser() {
                 break;
             }
             case 4: {
-                up<IdentifierNode> fieldName{res[1][0][0][1].result.move<IdentifierNode*>()};
+                up<IdentifierNode> fieldName{ res[1][0][0][1].result.move<IdentifierNode*>() };
                 ret = StructFieldAccessExpression{ toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, fieldName->getName() };
                 break;
             }
