@@ -1,4 +1,4 @@
-# samal - **s**imple **a**nd **m**emory-wasting **a**wesomely-functional **l**anguage
+# samal - Simple And Memory-wasting Awesomely-functional Language
 
 This repository contains the my programming language samal which attempts to be the 
 perfect combination of Rust and Elixir. It mixes the great type system and syntax of Rust with
