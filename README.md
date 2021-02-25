@@ -86,7 +86,7 @@ Note: List syntax will probably change with the introduction of generators.
 
 ## Design notes
 
-## Part 1: Why every programming language sucks
+### Part 1: Why every programming language sucks
 
 Please take all of this with a grain of salt, it's just my personal opinion, so feel free to disagree.
 
@@ -107,7 +107,7 @@ impossible, or have other weird quirks like forcing OOP onto you like Java. Go m
 of the boxes, but it's lack of generics, weird interface type and lack of VM and being neither fully functional 
 or object oriented make it hard for me to enjoy using.
 
-## Part 2: What makes samal different
+### Part 2: What makes samal different
 
 So, where does this leave us? We want a language that:
 
@@ -120,7 +120,7 @@ This is pretty much all I want to achieve with samal. I don't care about memory 
 not well beyond bounds) and I don't care about compilation speed (as long as it stays faster than C++ compiled with
 -O3).
 
-## Part 3: Why samal sucks as well
+### Part 3: Why samal sucks as well
 
 So, what's bad about samal right now?
 
