@@ -1,4 +1,5 @@
 #pragma once
+#include "AstHelpers.hpp"
 #include "Forward.hpp"
 #include <map>
 #include <samal_lib/Util.hpp>
@@ -27,12 +28,13 @@ enum class DatatypeCategory {
 
 class Datatype {
     struct StructInfo;
-
+    struct EnumInfo;
 public:
     Datatype();
     static Datatype createEmptyTuple();
     static Datatype createListType(Datatype baseType);
     static Datatype createStructType(const std::string& name, const std::vector<Parameter>& params, std::vector<std::string> templateParams);
+    static Datatype createEnumType(const std::string& name, const std::vector<EnumField>& params, std::vector<std::string> templateParams);
     static Datatype createSimple(DatatypeCategory category);
     static Datatype createFunctionType(Datatype returnType, std::vector<Datatype> params);
     static Datatype createTupleType(std::vector<Datatype> params);
@@ -55,6 +57,7 @@ public:
     [[nodiscard]] const std::string& getUndeterminedIdentifierString() const;
     [[nodiscard]] const std::vector<Datatype>& getUndeterminedIdentifierTemplateParams() const;
     [[nodiscard]] const StructInfo& getStructInfo() const;
+    [[nodiscard]] const EnumInfo& getEnumInfo() const;
 
     bool operator==(const Datatype& other) const;
     bool operator!=(const Datatype& other) const;
@@ -81,12 +84,23 @@ private:
     struct StructInfo {
         std::string name;
         struct StructElement;
-        std::vector<StructElement> elements;
+        std::vector<StructElement> fields;
         std::vector<std::string> templateParams;
         inline bool operator==(const StructInfo& other) const {
-            return name == other.name && elements == other.elements && templateParams == other.templateParams;
+            return name == other.name && fields == other.fields && templateParams == other.templateParams;
         }
         inline bool operator!=(const StructInfo& other) const {
+            return !operator==(other);
+        }
+    };
+    struct EnumInfo {
+        std::string name;
+        std::vector<EnumField> fields;
+        std::vector<std::string> templateParams;
+        inline bool operator==(const EnumInfo& other) const {
+            return name == other.name && fields == other.fields && templateParams == other.templateParams;
+        }
+        inline bool operator!=(const EnumInfo& other) const {
             return !operator==(other);
         }
     };
@@ -108,7 +122,8 @@ private:
         std::pair<Datatype, std::vector<Datatype>>,
         std::vector<Datatype>,
         Datatype,
-        StructInfo>;
+        StructInfo,
+        EnumInfo>;
     up<ContainedFurtherInfoType> mFurtherInfo;
 
     DatatypeCategory mCategory;
@@ -129,9 +144,9 @@ private:
 };
 struct Datatype::StructInfo::StructElement {
     std::string name;
-    Datatype baseType;
+    Datatype type;
     inline bool operator==(const StructElement& other) const {
-        return name == other.name && baseType == other.baseType;
+        return name == other.name && type == other.type;
     }
     inline bool operator!=(const StructElement& other) const {
         return !operator==(other);

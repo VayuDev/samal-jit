@@ -1,6 +1,6 @@
 #pragma once
+#include "AstHelpers.hpp"
 #include "Datatype.hpp"
-#include "IdentifierId.hpp"
 #include "samal_lib/Forward.hpp"
 #include <optional>
 #include <string>
@@ -505,7 +505,7 @@ public:
     [[nodiscard]] bool hasTemplateParameters() const override;
     [[nodiscard]] std::vector<std::string> getTemplateParameterVector() const override;
     [[nodiscard]] const IdentifierNode* getIdentifier() const override;
-    [[nodiscard]] inline const std::vector<Parameter>& getValues() const {
+    [[nodiscard]] inline const std::vector<Parameter>& getFields() const {
         return mValues;
     }
     Datatype compile(Compiler& comp) const override;
@@ -516,6 +516,25 @@ public:
 private:
     up<IdentifierNode> mName;
     std::vector<Parameter> mValues;
+};
+
+class EnumDeclarationNode : public DeclarationNode {
+public:
+    EnumDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<EnumField> fields);
+    [[nodiscard]] bool hasTemplateParameters() const override;
+    [[nodiscard]] std::vector<std::string> getTemplateParameterVector() const override;
+    [[nodiscard]] const IdentifierNode* getIdentifier() const override;
+    [[nodiscard]] inline const std::vector<EnumField>& getFields() const {
+        return mFields;
+    }
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "EnumDeclarationNode"; }
+
+private:
+    up<IdentifierNode> mName;
+    std::vector<EnumField> mFields;
 };
 
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params);

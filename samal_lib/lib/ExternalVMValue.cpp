@@ -86,15 +86,15 @@ std::string ExternalVMValue::dump() const {
     case DatatypeCategory::struct_: {
         ret += mType.getStructInfo().name + "{";
         auto ptr = std::get<const uint8_t*>(mValue);
-        for(auto& element : mType.getStructInfo().elements) {
-            auto elementValue = ExternalVMValue::wrapFromPtr(element.baseType, *mVM, ptr);
+        for(auto& element : mType.getStructInfo().fields) {
+            auto elementValue = ExternalVMValue::wrapFromPtr(element.type, *mVM, ptr);
             // Sidenote: elementValue can actually have a different type (getDataype()) than we pass in with element.baseType.
             //           This happens if the element.baseType is incomplete (undetermined identifier), which will lead to wrapFromPtr calling itself
             //           recursively with the completed type. See Datatype.hpp for more information.
             ret += element.name;
             ret += ": ";
             ret += elementValue.dump();
-            if(&element != &mType.getStructInfo().elements.back()) {
+            if(&element != &mType.getStructInfo().fields.back()) {
                 ret += ", ";
                 ptr += elementValue.getDatatype().getSizeOnStack();
             }

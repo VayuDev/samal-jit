@@ -596,6 +596,28 @@ std::string StructDeclarationNode::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 
+EnumDeclarationNode::EnumDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<EnumField> fields)
+: DeclarationNode(std::move(source)), mName(std::move(name)), mFields(std::move(fields)) {
+}
+bool EnumDeclarationNode::hasTemplateParameters() const {
+    return !mName->getTemplateParameters().empty();
+}
+std::vector<std::string> EnumDeclarationNode::getTemplateParameterVector() const {
+    return extractUndeterminedIdentifierNames(*this, mName->getTemplateParameters());
+}
+const IdentifierNode* EnumDeclarationNode::getIdentifier() const {
+    return mName.get();
+}
+Datatype EnumDeclarationNode::compile(Compiler& comp) const {
+    todo();
+}
+void EnumDeclarationNode::findUsedVariables(VariableSearcher& searcher) const {
+    mName->findUsedVariables(searcher);
+}
+std::string EnumDeclarationNode::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params) {
     std::vector<Datatype> parameterTypes;
     parameterTypes.reserve(params.size());

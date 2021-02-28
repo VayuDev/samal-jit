@@ -87,7 +87,7 @@ private:
         std::string name;
     };
     // Maps strings of structs like 'Vec2' (or from external modules like 'Math.Vec3') to the actual datatype. This is later merged with the mTemplateReplacementMap
-    std::map<std::string, Datatype> mStructTypeReplacementMap;
+    std::map<std::string, Datatype> mCustomUserDatatypeReplacementMap;
     std::vector<Module> mModules;
     std::unordered_map<DeclarationNode*, size_t> mDeclarationNodeToModuleId;
     std::vector<std::string> mUsingModuleNames;

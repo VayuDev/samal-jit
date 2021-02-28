@@ -29,6 +29,8 @@ class StructFieldAccessExpression;
 class TailCallSelfStatementNode;
 
 struct Parameter;
+using StructField = Parameter;
+struct EnumField;
 
 class Compiler;
 class Datatype;

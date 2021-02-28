@@ -39,13 +39,17 @@ Program Compiler::compile() {
     // 3. create mStructTypeReplacementMap
     for(auto& moduleNode : mRoots) {
         for(auto& declNode : moduleNode->getDeclarations()) {
+            std::string fullTypeName = moduleNode->getModuleName() + "." + declNode->getIdentifier()->getName();
             auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
-            if(!declNodeAsStructDecl)
+            if(declNodeAsStructDecl) {
+                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()));
                 continue;
-
-            std::string structName = declNodeAsStructDecl->getIdentifier()->getName();
-            std::string fullStructName = moduleNode->getModuleName() + "." + structName;
-            mStructTypeReplacementMap.emplace(fullStructName, Datatype::createStructType(fullStructName, declNodeAsStructDecl->getValues(), declNodeAsStructDecl->getTemplateParameterVector()));
+            }
+            auto declNodeAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(declNode.get());
+            if(declNodeAsEnumDecl) {
+                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()));
+                continue;
+            }
         }
     }
 
@@ -74,7 +78,7 @@ Program Compiler::compile() {
         mUsingModuleNames = { module->getModuleName() };
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
-                mCurrentUndeterminedTypeReplacementMap = mStructTypeReplacementMap;
+                mCurrentUndeterminedTypeReplacementMap = mCustomUserDatatypeReplacementMap;
                 mCurrentTemplateTypeReplacementMap.clear();
                 decl->compile(*this);
                 compileLambdaFunctions();
@@ -89,7 +93,7 @@ Program Compiler::compile() {
         mCurrentTemplateTypeReplacementMap = mCurrentUndeterminedTypeReplacementMap;
 
         auto& currentModule = mModules.at(mDeclarationNodeToModuleId.at(function));
-        mCurrentUndeterminedTypeReplacementMap.insert(mStructTypeReplacementMap.cbegin(), mStructTypeReplacementMap.cend());
+        mCurrentUndeterminedTypeReplacementMap.insert(mCustomUserDatatypeReplacementMap.cbegin(), mCustomUserDatatypeReplacementMap.cend());
         mUsingModuleNames = { currentModule.name };
 
         function->compile(*this);
@@ -824,17 +828,17 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
     const auto& structTypeInfo = structType.getStructInfo();
     int32_t sizeOfCopiedParams = 0;
 
-    if(node.getParams().size() != structTypeInfo.elements.size()) {
-        node.throwException("Invalid number of arguments for this struct; expected " + std::to_string(structTypeInfo.elements.size()) + ", but got " + std::to_string(node.getParams().size()));
+    if(node.getParams().size() != structTypeInfo.fields.size()) {
+        node.throwException("Invalid number of arguments for this struct; expected " + std::to_string(structTypeInfo.fields.size()) + ", but got " + std::to_string(node.getParams().size()));
     }
     for(size_t i = 0; i < node.getParams().size(); ++i) {
         const auto& nodeParam = node.getParams().at(node.getParams().size() - i - 1);
-        const auto& expectedParam = structTypeInfo.elements.at(structTypeInfo.elements.size() - i - 1);
+        const auto& expectedParam = structTypeInfo.fields.at(structTypeInfo.fields.size() - i - 1);
         if(expectedParam.name != nodeParam.name) {
             node.throwException("Element names of struct don't match / are in the wrong order; expected element " + expectedParam.name + ", got " + nodeParam.name);
         }
         auto paramType = nodeParam.value->compile(*this);
-        auto completedExpectedParamType = expectedParam.baseType.completeWithSavedTemplateParameters();
+        auto completedExpectedParamType = expectedParam.type.completeWithSavedTemplateParameters();
         if(completedExpectedParamType != paramType) {
             node.throwException("Invalid type for element '" + expectedParam.name + "'; expected " + completedExpectedParamType.toString() + ", but got " + paramType.toString());
         }
@@ -856,8 +860,8 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     bool foundField = false;
     Datatype foundFieldType;
 
-    for(auto& structField : structType.getStructInfo().elements) {
-        auto structFieldType = structField.baseType.completeWithSavedTemplateParameters();
+    for(auto& structField : structType.getStructInfo().fields) {
+        auto structFieldType = structField.type.completeWithSavedTemplateParameters();
         if(structField.name == node.getFieldName()) {
             foundField = true;
             foundFieldType = structFieldType;

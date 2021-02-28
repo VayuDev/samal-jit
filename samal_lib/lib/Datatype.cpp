@@ -5,8 +5,12 @@
 namespace samal {
 
 std::string Datatype::toString() const {
-    auto funcToString = [this] {
-        auto& functionInfo = getFunctionTypeInfo();
+    switch(mCategory) {
+    case DatatypeCategory::i32:
+        return "i32";
+    case DatatypeCategory::i64:
+        return "i64";
+    case DatatypeCategory::function: {auto& functionInfo = getFunctionTypeInfo();
         std::string ret = "fn(";
         for(size_t i = 0; i < functionInfo.second.size(); ++i) {
             ret += functionInfo.second.at(i).toString();
@@ -16,14 +20,6 @@ std::string Datatype::toString() const {
         }
         ret += ") -> " + functionInfo.first.toString();
         return ret;
-    };
-    switch(mCategory) {
-    case DatatypeCategory::i32:
-        return "i32";
-    case DatatypeCategory::i64:
-        return "i64";
-    case DatatypeCategory::function: {
-        return funcToString();
     }
     case DatatypeCategory::tuple: {
         auto& tupleInfo = getTupleInfo();
@@ -46,6 +42,8 @@ std::string Datatype::toString() const {
         return "<undetermined '" + getUndeterminedIdentifierString() + "'>";
     case DatatypeCategory::struct_:
         return "<struct " + getStructInfo().name + ">";
+    case DatatypeCategory::enum_:
+        return "<enum " + getEnumInfo().name + ">";
     default:
         return "DATATYPE";
     }
@@ -62,9 +60,12 @@ Datatype Datatype::createListType(Datatype baseType) {
 Datatype Datatype::createStructType(const std::string& name, const std::vector<Parameter>& params, std::vector<std::string> templateParams) {
     std::vector<StructInfo::StructElement> elements;
     for(const auto& p : params) {
-        elements.push_back(StructInfo::StructElement{ .name = p.name->getName(), .baseType = p.type });
+        elements.push_back(StructInfo::StructElement{ .name = p.name->getName(), .type = p.type });
     }
-    return Datatype(DatatypeCategory::struct_, StructInfo{ .name = name, .elements = std::move(elements), .templateParams = std::move(templateParams) });
+    return Datatype(DatatypeCategory::struct_, StructInfo{ .name = name, .fields = std::move(elements), .templateParams = std::move(templateParams) });
+}
+Datatype Datatype::createEnumType(const std::string& name, const std::vector<EnumField>& params, std::vector<std::string> templateParams) {
+    return Datatype(DatatypeCategory::enum_, EnumInfo{ .name = name, .fields = params, .templateParams = std::move(templateParams) });
 }
 Datatype::Datatype(DatatypeCategory cat, ContainedFurtherInfoType furtherInfo)
 : mFurtherInfo(std::make_unique<ContainedFurtherInfoType>(std::move(furtherInfo))), mCategory(cat) {
@@ -113,6 +114,12 @@ const Datatype::StructInfo& Datatype::getStructInfo() const {
         throw std::runtime_error{ "This is not a struct!" };
     }
     return std::get<StructInfo>(*mFurtherInfo);
+}
+const Datatype::EnumInfo& Datatype::getEnumInfo() const {
+    if(mCategory != DatatypeCategory::enum_) {
+        throw std::runtime_error{ "This is not an enum!" };
+    }
+    return std::get<EnumInfo>(*mFurtherInfo);
 }
 bool Datatype::operator==(const Datatype& other) const {
     if(mCategory != other.mCategory)
@@ -205,8 +212,18 @@ void Datatype::attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompleti
         break;
     }
     case DatatypeCategory::struct_: {
-        for(size_t i = 0; i < getStructInfo().elements.size(); ++i) {
-            std::get<StructInfo>(*mFurtherInfo).elements.at(i).baseType.attachUndeterminedIdentifierMap(map);
+        for(size_t i = 0; i < getStructInfo().fields.size(); ++i) {
+            std::get<StructInfo>(*mFurtherInfo).fields.at(i).type.attachUndeterminedIdentifierMap(map);
+        }
+        break;
+    }
+    case DatatypeCategory::enum_: {
+        const auto& fields = getEnumInfo().fields;
+        for(size_t i = 0; i < fields.size(); ++i) {
+            const auto& fieldElements = fields.at(i).params;
+            for(size_t j = 0; j < fieldElements.size(); ++j) {
+                std::get<EnumInfo>(*mFurtherInfo).fields.at(i).params.at(j).attachUndeterminedIdentifierMap(map);
+            }
         }
         break;
     }
@@ -293,9 +310,19 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     }
     case DatatypeCategory::struct_: {
         size_t i = 0;
-        for(auto& element : getStructInfo().elements) {
-            std::get<StructInfo>(*cpy.mFurtherInfo).elements.at(i).baseType = getStructInfo().elements.at(i).baseType.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
+        for(auto& element : getStructInfo().fields) {
+            std::get<StructInfo>(*cpy.mFurtherInfo).fields.at(i).type = getStructInfo().fields.at(i).type.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
             ++i;
+        }
+        break;
+    }
+    case DatatypeCategory::enum_: {
+        const auto& fields = getEnumInfo().fields;
+        for(size_t i = 0; i < fields.size(); ++i) {
+            const auto& fieldElements = fields.at(i).params;
+            for(size_t j = 0; j < fieldElements.size(); ++j) {
+                std::get<EnumInfo>(*mFurtherInfo).fields.at(i).params.at(j) = fieldElements.at(j).completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
+            }
         }
         break;
     }
@@ -305,5 +332,4 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
     return cpy;
 }
-
 }

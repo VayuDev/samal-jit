@@ -23,7 +23,7 @@ Parser::Parser() {
         }
         return ModuleRootNode{ toRef(res), std::move(decls) };
     };
-    mPegParser["Declaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Declaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration | EnumDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
         return std::move(res[0].result);
     };
     mPegParser["FunctionDeclaration"] << "'fn' IdentifierWithTemplate '(' ParameterVector ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
@@ -45,7 +45,34 @@ Parser::Parser() {
         return StructDeclarationNode(
             toRef(res),
             up<IdentifierNode>{ res[1].result.move<IdentifierNode*>() },
-            std::vector<Parameter>{ res[3].result.moveValue<std::vector<Parameter>>() });
+            res[3].result.moveValue<std::vector<Parameter>>());
+    };
+    mPegParser["EnumField"] << "Identifier '{' DatatypeVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
+        up<IdentifierNode> identifier{res[0].result.move<IdentifierNode*>()};
+        return EnumField{
+            identifier->getName(),
+            res[2].result.moveValue<std::vector<Datatype>>()};
+    };
+    mPegParser["EnumFieldVector"] << "EnumFieldVectorRec?" >> [](peg::MatchInfo& res) -> peg::Any {
+        if(res.subs.empty())
+            return std::vector<EnumField>{};
+        return res[0].result.moveValue<std::vector<EnumField>>();
+    };
+    mPegParser["EnumFieldVectorRec"] << "EnumField (',' EnumFieldVectorRec)?" >> [](peg::MatchInfo& res) {
+        std::vector<EnumField> params;
+        params.emplace_back(res[0].result.moveValue<EnumField>());
+        // recursive child
+        if(!res[1].subs.empty()) {
+            auto childParams = res[1][0][1].result.moveValue<std::vector<EnumField>>();
+            params.insert(params.end(), std::move_iterator(childParams.begin()), std::move_iterator(childParams.end()));
+        }
+        return params;
+    };
+    mPegParser["EnumDeclaration"] << "'enum' IdentifierWithTemplate '{' EnumFieldVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return EnumDeclarationNode(
+            toRef(res),
+            up<IdentifierNode>{ res[1].result.move<IdentifierNode*>() },
+            res[3].result.moveValue<std::vector<EnumField>>());
     };
     mPegParser["ParameterVector"] << "ParameterVectorRec?" >> [](peg::MatchInfo& res) -> peg::Any {
         if(res.subs.empty())

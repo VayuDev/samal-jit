@@ -106,9 +106,9 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
             break;
         }
         int32_t offset = 0;
-        for(auto& field : type.getStructInfo().elements) {
-            searchForPtrs(structPtr + offset, field.baseType);
-            offset += field.baseType.getSizeOnStack();
+        for(auto& field : type.getStructInfo().fields) {
+            searchForPtrs(structPtr + offset, field.type);
+            offset += field.type.getSizeOnStack();
         }
         break;
     }
