@@ -47,7 +47,7 @@ Fibonacci:
         }
     }
 
-Sum up all elements of a list, making use of explicit tail recursion:
+Sum up all fields of a list, making use of explicit tail recursion:
 
     fn sumRec<T>(current : T, list : [T]) -> T {
         if list == [] {
@@ -104,8 +104,8 @@ collector runs sometimes or not and rather take the speedup in development time.
 
 Most garbage-collected languages have other problems: they are either not strongly typed, making large projects
 impossible, or have other weird quirks like forcing OOP onto you like Java. Go might seem like it ticks a lot
-of the boxes, but it's lack of generics, weird interface type and lack of VM and being neither fully functional 
-or object oriented make it hard for me to enjoy using.
+of the boxes, but it's lack of generics, weird interface type, lack of VM and being neither fully functional 
+or object oriented makes it hard for me to enjoy using.
 
 ### Part 2: What makes samal different
 
