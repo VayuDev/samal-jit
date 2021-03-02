@@ -245,8 +245,9 @@ Datatype& Datatype::operator=(const Datatype& other) {
     return *this;
 }
 Datatype Datatype::completeWithSavedTemplateParameters(AllowIncompleteTypes allowIncompleteTypes) const {
-    assert(mUndefinedTypeReplacementMap);
-    return completeWithTemplateParameters(mUndefinedTypeReplacementMap->map, mUndefinedTypeReplacementMap->includedModules, InternalCall::Yes, allowIncompleteTypes);
+    if(mUndefinedTypeReplacementMap)
+        return completeWithTemplateParameters(mUndefinedTypeReplacementMap->map, mUndefinedTypeReplacementMap->includedModules, InternalCall::Yes, allowIncompleteTypes);
+    return *this;
 }
 Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, const std::vector<std::string>& modules, Datatype::InternalCall internalCall, AllowIncompleteTypes allowIncompleteTypes) const {
     // This assertion ensures that we don't accidentally call completeWithTemplateParameters twice, overwriting the mUndefinedTypeReplacementMap
@@ -283,13 +284,18 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
         }
         if(maybeReplacementType != templateParams.end()) {
             cpy = maybeReplacementType->second;
-            if(cpy.getCategory() == DatatypeCategory::struct_) {
+            if(cpy.getCategory() == DatatypeCategory::struct_ || cpy.getCategory() == DatatypeCategory::enum_) {
                 // add template params to replacement map
                 std::vector<Datatype> undeterminedIdentifierTemplateParameters;
                 for(auto& dt : getUndeterminedIdentifierTemplateParams()) {
                     undeterminedIdentifierTemplateParameters.emplace_back(dt.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes));
                 }
-                auto additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                std::map<std::string, Datatype> additionalMap;
+                if(cpy.getCategory() == DatatypeCategory::struct_) {
+                    additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                }  else {
+                    additionalMap = createTemplateParamMap(cpy.getEnumInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                }
                 additionalMap.insert(templateParams.cbegin(), templateParams.cend());
                 cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = additionalMap, .includedModules = modules }));
             }

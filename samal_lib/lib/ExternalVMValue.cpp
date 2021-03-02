@@ -84,6 +84,7 @@ std::string ExternalVMValue::dump() const {
         break;
     }
     case DatatypeCategory::struct_: {
+        // TODO dump template params
         ret += mType.getStructInfo().name + "{";
         const auto ptr = std::get<const uint8_t*>(mValue);
         int32_t offset = 0;
@@ -109,6 +110,7 @@ std::string ExternalVMValue::dump() const {
         break;
     }
     case DatatypeCategory::enum_: {
+        // TODO dump template params
         ret += mType.getEnumInfo().name;
         auto ptr = std::get<const uint8_t*>(mValue);
 #ifdef x86_64_BIT_MODE
@@ -124,11 +126,12 @@ std::string ExternalVMValue::dump() const {
         ret += "::" + enumVariant.name;
         ret += "{";
         for(auto& element: enumVariant.params) {
-            totalSize += element.getSizeOnStack();
+            auto elementType = element.completeWithSavedTemplateParameters();
+            totalSize += elementType.getSizeOnStack();
         }
         int32_t offset = 0;
         for(size_t i = 0; i < enumVariant.params.size(); ++i) {
-            const auto& elementType = enumVariant.params.at(i);
+            auto elementType = enumVariant.params.at(i).completeWithSavedTemplateParameters();
             offset += elementType.getSizeOnStack();
             auto elementValue = ExternalVMValue::wrapFromPtr(elementType, *mVM, ptr + totalSize - offset);
             ret += elementValue.dump();

@@ -912,8 +912,9 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     int32_t sizeOfPassedParams = 0;
     for(auto& param: node.getParams()) {
         auto actualParamType = param->compile(*this);
-        if(actualParamType != selectedEnumField.params.at(i)) {
-            node.throwException("Enum-construction parameter " + std::to_string(i) + " doesn't have the correct type; expected " + selectedEnumField.params.at(i).toString() + ", but got " + actualParamType.toString());
+        auto expectedType = selectedEnumField.params.at(i).completeWithSavedTemplateParameters();
+        if(actualParamType != expectedType) {
+            node.throwException("Enum-construction parameter " + std::to_string(i) + " doesn't have the correct type; expected " + expectedType.toString() + ", but got " + actualParamType.toString());
         }
         ++i;
         sizeOfPassedParams += actualParamType.getSizeOnStack();
