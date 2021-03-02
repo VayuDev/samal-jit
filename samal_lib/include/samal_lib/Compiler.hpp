@@ -1,4 +1,5 @@
 #pragma once
+#include "AST.hpp"
 #include "Forward.hpp"
 #include "Instruction.hpp"
 #include "Program.hpp"
@@ -49,6 +50,8 @@ public:
     Datatype compileStructFieldAccess(const StructFieldAccessExpression&);
     Datatype compileTailCallSelf(const TailCallSelfStatementNode&);
 
+    Datatype compileEnumCreation(const EnumCreationNode& node);
+
 private:
     Program mProgram;
     std::vector<up<ModuleRootNode>>& mRoots;
@@ -60,6 +63,7 @@ private:
     void addInstructions(Instruction insn, int32_t param);
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
+    void addInstructionTwoByteParam(Instruction, int16_t);
 
     void saveVariableLocation(std::string name, Datatype type, StorageType storageType);
     void saveCurrentStackSizeToDebugInfo();

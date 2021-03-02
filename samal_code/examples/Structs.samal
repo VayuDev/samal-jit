@@ -34,8 +34,7 @@ fn testStruct2(p : i32) -> [Structs.Vec2] {
     list =
         Core.createFilledList<Vec2>(Vec2{x : 0, y : 5}, 10)
         |> Core.map<Vec2, Vec2>(fn(p2 : Vec2) -> Vec2 {
-            i = pureIdentity<i32>(p)
-            Vec2{x : i, y : 0}
+            Vec2{x: p2:x + 1, y: p2:y}
         })
 }
 

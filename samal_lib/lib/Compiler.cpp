@@ -271,6 +271,13 @@ void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
     memcpy(&mProgram.code.at(mProgram.code.size() - 2), &insn, 1);
     memcpy(&mProgram.code.at(mProgram.code.size() - 1), &param, 1);
 }
+void Compiler::addInstructionTwoByteParam(Instruction insn, int16_t param) {
+    saveCurrentStackSizeToDebugInfo();
+    printf("Adding instruction %s %i\n", instructionToString(insn), (int)param);
+    mProgram.code.resize(mProgram.code.size() + 3);
+    memcpy(&mProgram.code.at(mProgram.code.size() - 3), &insn, 1);
+    memcpy(&mProgram.code.at(mProgram.code.size() - 2), &param, 2);
+}
 int32_t Compiler::addLabel(Instruction insn) {
     saveCurrentStackSizeToDebugInfo();
     auto len = instructionToWidth(insn);
@@ -832,8 +839,8 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
         node.throwException("Invalid number of arguments for this struct; expected " + std::to_string(structTypeInfo.fields.size()) + ", but got " + std::to_string(node.getParams().size()));
     }
     for(size_t i = 0; i < node.getParams().size(); ++i) {
-        const auto& nodeParam = node.getParams().at(node.getParams().size() - i - 1);
-        const auto& expectedParam = structTypeInfo.fields.at(structTypeInfo.fields.size() - i - 1);
+        const auto& nodeParam = node.getParams().at(i);
+        const auto& expectedParam = structTypeInfo.fields.at(i);
         if(expectedParam.name != nodeParam.name) {
             node.throwException("Element names of struct don't match / are in the wrong order; expected element " + expectedParam.name + ", got " + nodeParam.name);
         }
@@ -844,7 +851,7 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
         }
         sizeOfCopiedParams += paramType.getSizeOnStack();
     }
-    addInstructions(Instruction::CREATE_STRUCT, sizeOfCopiedParams);
+    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, sizeOfCopiedParams);
     mStackSize -= sizeOfCopiedParams;
     mStackSize += 8;
 
@@ -860,14 +867,19 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     bool foundField = false;
     Datatype foundFieldType;
 
+    for(auto& field : structType.getStructInfo().fields) {
+        auto structFieldType = field.type.completeWithSavedTemplateParameters();
+        offset += structFieldType.getSizeOnStack();
+    }
+
     for(auto& structField : structType.getStructInfo().fields) {
         auto structFieldType = structField.type.completeWithSavedTemplateParameters();
+        offset -= structFieldType.getSizeOnStack();
         if(structField.name == node.getFieldName()) {
             foundField = true;
             foundFieldType = structFieldType;
             break;
         }
-        offset += structFieldType.getSizeOnStack();
     }
     if(!foundField) {
         node.throwException("The struct " + structType.toString() + " doesn't have the field " + node.getFieldName());
@@ -876,6 +888,50 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     mStackSize -= structType.getSizeOnStack();
     mStackSize += foundFieldType.getSizeOnStack();
     return foundFieldType;
+}
+Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
+    auto enumType = node.getEnumType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
+    const auto& enumInfo = enumType.getEnumInfo();
+    int32_t enumFieldIndex = -1;
+    for(size_t i = 0; i < enumInfo.fields.size(); ++i) {
+        if(enumInfo.fields.at(i).name == node.getFieldName()) {
+            enumFieldIndex = i;
+        }
+    }
+    if(enumFieldIndex == -1) {
+        node.throwException("Enum " + enumType.toString() + " doesn't have the field " + node.getFieldName());
+    }
+    if(enumFieldIndex > std::numeric_limits<int16_t>::max()) {
+        node.throwException("Enum contains more than more than about 65.000 fields - this is probably a compiler a bug?");
+    }
+    const auto& selectedEnumField = enumInfo.fields.at(enumFieldIndex);
+    if(node.getParams().size() != selectedEnumField.params.size()) {
+        node.throwException("Invalid number of parameters passed to enum; expected " + std::to_string(selectedEnumField.params.size()) + ", but got " + std::to_string(node.getParams().size()));
+    }
+    size_t i = 0;
+    int32_t sizeOfPassedParams = 0;
+    for(auto& param: node.getParams()) {
+        auto actualParamType = param->compile(*this);
+        if(actualParamType != selectedEnumField.params.at(i)) {
+            node.throwException("Enum-construction parameter " + std::to_string(i) + " doesn't have the correct type; expected " + selectedEnumField.params.at(i).toString() + ", but got " + actualParamType.toString());
+        }
+        ++i;
+        sizeOfPassedParams += actualParamType.getSizeOnStack();
+    }
+#ifdef x86_64_BIT_MODE
+    addInstructions(Instruction::PUSH_8, enumFieldIndex, 0);
+    mStackSize += 8;
+    int32_t sizeOfIndex = 8;
+#else
+    addInstructionTwoByteParam(Instruction::PUSH_2, (int16_t)enumFieldIndex);
+    mStackSize += 2;
+    int32_t sizeOfIndex = 2;
+#endif
+    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, sizeOfPassedParams + sizeOfIndex);
+    mStackSize -= sizeOfPassedParams + sizeOfIndex;
+    mStackSize += 8;
+
+    return enumType;
 }
 Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
     // TODO check if at the end of a function/branch

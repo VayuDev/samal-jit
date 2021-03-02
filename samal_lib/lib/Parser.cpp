@@ -344,7 +344,7 @@ Parser::Parser() {
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
     mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression "
-                                       " | StructCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
+                                       " | StructCreationExpression | EnumCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
         >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
@@ -368,15 +368,24 @@ Parser::Parser() {
         case 5:
         case 6:
         case 7:
-        case 10:
-            return std::move(res[0].result);
         case 8:
-            return std::move(res[0][1].result);
+        case 11:
+            return std::move(res[0].result);
         case 9:
+            return std::move(res[0][1].result);
+        case 10:
             return TupleCreationNode{ toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>() };
         default:
             assert(false);
         }
+    };
+    mPegParser["EnumCreationExpression"] << "Datatype '::' Identifier '{' ExpressionVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return EnumCreationNode{
+            toRef(res),
+            res[0].result.moveValue<Datatype>(),
+            up<IdentifierNode>{res[2].result.move<IdentifierNode*>()}->getName(),
+            res[4].result.moveValue<std::vector<up<ExpressionNode>>>()
+        };
     };
     mPegParser["StructCreationExpression"] << "Datatype '{' StructParameterVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
         return StructCreationNode{

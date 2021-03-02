@@ -508,7 +508,16 @@ bool VM::interpretInstruction() {
 #endif
     switch(ins) {
     case Instruction::PUSH_1:
+#ifdef x86_64_BIT_MODE
+        assert(false);
+#endif
         mStack.push(&mProgram.code.at(mIp + 1), 1);
+        break;
+    case Instruction::PUSH_2:
+#ifdef x86_64_BIT_MODE
+        assert(false);
+#endif
+        mStack.push(&mProgram.code.at(mIp + 1), 2);
         break;
     case Instruction::PUSH_4:
 #ifdef x86_64_BIT_MODE
@@ -857,7 +866,7 @@ bool VM::interpretInstruction() {
         mStack.push(&dataOnHeap, 8);
         break;
     }
-    case Instruction::CREATE_STRUCT: {
+    case Instruction::CREATE_STRUCT_OR_ENUM: {
         auto sizeOfData = *(int32_t*)&mProgram.code.at(mIp + 1);
         auto* dataOnHeap = (uint8_t*)mGC.alloc(sizeOfData);
         memcpy(dataOnHeap, mStack.get(0), sizeOfData);

@@ -290,6 +290,21 @@ void StructCreationNode::findUsedVariables(VariableSearcher& searcher) const {
     }
 }
 
+EnumCreationNode::EnumCreationNode(SourceCodeRef source, Datatype enumType, std::string fieldName, std::vector<up<ExpressionNode>> params)
+: ExpressionNode(std::move(source)), mEnumType(std::move(enumType)), mFieldName(std::move(fieldName)), mParams(std::move(params)) {
+}
+Datatype EnumCreationNode::compile(Compiler& comp) const {
+    return comp.compileEnumCreation(*this);
+}
+void EnumCreationNode::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& param: mParams) {
+        param->findUsedVariables(searcher);
+    }
+}
+std::string EnumCreationNode::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
 LambdaCreationNode::LambdaCreationNode(SourceCodeRef source, std::vector<Parameter> parameters, Datatype returnType, up<ScopeNode> body)
 : ExpressionNode(std::move(source)), mReturnType(std::move(returnType)), mParameters(std::move(parameters)), mBody(std::move(body)) {
 }

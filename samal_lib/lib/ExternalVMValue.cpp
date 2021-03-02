@@ -53,7 +53,7 @@ std::string ExternalVMValue::dump() const {
         ret += std::to_string(std::get<int32_t>(mValue));
         break;
     case DatatypeCategory::i64:
-        ret += std::to_string(std::get<int64_t>(mValue));
+        ret += std::to_string(std::get<int64_t>(mValue)) + "i64";
         break;
     case DatatypeCategory::tuple:
         ret += "(";
@@ -85,18 +85,55 @@ std::string ExternalVMValue::dump() const {
     }
     case DatatypeCategory::struct_: {
         ret += mType.getStructInfo().name + "{";
-        auto ptr = std::get<const uint8_t*>(mValue);
-        for(auto& element : mType.getStructInfo().fields) {
-            auto elementValue = ExternalVMValue::wrapFromPtr(element.type, *mVM, ptr);
+        const auto ptr = std::get<const uint8_t*>(mValue);
+        int32_t offset = 0;
+        for(auto& field : mType.getStructInfo().fields) {
+            auto fieldType = field.type.completeWithSavedTemplateParameters();
+            offset += fieldType.getSizeOnStack();
+        }
+        for(auto& field : mType.getStructInfo().fields) {
+            auto fieldType = field.type.completeWithSavedTemplateParameters();
+            offset -= fieldType.getSizeOnStack();
+            auto elementValue = ExternalVMValue::wrapFromPtr(fieldType, *mVM, ptr + offset);
             // Sidenote: elementValue can actually have a different type (getDataype()) than we pass in with element.baseType.
             //           This happens if the element.baseType is incomplete (undetermined identifier), which will lead to wrapFromPtr calling itself
             //           recursively with the completed type. See Datatype.hpp for more information.
-            ret += element.name;
+            ret += field.name;
             ret += ": ";
             ret += elementValue.dump();
-            if(&element != &mType.getStructInfo().fields.back()) {
+            if(&field != &mType.getStructInfo().fields.back()) {
                 ret += ", ";
-                ptr += elementValue.getDatatype().getSizeOnStack();
+            }
+        }
+        ret += "}";
+        break;
+    }
+    case DatatypeCategory::enum_: {
+        ret += mType.getEnumInfo().name;
+        auto ptr = std::get<const uint8_t*>(mValue);
+#ifdef x86_64_BIT_MODE
+        int64_t index = -1;
+        memcpy(&index, ptr, 8);
+        int32_t totalSize = 8;
+#else
+        int16_t index = -1;
+        memcpy(&index, ptr, 2);
+        int32_t totalSize = 2;
+#endif
+        auto enumVariant = mType.getEnumInfo().fields.at(index);
+        ret += "::" + enumVariant.name;
+        ret += "{";
+        for(auto& element: enumVariant.params) {
+            totalSize += element.getSizeOnStack();
+        }
+        int32_t offset = 0;
+        for(size_t i = 0; i < enumVariant.params.size(); ++i) {
+            const auto& elementType = enumVariant.params.at(i);
+            offset += elementType.getSizeOnStack();
+            auto elementValue = ExternalVMValue::wrapFromPtr(elementType, *mVM, ptr + totalSize - offset);
+            ret += elementValue.dump();
+            if(i + 1 < enumVariant.params.size()) {
+                ret += ", ";
             }
         }
         ret += "}";
@@ -134,6 +171,7 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
         std::reverse(children.begin(), children.end());
         return ExternalVMValue{ vm, type, std::move(children) };
     }
+    case DatatypeCategory::enum_:
     case DatatypeCategory::struct_:
     case DatatypeCategory::list: {
         return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };

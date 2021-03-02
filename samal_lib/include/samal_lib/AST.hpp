@@ -244,6 +244,31 @@ private:
     std::vector<StructCreationParameter> mParams;
 };
 
+class EnumCreationNode : public ExpressionNode {
+public:
+    explicit EnumCreationNode(SourceCodeRef source, Datatype enumType, std::string fieldName, std::vector<up<ExpressionNode>> params);
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+
+    [[nodiscard]] const auto& getEnumType() const {
+        return mEnumType;
+    }
+    [[nodiscard]] const auto& getFieldName() const {
+        return mFieldName;
+    }
+    [[nodiscard]] const auto& getParams() const {
+        return mParams;
+    }
+
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "EnumCreationNode"; }
+
+private:
+    Datatype mEnumType;
+    std::string mFieldName;
+    std::vector<up<ExpressionNode>> mParams;
+};
+
 class LambdaCreationNode : public ExpressionNode {
 public:
     LambdaCreationNode(SourceCodeRef source, std::vector<Parameter> parameters, Datatype returnType, up<ScopeNode> body);

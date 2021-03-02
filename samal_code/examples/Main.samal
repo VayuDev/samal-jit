@@ -22,8 +22,19 @@ fn infiniteLoop(v : i32) -> i32 {
     @tail_call_self(v + 1)
 }
 
-fn main(p : i32) -> () {
+enum Shape {
+    Rectangle{i32, i32},
+    Circle{i32}
+}
 
-    Euler.problem5()
+struct Vec2 {
+    x : i32,
+    y : i32
+}
+
+fn main(p : i32) -> () {
+    x = Shape::Rectangle{1, 2}
+    y = Vec2{x : 1, y : 2}
+    Structs.testStruct2(2)
     ()
 }

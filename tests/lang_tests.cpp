@@ -29,7 +29,7 @@ fn fib64(n : i64) -> i64 {
     }
 })");
     auto vmRet = vm.run("Main.fib64", { samal::ExternalVMValue::wrapInt64(vm, 10) });
-    REQUIRE(vmRet.dump() == "55");
+    REQUIRE(vmRet.dump() == "55i64");
 }
 
 TEST_CASE("Ensure that fib32 works", "[samal_whole_system]") {
@@ -74,7 +74,7 @@ fn makeLambda<T>(p : T) -> fn(T) -> T {
     }
 })");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{});
-    REQUIRE(vmRet.dump() == "34");
+    REQUIRE(vmRet.dump() == "34i64");
 }
 
 TEST_CASE("Ensure that lists work", "[samal_whole_system]") {
@@ -189,4 +189,61 @@ fn test(n : i32) -> i32 {
 })");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ samal::ExternalVMValue::wrapInt32(vm, 0) });
     REQUIRE(vmRet.dump() == "5");
+}
+
+TEST_CASE("Ensure that structs work", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+struct Vec2 {
+    x : i64,
+    y : i32
+}
+
+fn test() -> (i32, Vec2) {
+    (Vec2{x : 5i64, y : 42}:y, Vec2{x : 3i64, y : 5})
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == "(42, Main.Vec2{x: 3i64, y: 5})");
+}
+
+TEST_CASE("Ensure that structs work advanced", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+struct Point<T> {
+    x : T,
+    y : T
+}
+
+fn templ<T>() -> i32 {
+    point = Point<T>{x : 5, y : 3}
+    point:y
+}
+
+fn makePoint<T>(a : T, b : T) -> fn() -> Point<T> {
+    fn() -> Point<T> {
+        Point<T>{x : a, y : b}
+    }
+}
+
+fn test() -> i32 {
+    bp = makePoint<bool>(true, false)()
+    if bp:x {
+        templ<i32>()
+    } else {
+        3329
+    }
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == "3");
+}
+
+TEST_CASE("Ensure that we can create enums", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+enum Shape {
+    Circle{i32},
+    Rectangle{i32, i32}
+}
+fn test() -> Shape {
+   Shape::Rectangle{5, 3}
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == "Main.Shape::Rectangle{5, 3}");
 }

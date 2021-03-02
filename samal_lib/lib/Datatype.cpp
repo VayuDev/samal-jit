@@ -146,6 +146,7 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::bool_:
     case DatatypeCategory::list:
     case DatatypeCategory::struct_:
+    case DatatypeCategory::enum_:
         return 8;
     case DatatypeCategory::tuple: {
         size_t sum = 0;
@@ -165,6 +166,7 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::function:
     case DatatypeCategory::list:
     case DatatypeCategory::struct_:
+    case DatatypeCategory::enum_:
         return 8;
     case DatatypeCategory::bool_:
         return 1;

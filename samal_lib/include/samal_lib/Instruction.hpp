@@ -8,6 +8,7 @@ namespace samal {
 #define ENUMERATE_INSTRUCTIONS                  \
     INSTRUCTION(INVALID, 5)                     \
     INSTRUCTION(PUSH_1, 2)                      \
+    INSTRUCTION(PUSH_2, 3)                      \
     INSTRUCTION(PUSH_4, 5)                      \
     INSTRUCTION(PUSH_8, 9)                      \
     INSTRUCTION(POP_N_BELOW, 9)                 \
@@ -45,7 +46,7 @@ namespace samal {
     INSTRUCTION(COMPARE_COMPLEX_EQUALITY, 5)    \
     INSTRUCTION(LIST_PREPEND, 5)                \
     INSTRUCTION(IS_LIST_EMPTY, 1)               \
-    INSTRUCTION(CREATE_STRUCT, 5)               \
+    INSTRUCTION(CREATE_STRUCT_OR_ENUM, 5)       \
     INSTRUCTION(RUN_GC, 1)
 
 enum class Instruction : uint8_t {
