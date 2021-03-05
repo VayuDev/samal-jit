@@ -271,13 +271,6 @@ void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
     memcpy(&mProgram.code.at(mProgram.code.size() - 2), &insn, 1);
     memcpy(&mProgram.code.at(mProgram.code.size() - 1), &param, 1);
 }
-void Compiler::addInstructionTwoByteParam(Instruction insn, int16_t param) {
-    saveCurrentStackSizeToDebugInfo();
-    printf("Adding instruction %s %i\n", instructionToString(insn), (int)param);
-    mProgram.code.resize(mProgram.code.size() + 3);
-    memcpy(&mProgram.code.at(mProgram.code.size() - 3), &insn, 1);
-    memcpy(&mProgram.code.at(mProgram.code.size() - 2), &param, 2);
-}
 int32_t Compiler::addLabel(Instruction insn) {
     saveCurrentStackSizeToDebugInfo();
     auto len = instructionToWidth(insn);
@@ -901,9 +894,6 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     if(enumFieldIndex == -1) {
         node.throwException("Enum " + enumType.toString() + " doesn't have the field " + node.getFieldName());
     }
-    if(enumFieldIndex > std::numeric_limits<int16_t>::max()) {
-        node.throwException("Enum contains more than more than about 65.000 fields - this is probably a compiler a bug?");
-    }
     const auto& selectedEnumField = enumInfo.fields.at(enumFieldIndex);
     if(node.getParams().size() != selectedEnumField.params.size()) {
         node.throwException("Invalid number of parameters passed to enum; expected " + std::to_string(selectedEnumField.params.size()) + ", but got " + std::to_string(node.getParams().size()));
@@ -924,9 +914,9 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     mStackSize += 8;
     int32_t sizeOfIndex = 8;
 #else
-    addInstructionTwoByteParam(Instruction::PUSH_2, (int16_t)enumFieldIndex);
-    mStackSize += 2;
-    int32_t sizeOfIndex = 2;
+    addInstructions(Instruction::PUSH_4, enumFieldIndex);
+    mStackSize += 4;
+    int32_t sizeOfIndex = 4;
 #endif
     addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, sizeOfPassedParams + sizeOfIndex);
     mStackSize -= sizeOfPassedParams + sizeOfIndex;

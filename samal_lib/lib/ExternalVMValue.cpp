@@ -118,9 +118,9 @@ std::string ExternalVMValue::dump() const {
         memcpy(&index, ptr, 8);
         int32_t totalSize = 8;
 #else
-        int16_t index = -1;
-        memcpy(&index, ptr, 2);
-        int32_t totalSize = 2;
+        int32_t index = -1;
+        memcpy(&index, ptr, 4);
+        int32_t totalSize = 4;
 #endif
         auto enumVariant = mType.getEnumInfo().fields.at(index);
         ret += "::" + enumVariant.name;

@@ -63,7 +63,6 @@ private:
     void addInstructions(Instruction insn, int32_t param);
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
-    void addInstructionTwoByteParam(Instruction, int16_t);
 
     void saveVariableLocation(std::string name, Datatype type, StorageType storageType);
     void saveCurrentStackSizeToDebugInfo();

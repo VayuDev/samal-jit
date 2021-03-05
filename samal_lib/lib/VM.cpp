@@ -513,12 +513,6 @@ bool VM::interpretInstruction() {
 #endif
         mStack.push(&mProgram.code.at(mIp + 1), 1);
         break;
-    case Instruction::PUSH_2:
-#ifdef x86_64_BIT_MODE
-        assert(false);
-#endif
-        mStack.push(&mProgram.code.at(mIp + 1), 2);
-        break;
     case Instruction::PUSH_4:
 #ifdef x86_64_BIT_MODE
         assert(false);
