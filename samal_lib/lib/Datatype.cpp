@@ -291,10 +291,12 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
                     undeterminedIdentifierTemplateParameters.emplace_back(dt.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes));
                 }
                 std::map<std::string, Datatype> additionalMap;
-                if(cpy.getCategory() == DatatypeCategory::struct_) {
-                    additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);
-                }  else {
-                    additionalMap = createTemplateParamMap(cpy.getEnumInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                if(!undeterminedIdentifierTemplateParameters.empty()) {
+                    if(cpy.getCategory() == DatatypeCategory::struct_) {
+                        additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                    }  else {
+                        additionalMap = createTemplateParamMap(cpy.getEnumInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                    }
                 }
                 additionalMap.insert(templateParams.cbegin(), templateParams.cend());
                 cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = additionalMap, .includedModules = modules }));
@@ -302,7 +304,7 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
             return cpy;
         }
         if(allowIncompleteTypes == AllowIncompleteTypes::No) {
-            assert(!"Incomplete types not allowed here");
+            throw std::runtime_error{"Incomplete type not allowed here! You probably forgot to specify template parameters"};
         }
         break;
     }
