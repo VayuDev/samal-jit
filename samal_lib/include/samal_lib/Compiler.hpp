@@ -67,6 +67,7 @@ private:
     void addInstructions(Instruction insn);
     void addInstructions(Instruction insn, int32_t param);
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
+    void addInstructions(Instruction insn, int32_t param1, int32_t param2, int32_t param3);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
 
     void saveVariableLocation(std::string name, Datatype type, StorageType storageType, int32_t offset = 0);

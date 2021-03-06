@@ -331,20 +331,20 @@ public:
                 break;
             }
             case Instruction::LOAD_FROM_PTR: {
-                auto sizeOfElement = *(int32_t*)&instructions.at(i + 1);
-                auto offset = *(int32_t*)&instructions.at(i + 5);
+                int32_t sizeOfElement;
+                memcpy(&sizeOfElement, &instructions.at(i + 1), 4);
+                int32_t offset;
+                memcpy(&offset, &instructions.at(i + 5), 4);
 
                 cmp(qword[rsp], 0);
-                Xbyak::Label after;
                 je("AfterJumpTable");
 
                 pop(rax);
                 assert(sizeOfElement % 8 == 0);
-                for(int32_t i = 0; i < sizeOfElement / 8; ++i) {
+                for(int32_t i = sizeOfElement / 8 - 1; i >= 0; --i) {
                     mov(rbx, qword[rax + (8 * i + offset)]);
                     push(rbx);
                 }
-                L(after);
                 break;
             }
             case Instruction::IS_LIST_EMPTY: {
@@ -502,8 +502,8 @@ bool VM::interpretInstruction() {
 #endif
 #ifdef _DEBUG
     // dump
-    //auto varDump = dumpVariablesOnStack();
-    //printf("%s", varDump.c_str());
+    auto varDump = dumpVariablesOnStack();
+    printf("%s", varDump.c_str());
     printf("Executing instruction %i: %s\n", static_cast<int>(ins), instructionToString(ins));
 #endif
     switch(ins) {
@@ -975,7 +975,7 @@ bool VM::interpretInstruction() {
     }
     case Instruction::TRY_MATCH_I32_AT_ADDRESS: {
 #ifdef x86_64_BIT_MODE
-        todo();
+        assert(false);
 #else
         int32_t valueToMatchAgainst;
         memcpy(&valueToMatchAgainst, &mProgram.code.at(mIp + 1), 4);
@@ -988,6 +988,19 @@ bool VM::interpretInstruction() {
         bool result = valueOnHeap == valueToMatchAgainst;
         mStack.push(&result, 1);
 #endif
+        break;
+    }
+    case Instruction::TRY_MATCH_I64_AT_ADDRESS: {
+        int64_t valueToMatchAgainst;
+        memcpy(&valueToMatchAgainst, &mProgram.code.at(mIp + 1), 8);
+        int32_t stackOffset;
+        memcpy(&stackOffset, &mProgram.code.at(mIp + 9), 4);
+        void* valueOnHeapPtr;
+        memcpy(&valueOnHeapPtr, mStack.get(stackOffset), 8);
+        int64_t valueOnHeap;
+        memcpy(&valueOnHeap, valueOnHeapPtr, 8);
+        int64_t result = (bool)(valueOnHeap == valueToMatchAgainst);
+        mStack.push(&result, BOOL_SIZE);
         break;
     }
     case Instruction::INCREASE_STACK_SIZE: {
@@ -1078,7 +1091,7 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
         }
         nextFunctionOffset -= currentFunction->type.getFunctionTypeInfo().first.getSizeOnStack();
         nextFunctionOffset += 8;
-        assert(nextFunctionOffset > 0);
+        assert(nextFunctionOffset >= 0);
         ip = prevIp;
         offsetFromTop = nextFunctionOffset;
         firstIteration = false;

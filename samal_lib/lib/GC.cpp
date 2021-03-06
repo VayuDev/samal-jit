@@ -112,6 +112,29 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         }
         break;
     }
+    case DatatypeCategory::enum_: {
+        uint8_t* enumPtr = *(uint8_t**)ptr;
+        bool alreadyFound = markPtrAsFound(enumPtr);
+        if(alreadyFound) {
+            break;
+        }
+#ifdef x86_64_BIT_MODE
+        int64_t selectedIndex;
+        memcpy(&selectedIndex, enumPtr, 8);
+#else
+        int32_t selectedIndex;
+        memcpy(&selectedIndex, enumPtr, 4);
+#endif
+        auto &selectedField = type.getEnumInfo().fields.at(selectedIndex);
+        int32_t offset = 0;
+        // TODO check include padding bytes
+        for(auto& element : selectedField.params) {
+            auto elementType = element.completeWithSavedTemplateParameters();
+            searchForPtrs(enumPtr + type.getEnumInfo().getIndexSize() + offset, elementType);
+            offset += elementType.getSizeOnStack();
+        }
+        break;
+    }
     default:
         assert(false);
     }
@@ -122,7 +145,7 @@ bool GC::markPtrAsFound(const uint8_t* ptr) {
 }
 void GC::requestCollection() {
     callsSinceLastRun++;
-    if(callsSinceLastRun > 20000) {
+    if(callsSinceLastRun > 200000000) {
         markAndSweep();
         callsSinceLastRun = 0;
     }

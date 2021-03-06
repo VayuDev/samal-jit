@@ -264,6 +264,15 @@ void Compiler::addInstructions(Instruction insn, int32_t param1, int32_t param2)
     memcpy(&mProgram.code.at(mProgram.code.size() - 8), &param1, 4);
     memcpy(&mProgram.code.at(mProgram.code.size() - 4), &param2, 4);
 }
+void Compiler::addInstructions(Instruction insn, int32_t param1, int32_t param2, int32_t param3) {
+    saveCurrentStackSizeToDebugInfo();
+    printf("Adding instruction %s %i %i %i\n", instructionToString(insn), param1, param2, param3);
+    mProgram.code.resize(mProgram.code.size() + 13);
+    memcpy(&mProgram.code.at(mProgram.code.size() - 13), &insn, 1);
+    memcpy(&mProgram.code.at(mProgram.code.size() - 12), &param1, 4);
+    memcpy(&mProgram.code.at(mProgram.code.size() - 8), &param2, 4);
+    memcpy(&mProgram.code.at(mProgram.code.size() - 4), &param3, 4);
+}
 void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
     saveCurrentStackSizeToDebugInfo();
     printf("Adding instruction %s %i\n", instructionToString(insn), (int)param);
@@ -910,6 +919,14 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
         ++i;
         sizeOfPassedParams += actualParamType.getSizeOnStack();
     }
+    auto sizeOfEnum = enumInfo.getLargestFieldSize();
+
+    auto missingBytes = sizeOfEnum - sizeOfPassedParams;
+    assert(missingBytes >= 0);
+    if(missingBytes > 0) {
+        addInstructions(Instruction::INCREASE_STACK_SIZE, missingBytes);
+        mStackSize += missingBytes;
+    }
 #ifdef x86_64_BIT_MODE
     addInstructions(Instruction::PUSH_8, enumFieldIndex, 0);
     mStackSize += 8;
@@ -919,14 +936,6 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     mStackSize += 4;
     int32_t sizeOfIndex = 4;
 #endif
-    auto sizeOfEnum = enumInfo.getLargestFieldSize();
-
-    auto missingBytes = sizeOfEnum - sizeOfPassedParams;
-    assert(missingBytes >= 0);
-    if(missingBytes > 0) {
-        addInstructions(Instruction::INCREASE_STACK_SIZE, missingBytes);
-        mStackSize += missingBytes;
-    }
 
     addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, enumInfo.getLargestFieldSize() + sizeOfIndex);
     mStackSize -= enumInfo.getLargestFieldSize() + sizeOfIndex;
@@ -1005,7 +1014,11 @@ MatchCompileReturn Compiler::compileTryMatchEnumField(const EnumFieldMatchCondit
     if(indexOfField == -1) {
         node.throwException("The enum " + datatype.toString() + " doesn't have the field " + wantedFieldName);
     }
+#ifdef x86_64_BIT_MODE
+    addInstructions(Instruction::TRY_MATCH_I64_AT_ADDRESS, indexOfField, 0, offsetFromTop);
+#else
     addInstructions(Instruction::TRY_MATCH_I32_AT_ADDRESS, indexOfField, offsetFromTop);
+#endif
     mStackSize += getSimpleSize(DatatypeCategory::bool_);
     ret.labelsToInsertJumpToNext.push_back(addLabel(Instruction::JUMP_IF_FALSE));
     mStackSize -= getSimpleSize(DatatypeCategory::bool_);
