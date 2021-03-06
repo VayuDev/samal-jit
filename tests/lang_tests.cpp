@@ -247,3 +247,41 @@ fn test() -> Shape {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == "Main.Shape::Rectangle{5, 3}");
 }
+
+TEST_CASE("Test simple recursive match", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+struct Vec2 {
+    x : i32,
+    y : i32
+}
+
+enum B {
+    Opt1{[i32]},
+    Opt2{i32, Vec2}
+}
+
+enum A {
+    Opt1{B},
+    Opt2{}
+}
+
+fn test() -> (i32, i32) {
+    t = A::Opt1{B::Opt2{3, Vec2{x:71, y:72}}}
+    t2 = A::Opt1{B::Opt1{[1, 2, 3]}}
+
+    myMatch = fn(t : A) -> i32 {
+        match t {
+            Opt2{} -> 0,
+            Opt1{Opt1{list}} -> 6 + list:head,
+            Opt1{Opt2{a, b}} -> {
+                b:x
+            }
+        }
+    }
+    x1 = myMatch(t)
+    x2 = myMatch(t2)
+    (x1, x2)
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == "(71, 7)");
+}

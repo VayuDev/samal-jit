@@ -22,9 +22,6 @@ class ASTNode {
 public:
     explicit ASTNode(SourceCodeRef source);
     virtual ~ASTNode() = default;
-    virtual Datatype compile(Compiler& comp) const {
-        return Datatype{};
-    };
     virtual void findUsedVariables(VariableSearcher&) const = 0;
     [[nodiscard]] virtual std::string dump(unsigned indent) const;
     [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
@@ -34,7 +31,16 @@ private:
     SourceCodeRef mSourceCodeRef;
 };
 
-class ExpressionNode : public ASTNode {
+class CompilableASTNode : public ASTNode {
+public:
+    CompilableASTNode(SourceCodeRef source);
+    virtual Datatype compile(Compiler& comp) const {
+        return Datatype{};
+    };
+    [[nodiscard]] virtual inline const char* getClassName() const { return "CompilableASTNode"; }
+};
+
+class ExpressionNode : public CompilableASTNode {
 public:
     explicit ExpressionNode(SourceCodeRef source);
     [[nodiscard]] inline const char* getClassName() const override { return "ExpressionNode"; }
@@ -42,7 +48,7 @@ public:
 private:
 };
 
-class StatementNode : public ASTNode {
+class StatementNode : public CompilableASTNode {
 public:
     explicit StatementNode(SourceCodeRef source);
     [[nodiscard]] inline const char* getClassName() const override { return "StatementNode"; }
@@ -365,6 +371,7 @@ private:
     up<FunctionCallExpressionNode> mFunctionCall;
 };
 
+// TODO delete
 class ListAccessExpressionNode : public ExpressionNode {
 public:
     ListAccessExpressionNode(SourceCodeRef source, up<ExpressionNode> name, up<ExpressionNode> index);
@@ -437,7 +444,77 @@ private:
     std::string mFieldName;
 };
 
-class DeclarationNode : public ASTNode {
+struct MatchCompileReturn {
+    std::vector<int32_t> labelsToInsertJumpToNext;
+};
+
+class MatchCondition : public ASTNode {
+public:
+    explicit MatchCondition(SourceCodeRef source);
+    virtual MatchCompileReturn compileTryMatch(Compiler& comp, const Datatype& toMatch, int32_t offset) = 0;
+    [[nodiscard]] inline const char* getClassName() const override { return "MatchCondition"; }
+
+};
+
+class EnumFieldMatchCondition : public MatchCondition {
+public:
+    EnumFieldMatchCondition(SourceCodeRef source, std::string fieldName, std::vector<up<MatchCondition>> elementsToMatch);
+    MatchCompileReturn compileTryMatch(Compiler& comp, const Datatype& toMatch, int32_t offset) override;
+    [[nodiscard]] inline const auto& getFieldName() const {
+        return mFieldName;
+    }
+    [[nodiscard]] inline const auto& getChildElementsToMatch() const {
+        return mElementsToMatch;
+    }
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "EnumFieldMatchCondition"; }
+
+private:
+    std::string mFieldName;
+    std::vector<up<MatchCondition>> mElementsToMatch;
+};
+
+class IdentifierMatchCondition : public MatchCondition {
+public:
+    IdentifierMatchCondition(SourceCodeRef source, std::string newName);
+    MatchCompileReturn compileTryMatch(Compiler& comp, const Datatype& toMatch, int32_t offset) override;
+    [[nodiscard]] const auto getNewName() const {
+        return mNewName;
+    }
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "IdentifierMatchCondition"; }
+
+private:
+    std::string mNewName;
+};
+
+struct MatchCase {
+    up<MatchCondition> condition;
+    up<ExpressionNode> codeToRunOnMatch;
+};
+
+class MatchExpression : public ExpressionNode {
+public:
+    MatchExpression(SourceCodeRef source, up<ExpressionNode> toMatch, std::vector<MatchCase> cases);
+    Datatype compile(Compiler& comp) const override;
+    [[nodiscard]] inline const auto& getToMatch() const {
+        return mToMatch;
+    }
+    [[nodiscard]] inline const auto& getMatchCases() const {
+        return mCases;
+    }
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "MatchExpression"; }
+
+private:
+    up<ExpressionNode> mToMatch;
+    std::vector<MatchCase> mCases;
+};
+
+class DeclarationNode : public CompilableASTNode {
 public:
     explicit DeclarationNode(SourceCodeRef source);
     [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
@@ -448,7 +525,7 @@ public:
 private:
 };
 
-class ModuleRootNode : public ASTNode {
+class ModuleRootNode : public CompilableASTNode {
 public:
     explicit ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>>&& declarations);
     Datatype compile(Compiler& comp) const override;

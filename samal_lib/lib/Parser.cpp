@@ -344,7 +344,7 @@ Parser::Parser() {
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
     mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression "
-                                       " | StructCreationExpression | EnumCreationExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
+                                       " | StructCreationExpression | EnumCreationExpression | MatchExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
         >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
@@ -369,15 +369,73 @@ Parser::Parser() {
         case 6:
         case 7:
         case 8:
-        case 11:
-            return std::move(res[0].result);
         case 9:
-            return std::move(res[0][1].result);
+        case 12:
+            return std::move(res[0].result);
         case 10:
+            return std::move(res[0][1].result);
+        case 11:
             return TupleCreationNode{ toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>() };
         default:
             assert(false);
         }
+    };
+    mPegParser["MatchExpression"] << "'match' Expression '{' MatchCaseVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return MatchExpression{toRef(res),  up<ExpressionNode>{res[1].result.move<ExpressionNode*>()}, res[3].result.moveValue<std::vector<MatchCase>>()};
+    };
+    mPegParser["MatchCaseVector"] << "MatchCaseVectorRec?" >> [](peg::MatchInfo& res) -> peg::Any {
+        if(res.subs.empty())
+            return std::vector<MatchCase>{};
+        return std::move(res[0].result);
+    };
+    mPegParser["MatchCaseVectorRec"] << "MatchCase (',' MatchCaseVectorRec)?" >> [](peg::MatchInfo& res) -> peg::Any {
+        std::vector<MatchCase> params;
+        up<MatchCase> thisCase{ res[0].result.move<MatchCase*>() };
+        params.emplace_back(std::move(*thisCase));
+        if(!res[1].subs.empty()) {
+            auto childParams = res[1][0][1].result.moveValue<std::vector<MatchCase>>();
+            params.insert(params.end(), std::move_iterator(childParams.begin()), std::move_iterator(childParams.end()));
+        }
+        return params;
+    };
+    mPegParser["MatchCase"] << "MatchCondition '->' Expression" >> [](peg::MatchInfo& res) -> peg::Any {
+        return MatchCase{up<MatchCondition>{res[0].result.move<MatchCondition*>()}, up<ExpressionNode>{res[2].result.move<ExpressionNode*>()}};
+    };
+    mPegParser["MatchCondition"] << "('(' MatchConditionVector ')') | (Identifier ('{}' | '{' MatchConditionVector '}')) | Identifier" >> [](peg::MatchInfo& res) -> peg::Any {
+        switch(*res.choice) {
+        case 0:
+            todo();
+            break;
+        case 1: {
+            std::vector<up<MatchCondition>> matchConditions;
+            if(*res[0][1].choice == 1) {
+                matchConditions = res[0][1][0][1].result.moveValue<std::vector<up<MatchCondition>>>();
+            }
+            return EnumFieldMatchCondition{
+                toRef(res),
+                up<IdentifierNode>{ res[0][0].result.move<IdentifierNode*>() }->getName(),
+                std::move(matchConditions)
+            };
+        }
+        case 2:
+            return IdentifierMatchCondition{toRef(res), up<IdentifierNode>{res[0].result.move<IdentifierNode*>()}->getName()};
+        }
+        assert(false);
+    };
+    mPegParser["MatchConditionVector"] << "MatchConditionVectorRec?" >> [](peg::MatchInfo& res) -> peg::Any {
+        if(res.subs.empty())
+            return std::vector<up<MatchCondition>>{};
+        return std::move(res[0].result);
+
+    };
+    mPegParser["MatchConditionVectorRec"] << "MatchCondition (',' MatchConditionVectorRec)?" >> [](peg::MatchInfo& res) -> peg::Any {
+        std::vector<up<MatchCondition>> params;
+        params.emplace_back(up<MatchCondition>{ res[0].result.move<MatchCondition*>() });
+        if(!res[1].subs.empty()) {
+            auto childParams = res[1][0][1].result.moveValue<std::vector<up<MatchCondition>>>();
+            params.insert(params.end(), std::move_iterator(childParams.begin()), std::move_iterator(childParams.end()));
+        }
+        return params;
     };
     mPegParser["EnumCreationExpression"] << "Datatype '::' Identifier '{' ExpressionVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
         return EnumCreationNode{

@@ -97,6 +97,9 @@ private:
         std::string name;
         std::vector<EnumField> fields;
         std::vector<std::string> templateParams;
+        [[nodiscard]] int32_t getLargestFieldSize() const;
+        [[nodiscard]] int32_t getIndexSize() const;
+        [[nodiscard]] int32_t getLargestFieldSizePlusIndex() const;
         inline bool operator==(const EnumInfo& other) const {
             return name == other.name && fields == other.fields && templateParams == other.templateParams;
         }

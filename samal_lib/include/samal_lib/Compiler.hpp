@@ -51,6 +51,11 @@ public:
     Datatype compileTailCallSelf(const TailCallSelfStatementNode&);
 
     Datatype compileEnumCreation(const EnumCreationNode& node);
+    Datatype compileMatchExpression(const MatchExpression& node);
+
+    MatchCompileReturn compileTryMatchEnumField(const EnumFieldMatchCondition& condition, const Datatype& datatype, int32_t offsetFromTop);
+
+    MatchCompileReturn compileTryMatchIdentifier(const IdentifierMatchCondition& node, const Datatype& datatype, int32_t offset);
 
 private:
     Program mProgram;
@@ -64,7 +69,7 @@ private:
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);
     void addInstructionOneByteParam(Instruction insn, int8_t param);
 
-    void saveVariableLocation(std::string name, Datatype type, StorageType storageType);
+    void saveVariableLocation(std::string name, Datatype type, StorageType storageType, int32_t offset = 0);
     void saveCurrentStackSizeToDebugInfo();
 
     Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body);

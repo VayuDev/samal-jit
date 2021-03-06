@@ -129,11 +129,12 @@ std::string ExternalVMValue::dump() const {
             auto elementType = element.completeWithSavedTemplateParameters();
             totalSize += elementType.getSizeOnStack();
         }
+        auto alignmentBytes = mType.getEnumInfo().getLargestFieldSizePlusIndex() - totalSize;
         int32_t offset = 0;
         for(size_t i = 0; i < enumVariant.params.size(); ++i) {
             auto elementType = enumVariant.params.at(i).completeWithSavedTemplateParameters();
             offset += elementType.getSizeOnStack();
-            auto elementValue = ExternalVMValue::wrapFromPtr(elementType, *mVM, ptr + totalSize - offset);
+            auto elementValue = ExternalVMValue::wrapFromPtr(elementType, *mVM, ptr + totalSize - offset + alignmentBytes);
             ret += elementValue.dump();
             if(i + 1 < enumVariant.params.size()) {
                 ret += ", ";

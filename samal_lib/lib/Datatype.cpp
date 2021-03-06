@@ -340,4 +340,25 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
     return cpy;
 }
+int32_t Datatype::EnumInfo::getLargestFieldSize() const {
+    int32_t largestFieldSize = 0;
+    for(auto& field: fields) {
+        int32_t fieldSize = 0;
+        for(auto& element: field.params) {
+            fieldSize += element.completeWithSavedTemplateParameters().getSizeOnStack();
+        }
+        largestFieldSize = std::max(fieldSize, largestFieldSize);
+    }
+    return largestFieldSize;
+}
+int32_t Datatype::EnumInfo::getLargestFieldSizePlusIndex() const {
+    return getLargestFieldSize() + getIndexSize();
+}
+int32_t Datatype::EnumInfo::getIndexSize() const {
+#ifdef x86_64_BIT_MODE
+    return 8;
+#else
+    return 4;
+#endif
+}
 }

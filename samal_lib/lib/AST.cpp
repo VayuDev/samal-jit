@@ -56,12 +56,16 @@ void ASTNode::throwException(const std::string& msg) const {
         + ": " + msg);
 }
 
+CompilableASTNode::CompilableASTNode(SourceCodeRef source)
+: ASTNode(std::move(source)) {
+}
+
 ExpressionNode::ExpressionNode(SourceCodeRef source)
-: ASTNode(source) {
+: CompilableASTNode(source) {
 }
 
 StatementNode::StatementNode(SourceCodeRef source)
-: ASTNode(source) {
+: CompilableASTNode(source) {
 }
 
 TailCallSelfStatementNode::TailCallSelfStatementNode(SourceCodeRef source, std::vector<up<ExpressionNode>> params)
@@ -473,12 +477,60 @@ std::string StructFieldAccessExpression::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 
+MatchCondition::MatchCondition(SourceCodeRef source)
+: ASTNode(source) {
+}
+
+EnumFieldMatchCondition::EnumFieldMatchCondition(SourceCodeRef source, std::string fieldName, std::vector<up<MatchCondition>> elementsToMatch)
+: MatchCondition(source), mFieldName(std::move(fieldName)), mElementsToMatch(std::move(elementsToMatch)) {
+}
+MatchCompileReturn EnumFieldMatchCondition::compileTryMatch(Compiler& comp, const Datatype& toMatch, int32_t offset) {
+    return comp.compileTryMatchEnumField(*this, toMatch, offset);
+}
+void EnumFieldMatchCondition::findUsedVariables(VariableSearcher& searcher) const {
+    for(auto& ele: mElementsToMatch)
+        ele->findUsedVariables(searcher);
+}
+std::string EnumFieldMatchCondition::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
+IdentifierMatchCondition::IdentifierMatchCondition(SourceCodeRef source, std::string newName)
+: MatchCondition(source), mNewName(std::move(newName)) {
+}
+MatchCompileReturn IdentifierMatchCondition::compileTryMatch(Compiler& comp, const Datatype& toMatch, int32_t offset) {
+    return comp.compileTryMatchIdentifier(*this, toMatch, offset);
+}
+void IdentifierMatchCondition::findUsedVariables(VariableSearcher&) const {
+}
+std::string IdentifierMatchCondition::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
+MatchExpression::MatchExpression(SourceCodeRef source, up<ExpressionNode> toMatch, std::vector<MatchCase> cases)
+: ExpressionNode(std::move(source)), mToMatch(std::move(toMatch)), mCases(std::move(cases)) {
+
+}
+Datatype MatchExpression::compile(Compiler& comp) const {
+    return comp.compileMatchExpression(*this);
+}
+void MatchExpression::findUsedVariables(VariableSearcher& searcher) const {
+    mToMatch->findUsedVariables(searcher);
+    for(auto& case_: mCases) {
+        case_.condition->findUsedVariables(searcher);
+        case_.codeToRunOnMatch->findUsedVariables(searcher);
+    }
+}
+std::string MatchExpression::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
 DeclarationNode::DeclarationNode(SourceCodeRef source)
-: ASTNode(std::move(source)) {
+: CompilableASTNode(std::move(source)) {
 }
 
 ModuleRootNode::ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>>&& declarations)
-: ASTNode(std::move(source)), mDeclarations(std::move(declarations)) {
+: CompilableASTNode(std::move(source)), mDeclarations(std::move(declarations)) {
 }
 std::string ModuleRootNode::dump(unsigned indent) const {
     auto ret = ASTNode::dump(indent);
@@ -603,7 +655,8 @@ const IdentifierNode* StructDeclarationNode::getIdentifier() const {
     return mName.get();
 }
 Datatype StructDeclarationNode::compile(Compiler& comp) const {
-    return ASTNode::compile(comp);
+    assert(false);
+    return Datatype{};
 }
 void StructDeclarationNode::findUsedVariables(VariableSearcher&) const {
 }

@@ -27,6 +27,7 @@ class ListPropertyAccessExpression;
 class StructCreationNode;
 class StructFieldAccessExpression;
 class TailCallSelfStatementNode;
+class MatchExpression;
 
 struct Parameter;
 using StructField = Parameter;

@@ -275,6 +275,7 @@ int32_t Compiler::addLabel(Instruction insn) {
     saveCurrentStackSizeToDebugInfo();
     auto len = instructionToWidth(insn);
     mProgram.code.resize(mProgram.code.size() + len);
+    memcpy(&mProgram.code.at(mProgram.code.size() - len), &insn, 1);
     return mProgram.code.size() - len;
 }
 uint8_t* Compiler::labelToPtr(int32_t label) {
@@ -815,10 +816,10 @@ Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression&
     }
     assert(false);
 }
-void Compiler::saveVariableLocation(std::string name, Datatype type, StorageType storageType) {
+void Compiler::saveVariableLocation(std::string name, Datatype type, StorageType storageType, int32_t offset) {
     mStackFrames.top().variables.erase(name);
-    mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
-    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, name, std::move(type), storageType));
+    mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize - offset, .type = type });
+    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize - offset, name, std::move(type), storageType));
 }
 void Compiler::saveCurrentStackSizeToDebugInfo() {
     mIpToStackSize.emplace(mProgram.code.size(), mStackSize);
@@ -918,8 +919,17 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     mStackSize += 4;
     int32_t sizeOfIndex = 4;
 #endif
-    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, sizeOfPassedParams + sizeOfIndex);
-    mStackSize -= sizeOfPassedParams + sizeOfIndex;
+    auto sizeOfEnum = enumInfo.getLargestFieldSize();
+
+    auto missingBytes = sizeOfEnum - sizeOfPassedParams;
+    assert(missingBytes >= 0);
+    if(missingBytes > 0) {
+        addInstructions(Instruction::INCREASE_STACK_SIZE, missingBytes);
+        mStackSize += missingBytes;
+    }
+
+    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, enumInfo.getLargestFieldSize() + sizeOfIndex);
+    mStackSize -= enumInfo.getLargestFieldSize() + sizeOfIndex;
     mStackSize += 8;
 
     return enumType;
@@ -939,6 +949,126 @@ Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
     mStackSize = oldStackSize + mCurrentFunctionReturnType.getSizeOnStack();
     return mCurrentFunctionReturnType;
 }
+
+Datatype Compiler::compileMatchExpression(const MatchExpression& node) {
+    auto toMatchType = node.getToMatch()->compile(*this);
+
+    std::optional<Datatype> returnType;
+    std::vector<int32_t> jumpToEndLabels;
+    for(auto& matchCase: node.getMatchCases()) {
+        pushStackFrame();
+        auto matchResult = matchCase.condition->compileTryMatch(*this, toMatchType, 0);
+        auto bodyReturnType = matchCase.codeToRunOnMatch->compile(*this);
+        mStackFrames.top().stackFrameSize += bodyReturnType.getSizeOnStack();
+
+        if(returnType) {
+            if(bodyReturnType != returnType) {
+                node.throwException("All branches must return the same value; expected type " + bodyReturnType.toString() + ", but got " + returnType->toString());
+            }
+        } else {
+            returnType = bodyReturnType;
+        }
+        popStackFrame(bodyReturnType);
+        jumpToEndLabels.push_back(addLabel(Instruction::JUMP));
+        for(auto& label: matchResult.labelsToInsertJumpToNext) {
+            int32_t currentCodeLength = mProgram.code.size();
+            memcpy(labelToPtr(label) + 1, &currentCodeLength, 4);
+        }
+        mStackSize -= bodyReturnType.getSizeOnStack();
+    }
+    for(auto label: jumpToEndLabels) {
+        int32_t currentCodeLocation = mProgram.code.size();
+        memcpy(labelToPtr(label) + 1, &currentCodeLocation, 4);
+    }
+    assert(returnType);
+    mStackSize += returnType->getSizeOnStack();
+    addInstructions(Instruction::POP_N_BELOW, toMatchType.getSizeOnStack(), returnType->getSizeOnStack());
+    mStackSize -= toMatchType.getSizeOnStack();
+    return *returnType;
+}
+
+
+MatchCompileReturn Compiler::compileTryMatchEnumField(const EnumFieldMatchCondition& node, const Datatype& datatype, int32_t offsetFromTop) {
+    MatchCompileReturn ret;
+    const auto& enumInfo = datatype.getEnumInfo();
+    const auto& wantedFieldName = node.getFieldName();
+    int32_t indexOfField = -1;
+
+    int32_t i = 0;
+    for(auto& field: enumInfo.fields) {
+        if(field.name == wantedFieldName) {
+            indexOfField = i;
+            break;
+        }
+        ++i;
+    }
+    if(indexOfField == -1) {
+        node.throwException("The enum " + datatype.toString() + " doesn't have the field " + wantedFieldName);
+    }
+    addInstructions(Instruction::TRY_MATCH_I32_AT_ADDRESS, indexOfField, offsetFromTop);
+    mStackSize += getSimpleSize(DatatypeCategory::bool_);
+    ret.labelsToInsertJumpToNext.push_back(addLabel(Instruction::JUMP_IF_FALSE));
+    mStackSize -= getSimpleSize(DatatypeCategory::bool_);
+
+    // if we're here then the match succeeded - now copy the rest of the data on the stack and perform the child matches
+    addInstructions(Instruction::REPUSH_FROM_N, getSimpleSize(DatatypeCategory::enum_), offsetFromTop);
+    mStackSize += getSimpleSize(DatatypeCategory::enum_);
+
+    addInstructions(Instruction::LOAD_FROM_PTR, enumInfo.getLargestFieldSizePlusIndex(), 0);
+    mStackSize -= 8;
+    mStackSize += enumInfo.getLargestFieldSizePlusIndex();
+
+    mStackFrames.top().stackFrameSize += enumInfo.getLargestFieldSizePlusIndex();
+
+    auto oldStackSizeWithoutChildren = mStackSize;
+
+    int32_t localOffset = enumInfo.getIndexSize();
+    std::vector<int32_t> childrenCleanupLabels;
+
+    int32_t selectedEnumFieldSize = 0;
+    for(auto& element: enumInfo.fields.at(indexOfField).params) {
+        selectedEnumFieldSize += element.completeWithSavedTemplateParameters().getSizeOnStack();
+    }
+    auto numberOfAlignmentBytes = enumInfo.getLargestFieldSize() - selectedEnumFieldSize;
+
+    for(ssize_t i = node.getChildElementsToMatch().size() - 1; i >= 0; --i) {
+        auto fieldType = enumInfo.fields.at(indexOfField).params.at(i).completeWithSavedTemplateParameters();
+        auto prevFrameSize = mStackFrames.top().stackFrameSize;
+        auto childMatchRes = node.getChildElementsToMatch().at(i)->compileTryMatch(*this, fieldType, localOffset + numberOfAlignmentBytes);
+        auto newFrameSize = mStackFrames.top().stackFrameSize;
+        localOffset += fieldType.getSizeOnStack();
+        localOffset += (newFrameSize - prevFrameSize);
+        childrenCleanupLabels.insert(childrenCleanupLabels.end(), childMatchRes.labelsToInsertJumpToNext.cbegin(), childMatchRes.labelsToInsertJumpToNext.cend());
+    }
+    int32_t jumpToEndLabel = addLabel(Instruction::JUMP);
+
+    // cleanup code in case a deeper match fails - gets skipped if we succeed
+    int32_t currentCodeLocation = mProgram.code.size();
+    for(auto& label: childrenCleanupLabels) {
+        memcpy(labelToPtr(label) + 1, &currentCodeLocation, 4);
+    }
+    auto savedStackSize = mStackSize;
+    mStackSize = oldStackSizeWithoutChildren;
+    addInstructions(Instruction::POP_N_BELOW, enumInfo.getLargestFieldSizePlusIndex(), 0);
+    mStackSize -= enumInfo.getLargestFieldSizePlusIndex();
+    ret.labelsToInsertJumpToNext.push_back(addLabel(Instruction::JUMP));
+    mStackSize = savedStackSize;
+    mStackSize -= enumInfo.getLargestFieldSizePlusIndex();
+
+    // insert jump to success/end
+    currentCodeLocation = mProgram.code.size();
+    memcpy(labelToPtr(jumpToEndLabel) + 1, &currentCodeLocation, 4);
+    // we're on the success path, so add back the size of the enum on the stack
+    mStackSize += enumInfo.getLargestFieldSizePlusIndex();
+    return ret;
+}
+MatchCompileReturn Compiler::compileTryMatchIdentifier(const IdentifierMatchCondition& node, const Datatype& datatype, int32_t offset) {
+    MatchCompileReturn ret;
+    saveVariableLocation(node.getNewName(), datatype, StorageType{StorageType::Local}, offset);
+    return ret;
+}
+
+
 int32_t Compiler::saveAuxiliaryDatatypeToProgram(Datatype type) {
     mProgram.auxiliaryDatatypes.emplace_back(type);
     return mProgram.auxiliaryDatatypes.size() - 1;
