@@ -836,7 +836,6 @@ void Compiler::saveCurrentStackSizeToDebugInfo() {
 Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
     auto structType = node.getStructType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
     const auto& structTypeInfo = structType.getStructInfo();
-    int32_t sizeOfCopiedParams = 0;
 
     if(node.getParams().size() != structTypeInfo.fields.size()) {
         node.throwException("Invalid number of arguments for this struct; expected " + std::to_string(structTypeInfo.fields.size()) + ", but got " + std::to_string(node.getParams().size()));
@@ -852,13 +851,9 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
         if(completedExpectedParamType != paramType) {
             node.throwException("Invalid type for element '" + expectedParam.name + "'; expected " + completedExpectedParamType.toString() + ", but got " + paramType.toString());
         }
-        sizeOfCopiedParams += paramType.getSizeOnStack();
     }
-    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, sizeOfCopiedParams);
-    mStackSize -= sizeOfCopiedParams;
-    mStackSize += 8;
 
-    return structType;
+    return structType.completeWithSavedTemplateParameters();
 }
 Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& node) {
     auto structType = node.getStruct()->compile(*this);
@@ -887,9 +882,10 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     if(!foundField) {
         node.throwException("The struct " + structType.toString() + " doesn't have the field " + node.getFieldName());
     }
-    addInstructions(Instruction::LOAD_FROM_PTR, foundFieldType.getSizeOnStack(), offset);
-    mStackSize -= structType.getSizeOnStack();
+    addInstructions(Instruction::REPUSH_FROM_N, foundFieldType.getSizeOnStack(), offset);
     mStackSize += foundFieldType.getSizeOnStack();
+    addInstructions(Instruction::POP_N_BELOW, structType.getSizeOnStack(), foundFieldType.getSizeOnStack());
+    mStackSize -= structType.getSizeOnStack();
     return foundFieldType;
 }
 Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {

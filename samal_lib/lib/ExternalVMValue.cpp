@@ -84,25 +84,12 @@ std::string ExternalVMValue::dump() const {
         break;
     }
     case DatatypeCategory::struct_: {
-        // TODO dump template params
-        ret += mType.getStructInfo().name + "{";
-        const auto ptr = std::get<const uint8_t*>(mValue);
-        int32_t offset = 0;
-        for(auto& field : mType.getStructInfo().fields) {
-            auto fieldType = field.type.completeWithSavedTemplateParameters();
-            offset += fieldType.getSizeOnStack();
-        }
-        for(auto& field : mType.getStructInfo().fields) {
-            auto fieldType = field.type.completeWithSavedTemplateParameters();
-            offset -= fieldType.getSizeOnStack();
-            auto elementValue = ExternalVMValue::wrapFromPtr(fieldType, *mVM, ptr + offset);
-            // Sidenote: elementValue can actually have a different type (getDataype()) than we pass in with element.baseType.
-            //           This happens if the element.baseType is incomplete (undetermined identifier), which will lead to wrapFromPtr calling itself
-            //           recursively with the completed type. See Datatype.hpp for more information.
-            ret += field.name;
-            ret += ": ";
-            ret += elementValue.dump();
-            if(&field != &mType.getStructInfo().fields.back()) {
+        const auto& structVal = std::get<StructValue>(mValue);
+        ret += structVal.name;
+        ret += "{";
+        for(auto& field : structVal.fields) {
+            ret += field.name + ": " + field.value.dump();
+            if(&field != &structVal.fields.back()) {
                 ret += ", ";
             }
         }
@@ -175,8 +162,17 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
         std::reverse(children.begin(), children.end());
         return ExternalVMValue{ vm, type, std::move(children) };
     }
+    case DatatypeCategory::struct_: {
+        StructValue val;
+        val.name = type.getStructInfo().name;
+        int32_t offset = type.getSizeOnStack();
+        for(auto& field: type.getStructInfo().fields) {
+            offset -= field.type.completeWithSavedTemplateParameters().getSizeOnStack();
+            val.fields.push_back(StructValue::Field{ExternalVMValue::wrapFromPtr(field.type, vm, ptr + offset), field.name});
+        }
+        return ExternalVMValue{vm, type, std::move(val)};
+    }
     case DatatypeCategory::enum_:
-    case DatatypeCategory::struct_:
     case DatatypeCategory::list: {
         return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };
     }

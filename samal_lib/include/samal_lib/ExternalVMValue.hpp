@@ -24,9 +24,19 @@ public:
 private:
     VM* mVM = nullptr;
     Datatype mType;
-    std::variant<std::monostate, int32_t, int64_t, std::vector<ExternalVMValue>, const uint8_t*> mValue;
+    struct StructValue {
+        std::string name;
+        struct Field;
+        std::vector<Field> fields;
+    };
+    std::variant<std::monostate, int32_t, int64_t, std::vector<ExternalVMValue>, StructValue, const uint8_t*> mValue;
 
     explicit ExternalVMValue(VM& vm, Datatype type, decltype(mValue) val);
+};
+
+struct ExternalVMValue::StructValue::Field {
+    ExternalVMValue value;
+    std::string name;
 };
 
 }

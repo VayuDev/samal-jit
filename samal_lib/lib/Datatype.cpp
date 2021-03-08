@@ -124,6 +124,14 @@ const Datatype::EnumInfo& Datatype::getEnumInfo() const {
 bool Datatype::operator==(const Datatype& other) const {
     if(mCategory != other.mCategory)
         return false;
+    if(mCategory == DatatypeCategory::struct_) {
+        if(getStructInfo().name == other.getStructInfo().name)
+            return true;
+    }
+    if(mCategory == DatatypeCategory::enum_) {
+        if(getEnumInfo().name == other.getEnumInfo().name)
+            return true;
+    }
     if(mFurtherInfo->index() != other.mFurtherInfo->index())
         return false;
     if(*mFurtherInfo != *other.mFurtherInfo) {
@@ -145,13 +153,19 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::function:
     case DatatypeCategory::bool_:
     case DatatypeCategory::list:
-    case DatatypeCategory::struct_:
     case DatatypeCategory::enum_:
         return 8;
+    case DatatypeCategory::struct_: {
+        size_t sum = 0;
+        for(auto& field : getStructInfo().fields) {
+            sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack();
+        }
+        return sum;
+    }
     case DatatypeCategory::tuple: {
         size_t sum = 0;
         for(auto& subType : getTupleInfo()) {
-            sum += subType.getSizeOnStack();
+            sum += subType.completeWithSavedTemplateParameters().getSizeOnStack();
         }
         return sum;
     }
@@ -165,7 +179,14 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::i64:
     case DatatypeCategory::function:
     case DatatypeCategory::list:
-    case DatatypeCategory::struct_:
+        return 8;
+    case DatatypeCategory::struct_: {
+        size_t sum = 0;
+        for(auto& field : getStructInfo().fields) {
+            sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack();
+        }
+        return sum;
+    }
     case DatatypeCategory::enum_:
         return 8;
     case DatatypeCategory::bool_:
