@@ -44,10 +44,6 @@ public:
         const auto& stackSize = r13;
         mov(stackSize, rdx);
 
-        // always just contain a zero or a one respectively
-        const auto& oneRegister = r8;
-        mov(oneRegister, 1);
-
         const auto& tableRegister = r9;
         mov(tableRegister, "JumpTable");
 
@@ -128,7 +124,7 @@ public:
                 pop(rbx);
                 cmp(ebx, eax);
                 mov(rax, 0);
-                cmovl(rax, oneRegister);
+                setl(al);
                 push(rax);
                 break;
             case Instruction::COMPARE_LESS_EQUAL_THAN_I32:
@@ -136,7 +132,7 @@ public:
                 pop(rbx);
                 cmp(ebx, eax);
                 mov(rax, 0);
-                cmovle(rax, oneRegister);
+                setle(al);
                 push(rax);
                 break;
             case Instruction::COMPARE_MORE_THAN_I32:
@@ -144,7 +140,7 @@ public:
                 pop(rbx);
                 cmp(ebx, eax);
                 mov(rax, 0);
-                cmovg(rax, oneRegister);
+                setg(al);
                 push(rax);
                 break;
             case Instruction::COMPARE_MORE_EQUAL_THAN_I32:
@@ -152,7 +148,7 @@ public:
                 pop(rbx);
                 cmp(ebx, eax);
                 mov(rax, 0);
-                cmovge(rax, oneRegister);
+                setge(al);
                 push(rax);
                 break;
             case Instruction::ADD_I64:
@@ -180,7 +176,7 @@ public:
                 pop(rbx);
                 cmp(rbx, rax);
                 mov(rax, 0);
-                cmovl(rax, oneRegister);
+                setl(al);
                 push(rax);
                 break;
             case Instruction::COMPARE_LESS_EQUAL_THAN_I64:
@@ -188,7 +184,7 @@ public:
                 pop(rbx);
                 cmp(rbx, rax);
                 mov(rax, 0);
-                cmovle(rax, oneRegister);
+                setle(al);
                 push(rax);
                 break;
             case Instruction::COMPARE_MORE_THAN_I64:
@@ -196,7 +192,7 @@ public:
                 pop(rbx);
                 cmp(rbx, rax);
                 mov(rax, 0);
-                cmovg(rax, oneRegister);
+                setg(al);
                 push(rax);
                 break;
             case Instruction::COMPARE_MORE_EQUAL_THAN_I64:
@@ -204,7 +200,7 @@ public:
                 pop(rbx);
                 cmp(rbx, rax);
                 mov(rax, 0);
-                cmovge(rax, oneRegister);
+                setge(al);
                 push(rax);
                 break;
             case Instruction::LOGICAL_OR:
@@ -350,7 +346,7 @@ public:
             case Instruction::IS_LIST_EMPTY: {
                 mov(rbx, 0);
                 cmp(qword[rsp], 0);
-                cmove(rbx, oneRegister);
+                sete(bl);
                 mov(qword[rsp], rbx);
                 break;
             }
