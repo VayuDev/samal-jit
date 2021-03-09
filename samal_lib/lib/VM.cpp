@@ -969,36 +969,6 @@ bool VM::interpretInstruction() {
         mGC.requestCollection();
         break;
     }
-    case Instruction::TRY_MATCH_I32_AT_ADDRESS: {
-#ifdef x86_64_BIT_MODE
-        assert(false);
-#else
-        int32_t valueToMatchAgainst;
-        memcpy(&valueToMatchAgainst, &mProgram.code.at(mIp + 1), 4);
-        int32_t stackOffset;
-        memcpy(&stackOffset, &mProgram.code.at(mIp + 5), 4);
-        void* valueOnHeapPtr;
-        memcpy(&valueOnHeapPtr, mStack.get(stackOffset), 8);
-        int32_t valueOnHeap;
-        memcpy(&valueOnHeap, valueOnHeapPtr, 4);
-        bool result = valueOnHeap == valueToMatchAgainst;
-        mStack.push(&result, 1);
-#endif
-        break;
-    }
-    case Instruction::TRY_MATCH_I64_AT_ADDRESS: {
-        int64_t valueToMatchAgainst;
-        memcpy(&valueToMatchAgainst, &mProgram.code.at(mIp + 1), 8);
-        int32_t stackOffset;
-        memcpy(&stackOffset, &mProgram.code.at(mIp + 9), 4);
-        void* valueOnHeapPtr;
-        memcpy(&valueOnHeapPtr, mStack.get(stackOffset), 8);
-        int64_t valueOnHeap;
-        memcpy(&valueOnHeap, valueOnHeapPtr, 8);
-        int64_t result = (bool)(valueOnHeap == valueToMatchAgainst);
-        mStack.push(&result, BOOL_SIZE);
-        break;
-    }
     case Instruction::INCREASE_STACK_SIZE: {
         int32_t amount;
         memcpy(&amount, &mProgram.code.at(mIp + 1), 4);

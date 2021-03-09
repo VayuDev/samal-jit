@@ -47,9 +47,7 @@ namespace samal {
     INSTRUCTION(IS_LIST_EMPTY, 1)               \
     INSTRUCTION(CREATE_STRUCT_OR_ENUM, 5)       \
     INSTRUCTION(RUN_GC, 1)                      \
-    INSTRUCTION(INCREASE_STACK_SIZE, 5)         \
-    INSTRUCTION(TRY_MATCH_I32_AT_ADDRESS, 9)    \
-    INSTRUCTION(TRY_MATCH_I64_AT_ADDRESS, 13)
+    INSTRUCTION(INCREASE_STACK_SIZE, 5)
 
 enum class Instruction : uint8_t {
 #define INSTRUCTION(name, width) name,

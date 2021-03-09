@@ -143,7 +143,10 @@ bool Datatype::operator!=(const Datatype& other) const {
 bool Datatype::isInteger() const {
     return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
 }
-size_t Datatype::getSizeOnStack() const {
+size_t Datatype::getSizeOnStack(int32_t depth) const {
+    if(depth > 1000) {
+        throw std::runtime_error{"Maximum type recursion level of 1000 reached!"};
+    }
 #ifdef x86_64_BIT_MODE
     switch(mCategory) {
     case DatatypeCategory::i32:
@@ -151,19 +154,20 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::function:
     case DatatypeCategory::bool_:
     case DatatypeCategory::list:
-    case DatatypeCategory::enum_:
         return 8;
+    case DatatypeCategory::enum_:
+        return getEnumInfo().getLargestFieldSizePlusIndex(depth + 1);
     case DatatypeCategory::struct_: {
         size_t sum = 0;
         for(auto& field : getStructInfo().fields) {
-            sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack();
+            sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
         return sum;
     }
     case DatatypeCategory::tuple: {
         size_t sum = 0;
         for(auto& subType : getTupleInfo()) {
-            sum += subType.completeWithSavedTemplateParameters().getSizeOnStack();
+            sum += subType.completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
         return sum;
     }
@@ -181,18 +185,18 @@ size_t Datatype::getSizeOnStack() const {
     case DatatypeCategory::struct_: {
         size_t sum = 0;
         for(auto& field : getStructInfo().fields) {
-            sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack();
+            sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
         return sum;
     }
     case DatatypeCategory::enum_:
-        return 8;
+        return getEnumInfo().getLargestFieldSizePlusIndex(depth + 1);
     case DatatypeCategory::bool_:
         return 1;
     case DatatypeCategory::tuple: {
         size_t sum = 0;
         for(auto& subType : getTupleInfo()) {
-            sum += subType.getSizeOnStack();
+            sum += subType.getSizeOnStack(depth + 1);
         }
         return sum;
     }
@@ -361,19 +365,19 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
     return cpy;
 }
-int32_t Datatype::EnumInfo::getLargestFieldSize() const {
+int32_t Datatype::EnumInfo::getLargestFieldSize(int32_t depth) const {
     int32_t largestFieldSize = 0;
     for(auto& field: fields) {
         int32_t fieldSize = 0;
         for(auto& element: field.params) {
-            fieldSize += element.completeWithSavedTemplateParameters().getSizeOnStack();
+            fieldSize += element.completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
         largestFieldSize = std::max(fieldSize, largestFieldSize);
     }
     return largestFieldSize;
 }
-int32_t Datatype::EnumInfo::getLargestFieldSizePlusIndex() const {
-    return getLargestFieldSize() + getIndexSize();
+int32_t Datatype::EnumInfo::getLargestFieldSizePlusIndex(int32_t depth) const {
+    return getLargestFieldSize(depth + 1) + getIndexSize();
 }
 int32_t Datatype::EnumInfo::getIndexSize() const {
 #ifdef x86_64_BIT_MODE

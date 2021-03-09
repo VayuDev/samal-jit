@@ -938,10 +938,6 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     int32_t sizeOfIndex = 4;
 #endif
 
-    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, enumInfo.getLargestFieldSize() + sizeOfIndex);
-    mStackSize -= enumInfo.getLargestFieldSize() + sizeOfIndex;
-    mStackSize += 8;
-
     return enumType;
 }
 Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
@@ -1015,24 +1011,21 @@ MatchCompileReturn Compiler::compileTryMatchEnumField(const EnumFieldMatchCondit
     if(indexOfField == -1) {
         node.throwException("The enum " + datatype.toString() + " doesn't have the field " + wantedFieldName);
     }
+    addInstructions(Instruction::REPUSH_FROM_N, enumInfo.getIndexSize(), offsetFromTop);
+    mStackSize += enumInfo.getIndexSize();
 #ifdef x86_64_BIT_MODE
-    addInstructions(Instruction::TRY_MATCH_I64_AT_ADDRESS, indexOfField, 0, offsetFromTop);
+    addInstructions(Instruction::PUSH_8, indexOfField, 0);
 #else
-    addInstructions(Instruction::TRY_MATCH_I32_AT_ADDRESS, indexOfField, offsetFromTop);
+    addInstructions(Instruction::PUSH_4, indexOfField);
 #endif
+    mStackSize += getSimpleSize(DatatypeCategory::i32);
+    addInstructions(Instruction::COMPARE_EQUALS_I32);
+    mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
     mStackSize += getSimpleSize(DatatypeCategory::bool_);
     ret.labelsToInsertJumpToNext.push_back(addLabel(Instruction::JUMP_IF_FALSE));
     mStackSize -= getSimpleSize(DatatypeCategory::bool_);
 
-    // if we're here then the match succeeded - now copy the rest of the data on the stack and perform the child matches
-    addInstructions(Instruction::REPUSH_FROM_N, getSimpleSize(DatatypeCategory::enum_), offsetFromTop);
-    mStackSize += getSimpleSize(DatatypeCategory::enum_);
-
-    addInstructions(Instruction::LOAD_FROM_PTR, enumInfo.getLargestFieldSizePlusIndex(), 0);
-    mStackSize -= 8;
-    mStackSize += enumInfo.getLargestFieldSizePlusIndex();
-
-    mStackFrames.top().stackFrameSize += enumInfo.getLargestFieldSizePlusIndex();
+    // if we're here then the match succeeded
 
     auto oldStackSizeWithoutChildren = mStackSize;
 
@@ -1048,37 +1041,18 @@ MatchCompileReturn Compiler::compileTryMatchEnumField(const EnumFieldMatchCondit
     for(ssize_t i = node.getChildElementsToMatch().size() - 1; i >= 0; --i) {
         auto fieldType = enumInfo.fields.at(indexOfField).params.at(i).completeWithSavedTemplateParameters();
         auto prevFrameSize = mStackFrames.top().stackFrameSize;
-        auto childMatchRes = node.getChildElementsToMatch().at(i)->compileTryMatch(*this, fieldType, localOffset + numberOfAlignmentBytes);
+        auto childMatchRes = node.getChildElementsToMatch().at(i)->compileTryMatch(*this, fieldType, localOffset + numberOfAlignmentBytes + offsetFromTop);
         auto newFrameSize = mStackFrames.top().stackFrameSize;
         localOffset += fieldType.getSizeOnStack();
         localOffset += (newFrameSize - prevFrameSize);
         childrenCleanupLabels.insert(childrenCleanupLabels.end(), childMatchRes.labelsToInsertJumpToNext.cbegin(), childMatchRes.labelsToInsertJumpToNext.cend());
     }
-    int32_t jumpToEndLabel = addLabel(Instruction::JUMP);
-
-    // cleanup code in case a deeper match fails - gets skipped if we succeed
-    int32_t currentCodeLocation = mProgram.code.size();
-    for(auto& label: childrenCleanupLabels) {
-        memcpy(labelToPtr(label) + 1, &currentCodeLocation, 4);
-    }
-    auto savedStackSize = mStackSize;
-    mStackSize = oldStackSizeWithoutChildren;
-    addInstructions(Instruction::POP_N_BELOW, enumInfo.getLargestFieldSizePlusIndex(), 0);
-    mStackSize -= enumInfo.getLargestFieldSizePlusIndex();
-    ret.labelsToInsertJumpToNext.push_back(addLabel(Instruction::JUMP));
-    mStackSize = savedStackSize;
-    mStackSize -= enumInfo.getLargestFieldSizePlusIndex();
-
-    // insert jump to success/end
-    currentCodeLocation = mProgram.code.size();
-    memcpy(labelToPtr(jumpToEndLabel) + 1, &currentCodeLocation, 4);
-    // we're on the success path, so add back the size of the enum on the stack
-    mStackSize += enumInfo.getLargestFieldSizePlusIndex();
+    ret.labelsToInsertJumpToNext.insert(ret.labelsToInsertJumpToNext.end(), childrenCleanupLabels.begin(), childrenCleanupLabels.end());
     return ret;
 }
 MatchCompileReturn Compiler::compileTryMatchIdentifier(const IdentifierMatchCondition& node, const Datatype& datatype, int32_t offset) {
     MatchCompileReturn ret;
-    saveVariableLocation(node.getNewName(), datatype, StorageType{StorageType::Local}, offset);
+    saveVariableLocation(node.getNewName(), datatype, StorageType::Local, offset);
     return ret;
 }
 

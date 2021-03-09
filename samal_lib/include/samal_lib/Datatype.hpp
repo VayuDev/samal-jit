@@ -66,7 +66,7 @@ public:
     }
 
     [[nodiscard]] bool isInteger() const;
-    [[nodiscard]] size_t getSizeOnStack() const;
+    [[nodiscard]] size_t getSizeOnStack(int32_t depth = 0) const;
 
     enum class AllowIncompleteTypes {
         Yes,
@@ -97,9 +97,9 @@ private:
         std::string name;
         std::vector<EnumField> fields;
         std::vector<std::string> templateParams;
-        [[nodiscard]] int32_t getLargestFieldSize() const;
+        [[nodiscard]] int32_t getLargestFieldSize(int32_t depth = 0) const;
         [[nodiscard]] int32_t getIndexSize() const;
-        [[nodiscard]] int32_t getLargestFieldSizePlusIndex() const;
+        [[nodiscard]] int32_t getLargestFieldSizePlusIndex(int32_t depth = 0) const;
         inline bool operator==(const EnumInfo& other) const {
             return name == other.name && fields == other.fields && templateParams == other.templateParams;
         }

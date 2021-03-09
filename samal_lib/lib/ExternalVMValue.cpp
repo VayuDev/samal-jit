@@ -98,32 +98,14 @@ std::string ExternalVMValue::dump() const {
     }
     case DatatypeCategory::enum_: {
         // TODO dump template params
-        ret += mType.getEnumInfo().name;
-        auto ptr = std::get<const uint8_t*>(mValue);
-#ifdef x86_64_BIT_MODE
-        int64_t index = -1;
-        memcpy(&index, ptr, 8);
-        int32_t totalSize = 8;
-#else
-        int32_t index = -1;
-        memcpy(&index, ptr, 4);
-        int32_t totalSize = 4;
-#endif
-        auto enumVariant = mType.getEnumInfo().fields.at(index);
-        ret += "::" + enumVariant.name;
+        const auto& enumVal = std::get<EnumValue>(mValue);
+        ret += enumVal.name;
+        ret += "::";
+        ret += enumVal.selectedFieldName;
         ret += "{";
-        for(auto& element: enumVariant.params) {
-            auto elementType = element.completeWithSavedTemplateParameters();
-            totalSize += elementType.getSizeOnStack();
-        }
-        auto alignmentBytes = mType.getEnumInfo().getLargestFieldSizePlusIndex() - totalSize;
-        int32_t offset = 0;
-        for(size_t i = 0; i < enumVariant.params.size(); ++i) {
-            auto elementType = enumVariant.params.at(i).completeWithSavedTemplateParameters();
-            offset += elementType.getSizeOnStack();
-            auto elementValue = ExternalVMValue::wrapFromPtr(elementType, *mVM, ptr + totalSize - offset + alignmentBytes);
-            ret += elementValue.dump();
-            if(i + 1 < enumVariant.params.size()) {
+        for(auto& field: enumVal.elements) {
+            ret += field.dump();
+            if(&field != &enumVal.elements.back()) {
                 ret += ", ";
             }
         }
@@ -172,7 +154,25 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
         }
         return ExternalVMValue{vm, type, std::move(val)};
     }
-    case DatatypeCategory::enum_:
+    case DatatypeCategory::enum_: {
+        EnumValue val;
+        val.name = type.getEnumInfo().name;
+#ifdef x86_64_BIT_MODE
+        int64_t index = -1;
+        memcpy(&index, ptr, 8);
+#else
+        int32_t index = -1;
+        memcpy(&index, ptr, 4);
+#endif
+        auto offset = type.getEnumInfo().getLargestFieldSizePlusIndex();
+        const auto& selectedField = type.getEnumInfo().fields.at(index);
+        val.selectedFieldName = selectedField.name;
+        for(auto& element: selectedField.params) {
+            offset -= element.completeWithSavedTemplateParameters().getSizeOnStack();
+            val.elements.push_back(ExternalVMValue::wrapFromPtr(element, vm, ptr + offset));
+        }
+        return ExternalVMValue{vm, type, std::move(val)};
+    }
     case DatatypeCategory::list: {
         return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };
     }
