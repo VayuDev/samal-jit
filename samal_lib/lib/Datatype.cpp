@@ -122,16 +122,14 @@ const Datatype::EnumInfo& Datatype::getEnumInfo() const {
     return std::get<EnumInfo>(*mFurtherInfo);
 }
 bool Datatype::operator==(const Datatype& other) const {
+    if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap && other.mCategory != DatatypeCategory::undetermined_identifier) {
+        return completeWithSavedTemplateParameters() == other;
+    }
+    if(other.mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap && mCategory != DatatypeCategory::undetermined_identifier) {
+        return *this == other.completeWithSavedTemplateParameters();
+    }
     if(mCategory != other.mCategory)
         return false;
-    if(mCategory == DatatypeCategory::struct_) {
-        if(getStructInfo().name == other.getStructInfo().name)
-            return true;
-    }
-    if(mCategory == DatatypeCategory::enum_) {
-        if(getEnumInfo().name == other.getEnumInfo().name)
-            return true;
-    }
     if(mFurtherInfo->index() != other.mFurtherInfo->index())
         return false;
     if(*mFurtherInfo != *other.mFurtherInfo) {
