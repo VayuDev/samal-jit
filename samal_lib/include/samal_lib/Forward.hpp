@@ -28,6 +28,8 @@ class StructCreationNode;
 class StructFieldAccessExpression;
 class TailCallSelfStatementNode;
 class MatchExpression;
+class MoveToHeapExpression;
+class MoveToStackExpression;
 
 struct Parameter;
 using StructField = Parameter;

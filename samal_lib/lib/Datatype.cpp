@@ -36,6 +36,9 @@ std::string Datatype::toString() const {
     case DatatypeCategory::list: {
         return "[" + getListContainedType().toString() + "]";
     }
+    case DatatypeCategory::pointer: {
+        return "$" + getPointerBaseType().toString();
+    }
     case DatatypeCategory::bool_:
         return "bool";
     case DatatypeCategory::undetermined_identifier:
@@ -84,6 +87,9 @@ Datatype Datatype::createUndeterminedIdentifierType(std::string name) {
 }
 Datatype Datatype::createUndeterminedIdentifierType(const IdentifierNode& name) {
     return Datatype(DatatypeCategory::undetermined_identifier, IdentifierInfo{ name.getName(), name.getTemplateParameters() });
+}
+Datatype Datatype::createPointerType(Datatype baseType) {
+    return Datatype(DatatypeCategory::pointer, std::move(baseType));
 }
 const std::pair<Datatype, std::vector<Datatype>>& Datatype::getFunctionTypeInfo() const& {
     if(mCategory != DatatypeCategory::function) {
@@ -154,6 +160,7 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
     case DatatypeCategory::function:
     case DatatypeCategory::bool_:
     case DatatypeCategory::list:
+    case DatatypeCategory::pointer:
         return 8;
     case DatatypeCategory::enum_:
         return getEnumInfo().getLargestFieldSizePlusIndex(depth + 1);
@@ -181,6 +188,7 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
     case DatatypeCategory::i64:
     case DatatypeCategory::function:
     case DatatypeCategory::list:
+    case DatatypeCategory::pointer:
         return 8;
     case DatatypeCategory::struct_: {
         size_t sum = 0;
@@ -232,6 +240,7 @@ void Datatype::attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompleti
         }
         break;
     }
+    case DatatypeCategory::pointer:
     case DatatypeCategory::list: {
         std::get<Datatype>(*mFurtherInfo).attachUndeterminedIdentifierMap(map);
         break;
@@ -339,6 +348,10 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
     }
     case DatatypeCategory::list: {
         std::get<Datatype>(*cpy.mFurtherInfo) = getListContainedType().completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
+        break;
+    }
+    case DatatypeCategory::pointer: {
+        std::get<Datatype>(*cpy.mFurtherInfo) = getPointerBaseType().completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
         break;
     }
     case DatatypeCategory::struct_: {

@@ -24,6 +24,7 @@ enum class DatatypeCategory {
     tuple,
     function,
     list,
+    pointer,
 };
 
 class Datatype {
@@ -40,6 +41,7 @@ public:
     static Datatype createTupleType(std::vector<Datatype> params);
     static Datatype createUndeterminedIdentifierType(std::string name);
     static Datatype createUndeterminedIdentifierType(const IdentifierNode& name);
+    static Datatype createPointerType(Datatype baseType);
 
     Datatype(const Datatype& other);
     Datatype& operator=(const Datatype& other);
@@ -51,6 +53,12 @@ public:
     [[nodiscard]] inline const Datatype& getListContainedType() const {
         if(mCategory != DatatypeCategory::list) {
             throw std::runtime_error{ "This is not a list!" };
+        }
+        return std::get<Datatype>(*mFurtherInfo);
+    }
+    [[nodiscard]] inline const Datatype& getPointerBaseType() const {
+        if(mCategory != DatatypeCategory::pointer) {
+            throw std::runtime_error{ "This is not a pointer!" };
         }
         return std::get<Datatype>(*mFurtherInfo);
     }

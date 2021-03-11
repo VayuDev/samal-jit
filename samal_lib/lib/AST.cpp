@@ -477,6 +477,34 @@ std::string StructFieldAccessExpression::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 
+
+MoveToHeapExpression::MoveToHeapExpression(SourceCodeRef source, up<ExpressionNode> toMove)
+: ExpressionNode(source), mToMove(std::move(toMove)) {
+
+}
+Datatype MoveToHeapExpression::compile(Compiler& comp) const {
+    return comp.compileMoveToHeapExpression(*this);
+}
+void MoveToHeapExpression::findUsedVariables(VariableSearcher& searcher) const {
+    mToMove->findUsedVariables(searcher);
+}
+std::string MoveToHeapExpression::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
+MoveToStackExpression::MoveToStackExpression(SourceCodeRef source, up<ExpressionNode> toMove)
+: ExpressionNode(source), mToMove(std::move(toMove)) {
+}
+Datatype MoveToStackExpression::compile(Compiler& comp) const {
+    return comp.compileMoveToStackExpression(*this);
+}
+void MoveToStackExpression::findUsedVariables(VariableSearcher& searcher) const {
+    mToMove->findUsedVariables(searcher);
+}
+std::string MoveToStackExpression::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
 MatchCondition::MatchCondition(SourceCodeRef source)
 : ASTNode(source) {
 }

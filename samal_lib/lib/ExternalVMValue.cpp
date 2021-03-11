@@ -83,6 +83,11 @@ std::string ExternalVMValue::dump() const {
         ret += "]";
         break;
     }
+    case DatatypeCategory::pointer: {
+        ret += "$";
+        ret += ExternalVMValue::wrapFromPtr(mType.getPointerBaseType(), *mVM, std::get<const uint8_t*>(mValue)).dump();
+        break;
+    }
     case DatatypeCategory::struct_: {
         const auto& structVal = std::get<StructValue>(mValue);
         ret += structVal.name;
@@ -173,6 +178,7 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
         }
         return ExternalVMValue{vm, type, std::move(val)};
     }
+    case DatatypeCategory::pointer:
     case DatatypeCategory::list: {
         return ExternalVMValue{ vm, type, *(uint8_t**)(ptr) };
     }

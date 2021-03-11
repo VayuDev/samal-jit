@@ -889,6 +889,37 @@ Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& n
     mStackSize -= structType.getSizeOnStack();
     return foundFieldType;
 }
+Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
+    // TODO check if at the end of a function/branch
+    auto oldStackSize = mStackSize;
+    int32_t paramsSize = 0;
+    for(auto& p : node.getParams()) {
+        auto paramType = p->compile(*this);
+        paramsSize += paramType.getSizeOnStack();
+    }
+    addInstructions(Instruction::POP_N_BELOW, oldStackSize, paramsSize);
+    mStackSize -= oldStackSize;
+    addInstructions(Instruction::JUMP, mCurrentFunctionStartingIp);
+    // This isn't actually true but it's what is expected
+    mStackSize = oldStackSize + mCurrentFunctionReturnType.getSizeOnStack();
+    return mCurrentFunctionReturnType;
+}
+Datatype Compiler::compileMoveToHeapExpression(const MoveToHeapExpression& node) {
+    auto toMoveBaseType = node.getToMove()->compile(*this);
+    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, toMoveBaseType.getSizeOnStack());
+    mStackSize -= toMoveBaseType.getSizeOnStack();
+    mStackSize += 8;
+    return Datatype::createPointerType(std::move(toMoveBaseType));
+}
+Datatype Compiler::compileMoveToStackExpression(const MoveToStackExpression& node) {
+    auto toMovePointerType = node.getToMove()->compile(*this);
+    const auto& toMoveBaseType = toMovePointerType.getPointerBaseType();
+    addInstructions(Instruction::LOAD_FROM_PTR, toMoveBaseType.getSizeOnStack(), 0);
+    mStackSize -= 8;
+    mStackSize += toMoveBaseType.getSizeOnStack();
+    return toMoveBaseType;
+}
+
 Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     auto enumType = node.getEnumType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
     const auto& enumInfo = enumType.getEnumInfo();
@@ -940,21 +971,6 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
 #endif
 
     return enumType;
-}
-Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
-    // TODO check if at the end of a function/branch
-    auto oldStackSize = mStackSize;
-    int32_t paramsSize = 0;
-    for(auto& p : node.getParams()) {
-        auto paramType = p->compile(*this);
-        paramsSize += paramType.getSizeOnStack();
-    }
-    addInstructions(Instruction::POP_N_BELOW, oldStackSize, paramsSize);
-    mStackSize -= oldStackSize;
-    addInstructions(Instruction::JUMP, mCurrentFunctionStartingIp);
-    // This isn't actually true but it's what is expected
-    mStackSize = oldStackSize + mCurrentFunctionReturnType.getSizeOnStack();
-    return mCurrentFunctionReturnType;
 }
 
 Datatype Compiler::compileMatchExpression(const MatchExpression& node) {
