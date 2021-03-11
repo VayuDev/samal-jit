@@ -136,6 +136,14 @@ bool Datatype::operator==(const Datatype& other) const {
     }
     if(mCategory != other.mCategory)
         return false;
+    // If our undetermined identifier is a user type, then it's enough if the names are the same.
+    // Otherwise we need to check the type recursively.
+    if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap) {
+        auto replacementEntry = mUndefinedTypeReplacementMap->map.find(getUndeterminedIdentifierString());
+        if(replacementEntry != mUndefinedTypeReplacementMap->map.end() && replacementEntry->second.second == TemplateParamOrUserType::TemplateParam) {
+            return completeWithSavedTemplateParameters() == other.completeWithSavedTemplateParameters();
+        }
+    }
     if(mFurtherInfo->index() != other.mFurtherInfo->index())
         return false;
     if(*mFurtherInfo != *other.mFurtherInfo) {
@@ -212,7 +220,8 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
         assert(false);
     }
 }
-Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes allowIncompleteTypes) const {
+
+Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes allowIncompleteTypes) const {
     return completeWithTemplateParameters(templateParams, modules, InternalCall::No, allowIncompleteTypes);
 }
 void Datatype::attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompletionInfo> map) {
@@ -281,7 +290,7 @@ Datatype Datatype::completeWithSavedTemplateParameters(AllowIncompleteTypes allo
         return completeWithTemplateParameters(mUndefinedTypeReplacementMap->map, mUndefinedTypeReplacementMap->includedModules, InternalCall::Yes, allowIncompleteTypes);
     return *this;
 }
-Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, const std::vector<std::string>& modules, Datatype::InternalCall internalCall, AllowIncompleteTypes allowIncompleteTypes) const {
+Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, Datatype::InternalCall internalCall, AllowIncompleteTypes allowIncompleteTypes) const {
     // This assertion ensures that we don't accidentally call completeWithTemplateParameters twice, overwriting the mUndefinedTypeReplacementMap
     assert(!(internalCall == InternalCall::No && mUndefinedTypeReplacementMap));
     Datatype cpy = *this;
@@ -315,14 +324,14 @@ Datatype Datatype::completeWithTemplateParameters(const std::map<std::string, Da
             maybeReplacementType = templateParams.find(getUndeterminedIdentifierString());
         }
         if(maybeReplacementType != templateParams.end()) {
-            cpy = maybeReplacementType->second;
+            cpy = maybeReplacementType->second.first;
             if(cpy.getCategory() == DatatypeCategory::struct_ || cpy.getCategory() == DatatypeCategory::enum_) {
                 // add template params to replacement map
                 std::vector<Datatype> undeterminedIdentifierTemplateParameters;
                 for(auto& dt : getUndeterminedIdentifierTemplateParams()) {
                     undeterminedIdentifierTemplateParameters.emplace_back(dt.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes));
                 }
-                std::map<std::string, Datatype> additionalMap;
+                UndeterminedIdentifierReplacementMap additionalMap;
                 if(!undeterminedIdentifierTemplateParameters.empty()) {
                     if(cpy.getCategory() == DatatypeCategory::struct_) {
                         additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);

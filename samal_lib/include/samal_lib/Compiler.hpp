@@ -86,7 +86,7 @@ private:
     struct TemplateFunctionToInstantiate {
         FunctionDeclarationNode* function{ nullptr };
         // this is e.g. <i32, i64, (i32, bool)>
-        std::map<std::string, Datatype> replacementMap;
+        UndeterminedIdentifierReplacementMap replacementMap;
     };
     std::vector<TemplateFunctionToInstantiate> mTemplateFunctionsToInstantiate;
     struct CallableDeclaration {
@@ -99,13 +99,13 @@ private:
         std::string name;
     };
     // Maps strings of structs like 'Vec2' (or from external modules like 'Math.Vec3') to the actual datatype. This is later merged with the mTemplateReplacementMap
-    std::map<std::string, Datatype> mCustomUserDatatypeReplacementMap;
+    UndeterminedIdentifierReplacementMap mCustomUserDatatypeReplacementMap;
     std::vector<Module> mModules;
     std::unordered_map<DeclarationNode*, size_t> mDeclarationNodeToModuleId;
     std::vector<std::string> mUsingModuleNames;
 
-    std::map<std::string, Datatype> mCurrentUndeterminedTypeReplacementMap;
-    std::map<std::string, Datatype> mCurrentTemplateTypeReplacementMap;
+    UndeterminedIdentifierReplacementMap mCurrentUndeterminedTypeReplacementMap;
+    UndeterminedIdentifierReplacementMap mCurrentTemplateTypeReplacementMap;
 
     int32_t mCurrentFunctionStartingIp{ -1 };
     Datatype mCurrentFunctionReturnType;
@@ -125,7 +125,7 @@ private:
     struct FunctionIdInCodeToInsert {
         int32_t label{ -1 };
         std::string fullFunctionName;
-        std::map<std::string, Datatype> templateParameters;
+        UndeterminedIdentifierReplacementMap templateParameters;
     };
     std::vector<FunctionIdInCodeToInsert> mLabelsToInsertFunctionIds;
 

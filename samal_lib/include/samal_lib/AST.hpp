@@ -512,7 +512,7 @@ class IdentifierMatchCondition : public MatchCondition {
 public:
     IdentifierMatchCondition(SourceCodeRef source, std::string newName);
     MatchCompileReturn compileTryMatch(Compiler& comp, const Datatype& toMatch, int32_t offset) override;
-    [[nodiscard]] const auto getNewName() const {
+    [[nodiscard]] const auto& getNewName() const {
         return mNewName;
     }
     void findUsedVariables(VariableSearcher&) const override;

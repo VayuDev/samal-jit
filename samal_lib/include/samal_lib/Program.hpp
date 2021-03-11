@@ -21,7 +21,7 @@ struct Program final {
         int32_t len;
         Datatype type;
         std::string name;
-        std::map<std::string, Datatype> templateParameters;
+        UndeterminedIdentifierReplacementMap templateParameters;
         sp<StackInformationTree> stackInformation;
         std::unordered_map<int32_t, int32_t> stackSizePerIp;
         ~Function();

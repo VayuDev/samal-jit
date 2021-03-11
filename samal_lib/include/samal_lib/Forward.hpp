@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include <map>
+#include <string>
 
 namespace samal {
 
@@ -43,5 +45,9 @@ class Stack;
 struct Program;
 class VariableSearcher;
 class Parser;
+
+enum class TemplateParamOrUserType;
+
+using UndeterminedIdentifierReplacementMap = std::map<std::string, std::pair<Datatype, TemplateParamOrUserType>>;
 
 }

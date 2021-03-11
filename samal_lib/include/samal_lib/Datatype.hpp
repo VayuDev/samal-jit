@@ -1,11 +1,12 @@
 #pragma once
-#include "AstHelpers.hpp"
 #include "Forward.hpp"
 #include <map>
+#include <tuple>
 #include <samal_lib/Util.hpp>
 #include <stdexcept>
 #include <variant>
 #include <vector>
+#include "EnumField.hpp"
 
 namespace samal {
 
@@ -26,6 +27,13 @@ enum class DatatypeCategory {
     list,
     pointer,
 };
+
+enum class TemplateParamOrUserType {
+    TemplateParam,
+    UserType
+};
+
+using UndeterminedIdentifierReplacementMap = std::map<std::string, std::pair<Datatype, TemplateParamOrUserType>>;
 
 class Datatype {
     struct StructInfo;
@@ -80,7 +88,7 @@ public:
         Yes,
         No
     };
-    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes = AllowIncompleteTypes::No) const;
+    [[nodiscard]] Datatype completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes = AllowIncompleteTypes::No) const;
     [[nodiscard]] Datatype completeWithSavedTemplateParameters(AllowIncompleteTypes = AllowIncompleteTypes::No) const;
 
 private:
@@ -88,7 +96,7 @@ private:
         Yes,
         No
     };
-    [[nodiscard]] Datatype completeWithTemplateParameters(const std::map<std::string, Datatype>& templateParams, const std::vector<std::string>& modules, InternalCall internalCall, AllowIncompleteTypes) const;
+    [[nodiscard]] Datatype completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, InternalCall internalCall, AllowIncompleteTypes) const;
     struct StructInfo {
         std::string name;
         struct StructElement;
@@ -147,7 +155,7 @@ private:
     // This system is necessary for infinite types that contain themselves as it wouldn't be possible
     // to complete them in one go until there is nothing left.
     struct UndeterminedIdentifierCompletionInfo {
-        std::map<std::string, Datatype> map;
+        UndeterminedIdentifierReplacementMap map;
         std::vector<std::string> includedModules;
     };
     void attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompletionInfo> map);

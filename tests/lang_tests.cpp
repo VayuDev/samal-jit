@@ -285,3 +285,27 @@ fn test() -> (i32, i32) {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == "(71, 7)");
 }
+
+TEST_CASE("Ensure that we correctly check recursive types (user type)", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+enum Tree {
+    Branch{$Tree, i32, $Tree},
+    None{}
+}
+fn test() -> Tree {
+   Tree::Branch{$Tree::None{}, 5, $Tree::None{}}
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == "Main.Tree::Branch{$Main.Tree::None{}, 5, $Main.Tree::None{}}");
+}
+
+TEST_CASE("Ensure that we correctly check recursive types (template type)", "[samal_whole_system]") {
+    REQUIRE_THROWS(compileSimple(R"(
+enum Maybe<T> {
+    Some{T},
+    None{}
+}
+fn test() -> Maybe<$i64> {
+   Maybe<i64>::Some{5i64}
+})"));
+}

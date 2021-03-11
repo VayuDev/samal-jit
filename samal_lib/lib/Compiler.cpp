@@ -43,12 +43,12 @@ Program Compiler::compile() {
             std::string fullTypeName = moduleNode->getModuleName() + "." + declNode->getIdentifier()->getName();
             auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
             if(declNodeAsStructDecl) {
-                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()));
+                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, std::make_pair(Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()), TemplateParamOrUserType::UserType));
                 continue;
             }
             auto declNodeAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(declNode.get());
             if(declNodeAsEnumDecl) {
-                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()));
+                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, std::make_pair(Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()), TemplateParamOrUserType::UserType));
                 continue;
             }
         }
