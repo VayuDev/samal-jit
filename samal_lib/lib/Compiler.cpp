@@ -31,6 +31,7 @@ Program Compiler::compile() {
     for(auto& moduleNode : mRoots) {
         Module module;
         module.name = moduleNode->getModuleName();
+        module.usingModuleNames.push_back(module.name);
         mModules.emplace_back(std::move(module));
         // map all child declaration nodes to the index of the module
         for(auto& decl : moduleNode->getDeclarations()) {
@@ -76,7 +77,7 @@ Program Compiler::compile() {
     };
     // compile all normal functions
     for(auto& module : mRoots) {
-        mUsingModuleNames = { module->getModuleName() };
+        mUsingModuleNames = findModuleByName(module->getModuleName()).usingModuleNames;
         for(auto& decl : module->getDeclarations()) {
             if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
                 mCurrentUndeterminedTypeReplacementMap = mCustomUserDatatypeReplacementMap;
@@ -537,15 +538,15 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     }
     auto& declaration = *maybeDeclaration;
     std::string fullFunctionName = declaration.first;
-    auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames, Datatype::AllowIncompleteTypes::Yes);
+    const auto& functionsModuleUsingNames = mModules.at(mDeclarationNodeToModuleId.at(declaration.second.astNode)).usingModuleNames;
     auto functionTemplateParams = declaration.second.astNode->getTemplateParameterVector();
-    auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
     const bool functionIsTemplateFunction = !declaration.second.astNode->getTemplateParameterVector().empty();
 
     // check parameter count for template arguments
     if(functionTemplateParams.size() != identifier.getTemplateParameters().size()) {
         identifier.throwException("Invalid number of template parameters passed (expected " + std::to_string(functionTemplateParams.size()) + ")");
     }
+    auto declarationAsFunction = dynamic_cast<FunctionDeclarationNode*>(declaration.second.astNode);
     if(!declarationAsFunction) {
         // it's not a normal function, but maybe a native function?
         auto declarationAsNativeFunction = dynamic_cast<NativeFunctionDeclarationNode*>(declaration.second.astNode);
@@ -553,6 +554,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
             // not any kind of function
             identifier.throwException("Identifier is not a function");
         }
+        auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, functionsModuleUsingNames, Datatype::AllowIncompleteTypes::Yes);
         // it's a native function, maybe it is a template-native function?
         if(functionIsTemplateFunction) {
             // we have a templated native function, so we need to build a replacement map to get the correct type
@@ -566,7 +568,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
             // The order her is important because we first need to consider passed template parameters, then ones from the surrounding scope
             auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
             replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
-            completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap, mUsingModuleNames);
+            completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
         }
         bool found = false;
         // iterate backwards so that we find specified (filled-in) template functions first and the raw undetermined-identifier versions later
@@ -599,7 +601,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
         // normal function
         mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName });
         mStackSize += 8;
-        return completedDeclarationType;
+        return declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, functionsModuleUsingNames);
     }
     // template function
     // replace passed template parameters with those in the current scope: this translates a call like add<T> to add<i32> (if T is currently i32)
@@ -630,7 +632,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
     mStackSize += 8;
     replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
-    auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, mUsingModuleNames);
+    auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
     return returnType;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
@@ -921,7 +923,13 @@ Datatype Compiler::compileMoveToStackExpression(const MoveToStackExpression& nod
 }
 
 Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
-    auto enumType = node.getEnumType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
+    Datatype enumType = node.getEnumType();
+    try {
+        enumType = enumType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
+    } catch(std::exception& e) {
+        node.throwException(e.what());
+    }
+
     const auto& enumInfo = enumType.getEnumInfo();
     int32_t enumFieldIndex = -1;
     for(size_t i = 0; i < enumInfo.fields.size(); ++i) {
@@ -1077,6 +1085,14 @@ MatchCompileReturn Compiler::compileTryMatchIdentifier(const IdentifierMatchCond
 int32_t Compiler::saveAuxiliaryDatatypeToProgram(Datatype type) {
     mProgram.auxiliaryDatatypes.emplace_back(type);
     return mProgram.auxiliaryDatatypes.size() - 1;
+}
+Compiler::Module& Compiler::findModuleByName(const std::string& name) {
+    for(auto& module: mModules) {
+        if(module.name == name) {
+            return module;
+        }
+    }
+    assert(false);
 }
 
 VariableSearcher::VariableSearcher(std::vector<const IdentifierNode*>& identifiers)

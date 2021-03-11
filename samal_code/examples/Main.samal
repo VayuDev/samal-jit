@@ -22,19 +22,21 @@ fn infiniteLoop(v : i32) -> i32 {
     @tail_call_self(v + 1)
 }
 
-enum Shape {
-    Rectangle{i32, i32},
-    Circle{i32}
+enum Maybe<T> {
+    Some{T},
+    None{}
 }
 
-struct Vec2 {
-    x : i32,
-    y : i32
+enum Tree<T> {
+    Node{Tree<T>, T, Tree<T>},
+    Empty{}
 }
 
-fn main(p : i32) -> () {
-    x = Shape::Rectangle{1, 2}
-    y = Vec2{x : 1, y : 2}
-    Structs.testStruct2(2)
-    ()
+fn main(p : i32) -> [i32] {
+    x = Maybe<(i32, [i32])>::Some{(5, [6, 7])}
+    li = match x {
+        Some{element} -> element:1,
+        None{} -> [:i32]
+    }
+    li
 }

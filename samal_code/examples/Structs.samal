@@ -16,9 +16,9 @@ fn pureIdentity<T>(v : T) -> T {
     v
 }
 
-fn testStruct(p : i32) -> (Structs.LinkedList<i32>, Structs.Rect) {
+fn testStruct(p : i32) -> (LinkedList<i32>, Rect) {
     list = Structs.LinkedList<i32>{value : 5, friend : [Structs.LinkedList<i32>{value : 5, friend : [Structs.LinkedList<i32>{value : 5, friend : [:Structs.LinkedList<i32>]}]}]}
-    rect = Structs.Rect{pos : Structs.Vec2{x : p * 5, y : p}, size : Structs.Vec2{x : 3, y : 3}}
+    rect = Structs.Rect{pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
     (list, rect)
 }
 

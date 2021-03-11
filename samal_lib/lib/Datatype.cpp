@@ -345,7 +345,7 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
             return cpy;
         }
         if(allowIncompleteTypes == AllowIncompleteTypes::No) {
-            throw std::runtime_error{"Incomplete type not allowed here! You probably forgot to specify template parameters"};
+            throw std::runtime_error{"Incomplete type not allowed here! Type '" + getUndeterminedIdentifierString() + "' doesn't exist"};
         }
         break;
     }
