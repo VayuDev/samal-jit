@@ -309,3 +309,29 @@ fn test() -> Maybe<$i64> {
    Maybe<i64>::Some{5i64}
 })"));
 }
+
+TEST_CASE("Weird pointer enum test", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+struct Vec2 {
+    x : [i32],
+    y : i32
+}
+
+enum Maybe<T> {
+    Some{T},
+    None{}
+}
+
+fn test() -> (Vec2, [i32], i32, Maybe<Maybe<$i32>>, $i32) {
+    v = Vec2{x : [1, 2, 3], y : 3}
+    x = Maybe<Maybe<$i32>>::Some{Maybe<$i32>::Some{$5}}
+    n = match x {
+        Some{None{}} -> $0,
+        Some{Some{n}} -> n,
+        None{} -> $0
+    }
+    (v, v:x, v:y, x, n)
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == "(Main.Vec2{x: [1, 2, 3], y: 3}, [1, 2, 3], 3, Main.Maybe::Some{Main.Maybe::Some{$5}}, $5)");
+}
