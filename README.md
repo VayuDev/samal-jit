@@ -1,6 +1,6 @@
 # samal - Simple And Memory-wasting Awesomely-functional Language
 
-This repository contains the my programming language samal which attempts to be the 
+This repository contains the programming language samal which attempts to be the 
 perfect combination of Rust and Elixir. It mixes the great type system and syntax of Rust with
 the functional style of Elixir and Haskell.
 
@@ -18,17 +18,18 @@ Features already implemented include:
  * Structs
  * Native functions
  * Easy API for embedding samal into your project
+ * Enums
+ * Pointer type for recursive structs/enums (all structs/enums are on the stack)
 
 ＊ Lists will change with the introduction of generators.
 
 ## Planned Features
 
 Planned features (vaguely order):
- * Enums
- * Strings/Chars (Strings will be implemented as lists of chars, similar to Haskell)
  * Generators (similar to Python)
+ * Strings/Chars (Strings will be implemented as lists of chars, similar to Haskell)
  * Using declarations (to avoid typing the module name every time)
- * Type casting (probably using native methods)
+ * Type casting (maybe using native methods)
  * A proper cli
  * Floating point support
  * Byte support
@@ -111,10 +112,10 @@ or object oriented makes it hard for me to enjoy using.
 
 So, where does this leave us? We want a language that:
 
- * is functional.
- * has a great type system.
- * is fast enough for must stuff.
- * achieves the previous three points without becoming bloated and complicated.
+ * is functional
+ * has a great type system
+ * is fast enough for must stuff
+ * achieves the previous three points without becoming bloated and complicated
 
 This is pretty much all I want to achieve with samal. I don't care about memory consumption (as long as it's
 not well beyond bounds) and I don't care about compilation speed (as long as it stays faster than C++ compiled with
@@ -126,14 +127,14 @@ So, what's bad about samal right now?
 
  * It uses a custom-written peg parser with horrendous error messages - if you have a parsing error, the fastest 
    thing will probably be to just try to find it yourself using the line information that it gives you (which is only
-   sometimes correct).
+   sometimes correct)
  * As we don't have generators yet, the GC pressure is just insane, which means that the most time is actually
    spend in the GC itself. Once we have generators, we can skip allocating temporary lists and instead create them
-   on the fly when they're needed.
- * Calling native functions is slow.
- * There are unit tests, but they don't cover all features.
- * The Compiler class is bigger and messier than I want it to be.
- * We're still missing a lot of basic features.
+   on the fly when they're needed
+ * Calling native functions is slow
+ * There are unit tests, but they don't cover all features
+ * The Compiler class is bigger and messier than I want it to be
+ * We're still missing a lot of basic features
 
 But with your help, I'm sure we can fix all of these problems! Feel free to open a pull request if you want to
 improve the language, in any way, shape or form. Just ask yourself: What does the perfect language look like for me?
