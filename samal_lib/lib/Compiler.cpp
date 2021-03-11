@@ -17,11 +17,12 @@ Program Compiler::compile() {
             auto callableDeclaration = dynamic_cast<CallableDeclarationNode*>(decl.get());
             if(callableDeclaration) {
                 // declare functions & native functions
+                auto fullName = module->getModuleName() + '.' + callableDeclaration->getIdentifier()->getName();
                 auto emplaceResult = mCallableDeclarations.emplace(
-                    module->getModuleName() + '.' + callableDeclaration->getIdentifier()->getName(),
+                    fullName,
                     CallableDeclaration{ .astNode = callableDeclaration, .type = callableDeclaration->getDatatype() });
                 if(!emplaceResult.second) {
-                    callableDeclaration->throwException("Function defined twice!");
+                    callableDeclaration->throwException("Function already defined at line " + std::to_string(mCallableDeclarations.at(fullName).astNode->getSourceCodeRef().line));
                 }
             }
         }

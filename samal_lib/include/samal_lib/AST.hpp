@@ -26,6 +26,9 @@ public:
     [[nodiscard]] virtual std::string dump(unsigned indent) const;
     [[nodiscard]] virtual inline const char* getClassName() const { return "ASTNode"; }
     void throwException(const std::string& msg) const;
+    [[nodiscard]] const SourceCodeRef& getSourceCodeRef() const {
+        return mSourceCodeRef;
+    }
 
 private:
     SourceCodeRef mSourceCodeRef;
