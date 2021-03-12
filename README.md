@@ -21,12 +21,11 @@ Features already implemented include:
  * Enums
  * Pointer type for recursive structs/enums (all structs/enums are on the stack)
 
-＊ Lists will change with the introduction of generators.
+＊ List syntax will change in the future.
 
 ## Planned Features
 
 Planned features (vaguely order):
- * Generators (similar to Python)
  * Strings/Chars (Strings will be implemented as lists of chars, similar to Haskell)
  * Using declarations (to avoid typing the module name every time)
  * Type casting (maybe using native methods)
@@ -83,7 +82,7 @@ Combine two lists, creating one list where each element is a tuple with one elem
         }
     }
 
-Note: List syntax will probably change with the introduction of generators.
+Note: List syntax will change in the future.
 
 ## Design notes
 
@@ -128,9 +127,6 @@ So, what's bad about samal right now?
  * It uses a custom-written peg parser with horrendous error messages - if you have a parsing error, the fastest 
    thing will probably be to just try to find it yourself using the line information that it gives you (which is only
    sometimes correct)
- * As we don't have generators yet, the GC pressure is just insane, which means that the most time is actually
-   spend in the GC itself. Once we have generators, we can skip allocating temporary lists and instead create them
-   on the fly when they're needed
  * Calling native functions is slow
  * There are unit tests, but they don't cover all features
  * The Compiler class is bigger and messier than I want it to be
