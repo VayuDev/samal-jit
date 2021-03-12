@@ -25,8 +25,8 @@ uint8_t* GC::alloc(int32_t num) {
     }
 }
 void GC::markAndSweep() {
-    //printf("Before: %lu\n", mAllocations.size());
-    //Stopwatch stopwatch{"GC"};
+    printf("Before: %lu\n", mAllocations.size());
+    Stopwatch stopwatch{"GC"};
     // mark all as not found
     //Stopwatch firstStopwatch{"GC first"};
     mFoundAllocations.clear();
@@ -50,7 +50,7 @@ void GC::markAndSweep() {
         }
     }
     //thirdStopwatch.stop();
-    //printf("After: %lu\n", mAllocations.size());
+    printf("After: %lu\n", mAllocations.size());
 }
 void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
     switch(type.getCategory()) {
@@ -100,38 +100,28 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         break;
     }
     case DatatypeCategory::struct_: {
-        uint8_t* structPtr = *(uint8_t**)ptr;
-        bool alreadyFound = markPtrAsFound(structPtr);
-        if(alreadyFound) {
-            break;
-        }
-        int32_t offset = 0;
+        int32_t offset = type.getSizeOnStack();
         for(auto& field : type.getStructInfo().fields) {
-            searchForPtrs(structPtr + offset, field.type);
-            offset += field.type.getSizeOnStack();
+            auto fieldType = field.type.completeWithSavedTemplateParameters();
+            offset -= fieldType.getSizeOnStack();
+            searchForPtrs(ptr + offset, fieldType);
         }
         break;
     }
     case DatatypeCategory::enum_: {
-        uint8_t* enumPtr = *(uint8_t**)ptr;
-        bool alreadyFound = markPtrAsFound(enumPtr);
-        if(alreadyFound) {
-            break;
-        }
 #ifdef x86_64_BIT_MODE
         int64_t selectedIndex;
-        memcpy(&selectedIndex, enumPtr, 8);
+        memcpy(&selectedIndex, ptr, 8);
 #else
         int32_t selectedIndex;
-        memcpy(&selectedIndex, enumPtr, 4);
+        memcpy(&selectedIndex, ptr, 4);
 #endif
         auto &selectedField = type.getEnumInfo().fields.at(selectedIndex);
-        int32_t offset = 0;
-        // TODO check include padding bytes
+        int32_t offset = type.getEnumInfo().getLargestFieldSizePlusIndex();
         for(auto& element : selectedField.params) {
             auto elementType = element.completeWithSavedTemplateParameters();
-            searchForPtrs(enumPtr + type.getEnumInfo().getIndexSize() + offset, elementType);
-            offset += elementType.getSizeOnStack();
+            offset -= elementType.getSizeOnStack();
+            searchForPtrs(ptr + offset, elementType);
         }
         break;
     }
@@ -145,7 +135,7 @@ bool GC::markPtrAsFound(const uint8_t* ptr) {
 }
 void GC::requestCollection() {
     callsSinceLastRun++;
-    if(callsSinceLastRun > 200000000) {
+    if(callsSinceLastRun > 1) {
         markAndSweep();
         callsSinceLastRun = 0;
     }
