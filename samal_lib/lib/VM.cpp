@@ -119,6 +119,13 @@ public:
                 idiv(ebx);
                 push(rax);
                 break;
+            case Instruction::MODULO_I32:
+                pop(rbx);
+                pop(rax);
+                cdq();
+                idiv(ebx);
+                push(rdx);
+                break;
             case Instruction::COMPARE_LESS_THAN_I32:
                 pop(rax);
                 pop(rbx);
@@ -151,6 +158,14 @@ public:
                 setge(al);
                 push(rax);
                 break;
+            case Instruction::COMPARE_EQUALS_I32:
+                pop(rax);
+                pop(rbx);
+                cmp(ebx, eax);
+                mov(rax, 0);
+                sete(al);
+                push(rax);
+                break;
             case Instruction::ADD_I64:
                 pop(rax);
                 add(qword[rsp], rax);
@@ -170,6 +185,13 @@ public:
                 cqo();
                 idiv(rbx);
                 push(rax);
+                break;
+            case Instruction::MODULO_I64:
+                pop(rbx);
+                pop(rax);
+                cqo();
+                idiv(rbx);
+                push(rdx);
                 break;
             case Instruction::COMPARE_LESS_THAN_I64:
                 pop(rax);
@@ -201,6 +223,14 @@ public:
                 cmp(rbx, rax);
                 mov(rax, 0);
                 setge(al);
+                push(rax);
+                break;
+            case Instruction::COMPARE_EQUALS_I64:
+                pop(rax);
+                pop(rbx);
+                cmp(rbx, rax);
+                mov(rax, 0);
+                sete(al);
                 push(rax);
                 break;
             case Instruction::LOGICAL_OR:
