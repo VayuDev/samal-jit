@@ -330,6 +330,10 @@ fn test() -> (Vec2, [i32], i32, Maybe<Maybe<$i32>>, $i32) {
         Some{Some{n}} -> n,
         None{} -> $0
     }
+    f = fn() -> () {
+        ()
+    }
+    f()
     (v, v:x, v:y, x, n)
 })");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });

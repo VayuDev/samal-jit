@@ -125,6 +125,11 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         }
         break;
     }
+    case DatatypeCategory::pointer: {
+        searchForPtrs(*(uint8_t**)ptr, type.getPointerBaseType(), ScanningHeapOrStack::Heap);
+        copyToOther((uint8_t**)ptr, type.getPointerBaseType().getSizeOnStack());
+        break;
+    }
     default:
         assert(false);
     }

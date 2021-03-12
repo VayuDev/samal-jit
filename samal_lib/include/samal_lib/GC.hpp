@@ -14,7 +14,9 @@ public:
     explicit GC(VM&);
     ~GC();
     GC(const GC&) = delete;
-    void operator=(const GC&) = delete;
+    GC(GC&&) = delete;
+    GC& operator=(const GC&) = delete;
+    GC& operator=(GC&&) = delete;
     uint8_t* alloc(int32_t num);
     void requestCollection();
 
