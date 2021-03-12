@@ -769,6 +769,14 @@ bool VM::interpretInstruction() {
         mStack.push(&res, 8);
         break;
     }
+    case Instruction::MODULO_I64: {
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
+        int64_t res = lhs % rhs;
+        mStack.pop(16);
+        mStack.push(&res, 8);
+        break;
+    }
     case Instruction::COMPARE_LESS_THAN_I64: {
         auto lhs = *(int64_t*)mStack.get(8);
         auto rhs = *(int64_t*)mStack.get(0);
