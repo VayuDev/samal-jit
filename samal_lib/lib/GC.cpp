@@ -3,56 +3,56 @@
 #include "samal_lib/VM.hpp"
 #include <algorithm>
 
+#define HEAP_SIZE (512 * 1024 * 1024)
+
 namespace samal {
 
 GC::GC(VM& vm)
 : mVM(vm) {
+    mRegions[0].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    assert(mRegions[0].base);
+    mRegions[1].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    assert(mRegions[1].base);
 }
 GC::~GC() {
-    for(auto& alloc : mAllocations) {
-        free(alloc);
+    if(munmap(mRegions[0].base, HEAP_SIZE)) {
+        perror("munmap()");
     }
-    mAllocations.clear();
+    if(munmap(mRegions[1].base, HEAP_SIZE)) {
+        perror("munmap()");
+    }
 }
-uint8_t* GC::alloc(int32_t num) {
-    auto ptr = static_cast<uint8_t*>(malloc(num));
-    try {
-        mAllocations.emplace(ptr);
-        return ptr;
-    } catch(...) {
-        free(ptr);
-        return nullptr;
-    }
+uint8_t* GC::alloc(int32_t size) {
+    auto ptr = mRegions[mActiveRegion].top();
+    mRegions[mActiveRegion].offset += size;
+    return ptr;
 }
 void GC::markAndSweep() {
-    printf("Before: %lu\n", mAllocations.size());
-    Stopwatch stopwatch{"GC"};
-    // mark all as not found
-    //Stopwatch firstStopwatch{"GC first"};
-    mFoundAllocations.clear();
-    //firstStopwatch.stop();
-
-    // start marking the ones we find
-    //Stopwatch secondStopwatch{"GC second"};
+    //Stopwatch stopwatch{"GC"};
+    //printf("Before size: %i\n", (int)mRegions[mActiveRegion].offset);
+    mRegions[!mActiveRegion].offset = 0;
+    mMovedPointers.clear();
     mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name) {
-        searchForPtrs(ptr, type);
-    },
-        {});
-    //secondStopwatch.stop();
-
-    // Stopwatch thirdStopwatch{"GC third"};
-    for(auto it = mAllocations.begin(); it != mAllocations.end();) {
-        if(!mFoundAllocations.contains(*it)) {
-            free(*it);
-            it = mAllocations.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    //thirdStopwatch.stop();
-    printf("After: %lu\n", mAllocations.size());
+        searchForPtrs((uint8_t*)ptr, type, ScanningHeapOrStack::Stack);
+    }, {});
+    mActiveRegion = !mActiveRegion;
+    //printf("After size: %i\n", (int)mRegions[mActiveRegion].offset);
 }
-void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
+bool GC::copyToOther(uint8_t** ptr, size_t len) {
+    auto maybePointerAddress = mMovedPointers.find(*ptr);
+    if(maybePointerAddress == mMovedPointers.end()) {
+        uint8_t* newPtr = mRegions[!mActiveRegion].top();
+        memcpy(newPtr, *ptr, len);
+        mRegions[!mActiveRegion].offset += len;
+        mMovedPointers.emplace(*ptr, newPtr);
+        *ptr = newPtr;
+        return true;
+    } else {
+        *ptr = maybePointerAddress->second;
+        return false;
+    }
+}
+void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack scanningHeapOrStack) {
     switch(type.getCategory()) {
     case DatatypeCategory::bool_:
     case DatatypeCategory::i32:
@@ -61,23 +61,23 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
     case DatatypeCategory::f64:
         break;
     case DatatypeCategory::tuple: {
-        int32_t offset = 0;
+        int32_t offset = type.getSizeOnStack();
         for(auto& element : type.getTupleInfo()) {
-            searchForPtrs(ptr + offset, element);
-            offset += element.getSizeOnStack();
+            offset -= element.getSizeOnStack();
+            searchForPtrs(ptr + offset, element, scanningHeapOrStack);
         }
         break;
     }
     case DatatypeCategory::list: {
-        const uint8_t* current = *(const uint8_t**)ptr;
-        while(current) {
-            bool alreadyFound = markPtrAsFound(current);
-            if(alreadyFound) {
-                break;
-            }
-            searchForPtrs(current + 8, type.getListContainedType());
-            current = *(const uint8_t**)current;
+        auto** ptrToCurrent = (uint8_t**)ptr;
+        if(*ptrToCurrent == nullptr)
+            break;
+        auto containedTypeSize = type.getListContainedType().getSizeOnStack();
+        searchForPtrs(*ptrToCurrent + 8, type.getListContainedType(), ScanningHeapOrStack::Heap);
+        if(copyToOther(ptrToCurrent, containedTypeSize + 8)) {
+            searchForPtrs(*ptrToCurrent, type, ScanningHeapOrStack::Heap);
         }
+
         break;
     }
     case DatatypeCategory::function: {
@@ -89,14 +89,14 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         }
         // it's a lambda
         auto lambdaPtr = *(uint8_t**)ptr;
-        assert((uint64_t)lambdaPtr % 2 == 0);
-        bool alreadyFound = markPtrAsFound(lambdaPtr);
-        if(alreadyFound) {
-            break;
-        }
-        int32_t capturedLambaTypesId;
-        memcpy(&capturedLambaTypesId, lambdaPtr + 8, 4);
-        searchForPtrs(lambdaPtr + 16, mVM.getProgram().auxiliaryDatatypes.at(capturedLambaTypesId));
+        int32_t capturedLambdaTypesId;
+        memcpy(&capturedLambdaTypesId, lambdaPtr + 8, 4);
+        searchForPtrs(lambdaPtr + 16, mVM.getProgram().auxiliaryDatatypes.at(capturedLambdaTypesId), ScanningHeapOrStack::Heap);
+
+        int32_t sizeOfLambda = -1;
+        memcpy(&sizeOfLambda, lambdaPtr, 4);
+        sizeOfLambda += 16;
+        copyToOther((uint8_t**)ptr, sizeOfLambda);
         break;
     }
     case DatatypeCategory::struct_: {
@@ -104,7 +104,7 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         for(auto& field : type.getStructInfo().fields) {
             auto fieldType = field.type.completeWithSavedTemplateParameters();
             offset -= fieldType.getSizeOnStack();
-            searchForPtrs(ptr + offset, fieldType);
+            searchForPtrs(ptr + offset, fieldType, scanningHeapOrStack);
         }
         break;
     }
@@ -121,7 +121,7 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         for(auto& element : selectedField.params) {
             auto elementType = element.completeWithSavedTemplateParameters();
             offset -= elementType.getSizeOnStack();
-            searchForPtrs(ptr + offset, elementType);
+            searchForPtrs(ptr + offset, elementType, scanningHeapOrStack);
         }
         break;
     }
@@ -129,13 +129,9 @@ void GC::searchForPtrs(const uint8_t* ptr, const Datatype& type) {
         assert(false);
     }
 }
-
-bool GC::markPtrAsFound(const uint8_t* ptr) {
-    return !mFoundAllocations.emplace((uint8_t*)ptr).second;
-}
 void GC::requestCollection() {
     callsSinceLastRun++;
-    if(callsSinceLastRun > 1) {
+    if(callsSinceLastRun > 400000) {
         markAndSweep();
         callsSinceLastRun = 0;
     }

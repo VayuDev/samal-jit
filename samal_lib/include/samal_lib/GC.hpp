@@ -5,6 +5,7 @@
 #include <set>
 #include <unordered_set>
 #include <vector>
+#include <sys/mman.h>
 
 namespace samal {
 
@@ -20,11 +21,23 @@ public:
 private:
     int32_t callsSinceLastRun{ 0 };
     VM& mVM;
-    std::unordered_set<uint8_t*> mAllocations;
-    std::unordered_set<uint8_t*> mFoundAllocations;
+    struct Region {
+        uint8_t *base{ nullptr };
+        size_t offset = 0;
+        inline uint8_t* top() {
+            return base + offset;
+        }
+    };
+    std::array<Region, 2> mRegions{ Region{}, Region{} };
+    size_t mActiveRegion{ 0 };
+    std::unordered_map<uint8_t*, uint8_t*> mMovedPointers;
 
-    void searchForPtrs(const uint8_t* ptr, const Datatype& type);
-    bool markPtrAsFound(const uint8_t* ptr);
+    enum class ScanningHeapOrStack {
+        Heap,
+        Stack
+    };
+    void searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack);
+    bool copyToOther(uint8_t** ptr, size_t len);
     void markAndSweep();
 };
 
