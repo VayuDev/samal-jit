@@ -2,16 +2,20 @@
 #include "samal_lib/Program.hpp"
 #include "samal_lib/VM.hpp"
 #include <algorithm>
+#include <sys/mman.h>
 
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
+#endif
 #define HEAP_SIZE (512 * 1024 * 1024)
 
 namespace samal {
 
 GC::GC(VM& vm)
 : mVM(vm) {
-    mRegions[0].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    mRegions[0].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
     assert(mRegions[0].base);
-    mRegions[1].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    mRegions[1].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
     assert(mRegions[1].base);
 }
 GC::~GC() {

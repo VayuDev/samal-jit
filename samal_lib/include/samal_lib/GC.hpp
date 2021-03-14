@@ -3,8 +3,9 @@
 #include "Util.hpp"
 #include <cstdint>
 #include <set>
-#include <unordered_set>
+#include <unordered_map>
 #include <vector>
+#include <array>
 #include <sys/mman.h>
 
 namespace samal {
