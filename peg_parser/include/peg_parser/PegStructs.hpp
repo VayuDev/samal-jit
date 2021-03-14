@@ -16,6 +16,9 @@ struct ParsingState {
     inline bool operator==(const ParsingState& pOther) const {
         return tokenizerState == pOther.tokenizerState;
     }
+    inline ParsingState advance(size_t amount) const {
+        return ParsingState{tokenizerState + amount};
+    }
 };
 
 class Any final {

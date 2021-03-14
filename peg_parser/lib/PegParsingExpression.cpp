@@ -235,6 +235,35 @@ RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap
     auto startPtr = tokenizer.getPtr(state);
     auto maybeRule = rules.find(mNonTerminal);
     if(maybeRule == rules.end()) {
+        if(mNonTerminal == "BUILTIN_ANY_UTF8_CODEPOINT") {
+            auto firstChar = *tokenizer.getPtr(state);
+            size_t len = 0;
+            if(!(firstChar & 0b1000'0000)) {
+                // single byte codepoint
+                len = 1;
+            } else if(firstChar & 0b110'0000 && ~firstChar & 0b0010'0000) {
+                // two byte codepoint
+                len = 2;
+            } else if(firstChar & 0b111'0000 && ~firstChar & 0b0001'0000) {
+                // three byte codepoint
+                len = 3;
+            } else if(firstChar & 0b111'1000 && ~firstChar & 0b0000'1000) {
+                // four byte codepoint
+                len = 4;
+            } else {
+                return ExpressionFailInfo{
+                    state,
+                    dump(),
+                    ExpressionFailReason::UNMATCHED_STRING,
+                    "<any unicode string>",
+                    std::string{firstChar}
+                };
+            }
+            return ExpressionSuccessInfo{
+                state.advance(len),
+                MatchInfo{ .start = startPtr, .len = len, .sourcePosition = tokenizer.getPosition(startState), .result = {}, .subs = {} },
+                ExpressionFailInfo{state, dump()} };
+        }
         throw std::runtime_error{"No rule found for nonterminal '" + mNonTerminal + "'"};
     }
     auto& rule = maybeRule->second;
