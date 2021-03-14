@@ -147,16 +147,16 @@ void ExpressionTokenizer::genNextToken() {
     if(mOffset < mExprString.size()) {
         switch(getCurrentChar()) {
         case '\'':
-            consumeString('\'', '\'');
+            mCurrentToken = consumeString('\'', '\'');
             break;
         case '[':
-            consumeString('[', ']');
+            mCurrentToken = consumeString('[', ']');
             break;
         case '#':
-            consumeString('#', '#');
+            mCurrentToken = consumeString('#', '#');
             break;
         case '~':
-            consumeString('~', '~');
+            mCurrentToken = consumeString('~', '~');
             break;
         case '+':
         case '*':
@@ -166,42 +166,49 @@ void ExpressionTokenizer::genNextToken() {
         case '/':
         case '?':
             mOffset += 1;
+            mCurrentToken = mExprString.substr(start, mOffset - start);
             break;
         default:
             if(isalnum(getCurrentChar())) {
                 consumeNonTerminal();
+                mCurrentToken = mExprString.substr(start, mOffset - start);
             } else {
                 throw std::runtime_error{ std::string{ "Invalid input char: '" } + getCurrentChar() + "\'" };
             }
         }
-        mCurrentToken = mExprString.substr(start, mOffset - start);
     } else {
         mCurrentToken = {};
     }
 }
 
 void ExpressionTokenizer::consumeNonTerminal() {
-    while(mOffset < mExprString.size() && isalnum(getCurrentChar())) {
+    while(mOffset < mExprString.size() && (isalnum(getCurrentChar()) || getCurrentChar() == '_')) {
         mOffset += 1;
     }
 }
 
-void ExpressionTokenizer::consumeString(const char start, const char end) {
+std::string ExpressionTokenizer::consumeString(const char start, const char end) {
     assert(getCurrentChar() == start);
+    std::string ret;
+    ret += getCurrentChar();
     mOffset += 1;
     bool escapingChar = false;
     while(true) {
         if(mOffset >= mExprString.size()) {
             throw std::runtime_error{ "Unterminated string in expression!" };
         }
-        if(getCurrentChar() == '\\' && !escapingChar) {
+        if(getCurrentChar() == '\\' && !escapingChar && (getNextChar() == end || getNextChar() == start)) {
             escapingChar = true;
         } else {
             if(!escapingChar && getCurrentChar() == end) {
+                ret += getCurrentChar();
                 mOffset += 1;
-                return;
+                return ret;
             }
             escapingChar = false;
+        }
+        if(!escapingChar) {
+            ret += getCurrentChar();
         }
         mOffset += 1;
     }
@@ -209,6 +216,12 @@ void ExpressionTokenizer::consumeString(const char start, const char end) {
 
 char ExpressionTokenizer::getCurrentChar() {
     return mExprString.at(mOffset);
+}
+char ExpressionTokenizer::getNextChar() {
+    if(mExprString.size() <= mOffset + 1) {
+        return -1;
+    }
+    return mExprString.at(mOffset + 1);
 }
 
 bool ExpressionTokenizer::skipWhitespaces() {

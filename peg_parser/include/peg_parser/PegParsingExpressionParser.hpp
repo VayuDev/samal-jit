@@ -10,7 +10,7 @@ sp<ParsingExpression> stringToParsingExpression(const std::string_view&);
 class ExpressionTokenizer {
 public:
     explicit ExpressionTokenizer(const std::string_view& expr);
-    [[nodiscard]] inline const std::optional<std::string_view>& currentToken() const {
+    [[nodiscard]] inline const std::optional<std::string>& currentToken() const {
         return mCurrentToken;
     }
     void advance();
@@ -18,13 +18,14 @@ public:
 private:
     void genNextToken();
     void consumeNonTerminal();
-    void consumeString(char start, char end);
+    std::string consumeString(char start, char end);
     char getCurrentChar();
+    char getNextChar();
     bool skipWhitespaces();
 
     size_t mOffset = 0;
     const std::string_view mExprString;
-    std::optional<std::string_view> mCurrentToken;
+    std::optional<std::string> mCurrentToken;
 };
 
 }

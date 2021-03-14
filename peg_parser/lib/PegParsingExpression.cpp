@@ -233,7 +233,11 @@ NonTerminalParsingExpression::NonTerminalParsingExpression(std::string value)
 RuleResult NonTerminalParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
     auto startState = state;
     auto startPtr = tokenizer.getPtr(state);
-    auto& rule = rules.at(mNonTerminal);
+    auto maybeRule = rules.find(mNonTerminal);
+    if(maybeRule == rules.end()) {
+        throw std::runtime_error{"No rule found for nonterminal '" + mNonTerminal + "'"};
+    }
+    auto& rule = maybeRule->second;
     auto ruleRetValue = rule.expr->match(state, rules, tokenizer);
     if(ruleRetValue.index() == 1) {
         // error in child
