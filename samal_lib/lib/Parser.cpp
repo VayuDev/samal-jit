@@ -89,41 +89,24 @@ Parser::Parser() {
         }
         return params;
     };
-    mPegParser["Identifier"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+)" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["IdentifierPartString"] << "~sws~(~nws~(~nws~[a-zA-Z] ~nws~(~nws~[\\da-zA-Z])*))" >> [](peg::MatchInfo& res) -> peg::Any {
+        return std::string{std::string_view{res.startTrimmed(), res.endTrimmed()}};
+    };
+    mPegParser["Identifier"] << "IdentifierPartString ('.' IdentifierPartString)?" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<std::string> parts;
-        for(auto& part : res.subs) {
-            const char* end = part.endTrimmed();
-            size_t whiteSpacesToCut = 0;
-            if(*(end - 1) == '.') {
-                end--;
-                whiteSpacesToCut += 1;
-            }
-            parts.emplace_back(std::string_view{ part.startTrimmed(), part.len - whiteSpacesToCut });
-        }
-        if(parts.size() > 2) {
-            throw std::runtime_error{ "An identifier can only contain at most a single dot" };
+        parts.emplace_back(res[0].result.moveValue<std::string>());
+        if(!res[1].subs.empty()) {
+           parts.emplace_back(res[1][0][1].result.moveValue<std::string>());
         }
         return IdentifierNode{ toRef(res), std::move(parts), {} };
     };
-    mPegParser["IdentifierWithTemplate"] << "~sws~(~nws~(~nws~[a-zA-Z]+ ~nws~(~nws~[\\da-zA-Z])* ~nws~'.'?)+) ('<' DatatypeVector '>')?" >> [](peg::MatchInfo& res) -> peg::Any {
-        std::vector<std::string> parts;
-        for(auto& part : res[0].subs) {
-            const char* end = part.endTrimmed();
-            size_t whiteSpacesToCut = 0;
-            if(*(end - 1) == '.') {
-                end--;
-                whiteSpacesToCut += 1;
-            }
-            parts.emplace_back(std::string_view{ part.startTrimmed(), part.len - whiteSpacesToCut });
-        }
-        if(parts.size() > 2) {
-            throw std::runtime_error{ "An identifier can only contain at most a single dot" };
-        }
+    mPegParser["IdentifierWithTemplate"] << "Identifier ('<' DatatypeVector '>')?" >> [](peg::MatchInfo& res) -> peg::Any {
+        up<IdentifierNode> baseIdentifier{res[0].result.move<IdentifierNode*>()};
         std::vector<Datatype> templateParameters;
         if(!res[1].subs.empty()) {
             templateParameters = res[1][0][1].result.moveValue<std::vector<Datatype>>();
         }
-        return IdentifierNode{ toRef(res), std::move(parts), std::move(templateParameters) };
+        return IdentifierNode{ toRef(res), baseIdentifier->getNameSplit(),  std::move(templateParameters)};
     };
     mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | IdentifierWithTemplate | '(' Datatype ')' | '(' DatatypeVector ')' | ('$' Datatype)" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
@@ -300,7 +283,7 @@ Parser::Parser() {
         };
     };
     // this is stupid because we don't handle left recursion correctly in the peg parser :c
-    mPegParser["PostfixExpression"] << "PrefixExpression ~nws~(~nws~(~nws~'(' ExpressionVector ')') | ~nws~(~nws~':' ~nws~[\\d]+) | ~nws~(~nws~':head') | ~nws~(~nws~':tail') | ~nws~(~nws~':' ~nws~Identifier))*" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["PostfixExpression"] << "PrefixExpression ~nws~(~nws~(~nws~'(' ExpressionVector ')') | ~nws~(~nws~':' ~nws~[\\d]+) | ~nws~(~nws~':head') | ~nws~(~nws~':tail') | ~nws~(~nws~':' ~nws~IdentifierPartString))*" >> [](peg::MatchInfo& res) -> peg::Any {
         peg::Any ret = std::move(res[0].result);
         while(!res[1].subs.empty()) {
             switch(*res[1][0].choice) {
@@ -331,8 +314,7 @@ Parser::Parser() {
                 break;
             }
             case 4: {
-                up<IdentifierNode> fieldName{ res[1][0][0][1].result.move<IdentifierNode*>() };
-                ret = StructFieldAccessExpression{ toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, fieldName->getName() };
+                ret = StructFieldAccessExpression{ toRef(res), up<ExpressionNode>{ ret.move<ExpressionNode*>() }, res[1][0][0][1].result.moveValue<std::string>() };
                 break;
             }
             default:
@@ -414,7 +396,7 @@ Parser::Parser() {
     mPegParser["MatchCase"] << "MatchCondition '->' Expression" >> [](peg::MatchInfo& res) -> peg::Any {
         return MatchCase{up<MatchCondition>{res[0].result.move<MatchCondition*>()}, up<ExpressionNode>{res[2].result.move<ExpressionNode*>()}};
     };
-    mPegParser["MatchCondition"] << "('(' MatchConditionVector ')') | (Identifier ('{}' | '{' MatchConditionVector '}')) | Identifier" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["MatchCondition"] << "('(' MatchConditionVector ')') | (IdentifierPartString ('{}' | '{' MatchConditionVector '}')) | IdentifierPartString" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             todo();
@@ -426,12 +408,12 @@ Parser::Parser() {
             }
             return EnumFieldMatchCondition{
                 toRef(res),
-                up<IdentifierNode>{ res[0][0].result.move<IdentifierNode*>() }->getName(),
+                res[0][0].result.moveValue<std::string>(),
                 std::move(matchConditions)
             };
         }
         case 2:
-            return IdentifierMatchCondition{toRef(res), up<IdentifierNode>{res[0].result.move<IdentifierNode*>()}->getName()};
+            return IdentifierMatchCondition{toRef(res), res[0].result.moveValue<std::string>()};
         }
         assert(false);
     };
@@ -450,11 +432,11 @@ Parser::Parser() {
         }
         return params;
     };
-    mPegParser["EnumCreationExpression"] << "Datatype '::' Identifier '{' ExpressionVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["EnumCreationExpression"] << "Datatype '::' IdentifierPartString '{' ExpressionVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {
         return EnumCreationNode{
             toRef(res),
             res[0].result.moveValue<Datatype>(),
-            up<IdentifierNode>{res[2].result.move<IdentifierNode*>()}->getName(),
+            res[2].result.moveValue<std::string>(),
             res[4].result.moveValue<std::vector<up<ExpressionNode>>>()
         };
     };
@@ -470,9 +452,8 @@ Parser::Parser() {
             return std::vector<StructCreationNode::StructCreationParameter>{};
         return std::move(res[0].result);
     };
-    mPegParser["StructParameterVectorRec"] << "Identifier ':' Expression (',' StructParameterVectorRec)?" >> [](peg::MatchInfo& res) {
-        up<IdentifierNode> identifier{ res[0].result.move<IdentifierNode*>() };
-        auto identifierAsString = identifier->getName();
+    mPegParser["StructParameterVectorRec"] << "IdentifierPartString ':' Expression (',' StructParameterVectorRec)?" >> [](peg::MatchInfo& res) {
+        auto identifierAsString = res[0].result.moveValue<std::string>();
         std::vector<StructCreationNode::StructCreationParameter> structParams;
         structParams.emplace_back(
             identifierAsString,
