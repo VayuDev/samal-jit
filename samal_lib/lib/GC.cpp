@@ -7,47 +7,79 @@
 #ifndef MAP_NORESERVE
 #define MAP_NORESERVE 0
 #endif
-#define HEAP_SIZE (512 * 1024 * 1024)
+#define INITIAL_HEAP_SIZE (1024 * 1024)
 
 namespace samal {
 
+GC::Region::Region(size_t len) {
+    if(len > 0) {
+        base = (uint8_t*)mmap(nullptr, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
+        assert(base);
+        size = len;
+    }
+}
+GC::Region::~Region() {
+    if(base) {
+        if(munmap(base, size)) {
+            perror("munmap()");
+        }
+    }
+}
+GC::Region::Region(GC::Region&& other) noexcept {
+    operator=(std::move(other));
+}
+GC::Region& GC::Region::operator=(GC::Region&& other) noexcept {
+    base = other.base;
+    size = other.size;
+    offset = other.offset;
+    other.offset = 0;
+    other.size = 0;
+    other.base = nullptr;
+    return *this;
+}
+
 GC::GC(VM& vm)
 : mVM(vm) {
-    mRegions[0].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
-    assert(mRegions[0].base);
-    mRegions[1].base = (uint8_t*)mmap(nullptr, HEAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
-    assert(mRegions[1].base);
-}
-GC::~GC() {
-    if(munmap(mRegions[0].base, HEAP_SIZE)) {
-        perror("munmap()");
-    }
-    if(munmap(mRegions[1].base, HEAP_SIZE)) {
-        perror("munmap()");
-    }
+    mRegions[0] = Region{ INITIAL_HEAP_SIZE };
+    mRegions[1] = Region{ INITIAL_HEAP_SIZE };
 }
 uint8_t* GC::alloc(int32_t size) {
+    if(mRegions[mActiveRegion].offset + size >= mRegions[mActiveRegion].size) {
+        // not enough memory, add to temporary allocations
+        mTemporaryAllocations.emplace_back(TemporaryAllocation{{new uint8_t[size], ArrayDeleter{}}, (size_t)size});
+        return mTemporaryAllocations.back().data.get();
+    }
     auto ptr = mRegions[mActiveRegion].top();
     mRegions[mActiveRegion].offset += size;
     return ptr;
 }
-void GC::markAndSweep() {
+void GC::performGarbageCollection() {
     //Stopwatch stopwatch{"GC"};
     //printf("Before size: %i\n", (int)mRegions[mActiveRegion].offset);
-    mRegions[!mActiveRegion].offset = 0;
+    getOtherRegion().offset = 0;
+    if(!mTemporaryAllocations.empty() || getOtherRegion().size < getActiveRegion().size) {
+        // our other region that we're copying into might be too small, so we resize it to prevent any potential problems
+        size_t totalTemporarySize = 0;
+        for(auto& alloc: mTemporaryAllocations) {
+            totalTemporarySize += alloc.len;
+        }
+        getOtherRegion() = Region{getActiveRegion().size + totalTemporarySize + 1024 * 1024};
+        //printf("Resizing heap due to temporary allocations to %zu\n", getOtherRegion().size);
+    }
     mMovedPointers.clear();
     mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name) {
         searchForPtrs((uint8_t*)ptr, type, ScanningHeapOrStack::Stack);
     }, {});
     mActiveRegion = !mActiveRegion;
+    mTemporaryAllocations.clear();
     //printf("After size: %i\n", (int)mRegions[mActiveRegion].offset);
 }
 bool GC::copyToOther(uint8_t** ptr, size_t len) {
     auto maybePointerAddress = mMovedPointers.find(*ptr);
     if(maybePointerAddress == mMovedPointers.end()) {
-        uint8_t* newPtr = mRegions[!mActiveRegion].top();
+        uint8_t* newPtr = getOtherRegion().top();
         memcpy(newPtr, *ptr, len);
-        mRegions[!mActiveRegion].offset += len;
+        getOtherRegion().offset += len;
         mMovedPointers.emplace(*ptr, newPtr);
         *ptr = newPtr;
         return true;
@@ -141,8 +173,14 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
 void GC::requestCollection() {
     callsSinceLastRun++;
     if(callsSinceLastRun > 400000) {
-        markAndSweep();
+        performGarbageCollection();
         callsSinceLastRun = 0;
     }
+}
+GC::Region& GC::getActiveRegion() {
+    return mRegions[mActiveRegion];
+}
+GC::Region& GC::getOtherRegion() {
+    return mRegions[!mActiveRegion];
 }
 }
