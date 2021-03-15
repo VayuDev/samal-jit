@@ -16,7 +16,7 @@ public:
     [[nodiscard]] std::optional<ParsingState> matchRegex(ParsingState, const std::regex& regex) const;
     [[nodiscard]] bool isEmpty(ParsingState) const;
     [[nodiscard]] std::pair<size_t, size_t> getPosition(ParsingState state) const;
-
+    [[nodiscard]] size_t getRemainingBytesCount(ParsingState) const;
 private:
     std::string mCode;
 };

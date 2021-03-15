@@ -31,6 +31,15 @@ public:
             delete(T*)d;
         };
     }
+    template<typename T, std::enable_if_t<!std::is_same<T, Any>::value, bool> = true>
+    inline static Any create(T&& ele) {
+        Any ret;
+        ret.data = new T{ std::forward<T>(ele) };
+        ret.destructor = [](void* d) {
+            delete(T*)d;
+        };
+        return ret;
+    }
     inline ~Any() {
         if(destructor)
             destructor(data);

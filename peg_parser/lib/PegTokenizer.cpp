@@ -63,4 +63,7 @@ std::pair<size_t, size_t> PegTokenizer::getPosition(ParsingState state) const {
     }
     return std::make_pair(line, column);
 }
+size_t PegTokenizer::getRemainingBytesCount(ParsingState state) const {
+    return mCode.size() - state.tokenizerState - 1;
+}
 }
