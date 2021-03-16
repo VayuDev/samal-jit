@@ -23,65 +23,41 @@ std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverse
         break;
     }
     msg += "" + std::to_string(line) + ":" + std::to_string(column) + ": " + mSelfDump + " - ";
-    if(!reverseOrder) {
-        switch(mReason) {
-        case ExpressionFailReason::SUCCESS:
-            msg += "Success!";
-            break;
-        case ExpressionFailReason::SEQUENCE_CHILD_FAILED:
-            msg += "Needed to parse more children - already parsed: '" + mInfo1 + "'. Children failure info:\033[0m";
-            break;
-        case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
-            msg += "No possible choice matched. The options were (in order):\033[0m";
-            break;
-        case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
-            msg += "We need to match one or more of the following, but not even one succeeded:";
-            break;
-        case ExpressionFailReason::UNMATCHED_REGEX:
-            msg += "Expected regex '" + mInfo1 + "', got: '" + mInfo2 + "'";
-            break;
-        case ExpressionFailReason::UNMATCHED_STRING:
-            msg += "Expected '" + mInfo1 + "', got: '" + mInfo2 + "'";
-            break;
-        case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
-            msg += mInfo1 + ", got: '" + mInfo2 + "'\033[0m";
-            break;
-        case ExpressionFailReason::CALLBACK_THREW_EXCEPTION:
-            msg += "Exception in callback: " + mInfo1;
-            break;
-        default:
-            assert(false);
-        }
-    } else {
-        switch(mReason) {
-        case ExpressionFailReason::SUCCESS:
-            msg += "Success!";
-            break;
-        case ExpressionFailReason::SEQUENCE_CHILD_FAILED:
-            msg += "Needed to parse more children - already parsed: '" + mInfo1 + "'. Children failure info:\033[0m";
-            break;
-        case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
-            msg += "No child option succeeded.\033[0m";
-            break;
-        case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
-            msg += "We need to match one or more of the following, but not even one succeeded:";
-            break;
-        case ExpressionFailReason::UNMATCHED_REGEX:
-            msg += "Expected regex '" + mInfo1 + "', got: '" + mInfo2 + "'";
-            break;
-        case ExpressionFailReason::UNMATCHED_STRING:
-            msg += "Expected '" + mInfo1 + "', got: '" + mInfo2 + "'";
-            break;
-        case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
-            msg += mInfo1 + " (" + mInfo2 + ")\033[0m";
-            break;
-        case ExpressionFailReason::CALLBACK_THREW_EXCEPTION:
-            msg += "Exception in callback: " + mInfo1;
-            break;
-        default:
-            assert(false);
-        }
+    switch(mReason) {
+    case ExpressionFailReason::SUCCESS:
+        msg += "Success!";
+        break;
+    case ExpressionFailReason::SEQUENCE_CHILD_FAILED:
+        msg += "Needed to parse more children - already parsed: '" + mInfo1 + "'. Children failure info:\033[0m";
+        break;
+    case ExpressionFailReason::CHOICE_NO_CHILD_SUCCEEDED:
+        msg += "No possible choice matched. The options were (in order):\033[0m";
+        break;
+    case ExpressionFailReason::REQUIRED_ONE_OR_MORE:
+        msg += "We need to match one or more of the following, but not even one succeeded:";
+        break;
+    case ExpressionFailReason::UNMATCHED_REGEX:
+        msg += "Expected regex '" + mInfo1 + "', got: '" + mInfo2 + "'";
+        break;
+    case ExpressionFailReason::UNMATCHED_STRING:
+        msg += "Expected '" + mInfo1 + "', got: '" + mInfo2 + "'";
+        break;
+    case ExpressionFailReason::ADDITIONAL_ERROR_MESSAGE:
+        msg += mInfo1 + ", got: '" + mInfo2 + "'\033[0m";
+        break;
+    case ExpressionFailReason::CALLBACK_THREW_EXCEPTION:
+        msg += "Exception in callback: " + mInfo1;
+        break;
+    case ExpressionFailReason::NOT_CHILD_SUCCEEDED:
+        msg += "Not failed because child succeeded";
+        break;
+    case ExpressionFailReason::AND_CHILD_FAILED:
+        msg += "And failed because child failed";
+        break;
+    default:
+        assert(false);
     }
+
 
     return msg;
 }
@@ -227,6 +203,57 @@ std::string ChoiceParsingExpression::dump() const {
     ret += ')';
     return ret;
 }
+
+NotParsingExpression::NotParsingExpression(sp<ParsingExpression> child)
+: mChild(std::move(child)) {
+}
+RuleResult NotParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+    auto childResult = mChild->match(state, rules, tokenizer);
+    std::vector<MatchInfo> subs;
+    if(childResult.index() == 0) {
+        // child success
+        return ExpressionFailInfo{state, dump(), ExpressionFailReason::NOT_CHILD_SUCCEEDED, { std::get<ExpressionSuccessInfo>(childResult).moveFailInfo() }};
+    }
+    // child failure
+    return ExpressionSuccessInfo{
+        state,
+        MatchInfo{
+            .start = tokenizer.getPtr(state),
+            .len = 0,
+            .sourcePosition = tokenizer.getPosition(state)},
+        ExpressionFailInfo{ state, dump(), { std::get<ExpressionFailInfo>(childResult) } }
+    };
+}
+std::string NotParsingExpression::dump() const {
+    return "!" + mChild->dump();
+}
+
+AndParsingExpression::AndParsingExpression(sp<ParsingExpression> child)
+: mChild(std::move(child)) {
+}
+RuleResult AndParsingExpression::match(ParsingState state, const RuleMap& rules, const PegTokenizer& tokenizer) const {
+    auto childResult = mChild->match(state, rules, tokenizer);
+    std::vector<MatchInfo> subs;
+    if(childResult.index() == 0) {
+        // child success
+        subs.emplace_back(std::move(std::get<ExpressionSuccessInfo>(childResult).moveMatchInfo()));
+        return ExpressionSuccessInfo{
+            state,
+            MatchInfo{
+                .start = tokenizer.getPtr(state),
+                .len = 0,
+                .sourcePosition = tokenizer.getPosition(state),
+                .subs = std::move(subs)},
+            ExpressionFailInfo{ state, dump(), { std::get<ExpressionSuccessInfo>(childResult).moveFailInfo() } }
+        };
+    }
+    // child failure
+    return ExpressionFailInfo{state, dump(), ExpressionFailReason::AND_CHILD_FAILED, { std::get<ExpressionFailInfo>(childResult) }};
+}
+std::string AndParsingExpression::dump() const {
+    return "&" + mChild->dump();
+}
+
 NonTerminalParsingExpression::NonTerminalParsingExpression(std::string value)
 : mNonTerminal(std::move(value)) {
 }

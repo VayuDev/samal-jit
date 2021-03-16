@@ -23,6 +23,8 @@ enum class ExpressionFailReason {
     // to always return an ExpressionFailReason, even if it succeeds.
     SUCCESS,
     SEQUENCE_CHILD_FAILED,
+    NOT_CHILD_SUCCEEDED,
+    AND_CHILD_FAILED,
     CALLBACK_THREW_EXCEPTION,
     CHOICE_NO_CHILD_SUCCEEDED,
     ADDITIONAL_ERROR_MESSAGE,
@@ -185,6 +187,26 @@ public:
 
 private:
     std::vector<sp<ParsingExpression>> mChildren;
+};
+
+class NotParsingExpression : public ParsingExpression {
+public:
+    explicit NotParsingExpression(sp<ParsingExpression> child);
+    [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
+    [[nodiscard]] std::string dump() const override;
+
+private:
+    sp<ParsingExpression> mChild;
+};
+
+class AndParsingExpression : public ParsingExpression {
+public:
+    explicit AndParsingExpression(sp<ParsingExpression> child);
+    [[nodiscard]] RuleResult match(ParsingState, const RuleMap&, const PegTokenizer& tokenizer) const override;
+    [[nodiscard]] std::string dump() const override;
+
+private:
+    sp<ParsingExpression> mChild;
 };
 
 class ErrorMessageInfoExpression : public ParsingExpression {

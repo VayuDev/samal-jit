@@ -115,9 +115,9 @@ TEST_CASE("ExpressionTokenizer simple", "[parser]") {
 }
 
 TEST_CASE("ExpressionTokenizer string and regex", "[parser]") {
-    std::string s = "'strings \\'are' [so great and] nice";
+    std::string s = R"('strings \'are' [so great and] nice)";
     peg::ExpressionTokenizer tokenizer{ s };
-    REQUIRE(*tokenizer.currentToken() == "'strings \\'are'");
+    REQUIRE(*tokenizer.currentToken() == "'strings 'are'");
     tokenizer.advance();
     REQUIRE(*tokenizer.currentToken() == "[so great and]");
     tokenizer.advance();
@@ -128,7 +128,7 @@ TEST_CASE("ExpressionTokenizer string and regex", "[parser]") {
 TEST_CASE("ExpressionTokenizer string and regex escapes", "[parser]") {
     std::string s = R"('strings \\' [so great and] nice)";
     peg::ExpressionTokenizer tokenizer{ s };
-    REQUIRE(*tokenizer.currentToken() == R"('strings \\')");
+    REQUIRE(*tokenizer.currentToken() == R"('strings \')");
     tokenizer.advance();
     REQUIRE(*tokenizer.currentToken() == "[so great and]");
     tokenizer.advance();

@@ -61,8 +61,23 @@ static sp<ParsingExpression> parseAttribute(ExpressionTokenizer& tok) {
     return std::make_shared<SkipWhitespacesExpression>(parseAtom(tok));
 }
 
+static sp<ParsingExpression> parsePrefix(ExpressionTokenizer& tok) {
+    if(!tok.currentToken() || tok.currentToken()->empty()) {
+        return nullptr;
+    }
+    if(*tok.currentToken() == "!") {
+        tok.advance();
+        return std::make_shared<NotParsingExpression>(parseAttribute(tok));
+    }
+    if(*tok.currentToken() == "&") {
+        tok.advance();
+        return std::make_shared<AndParsingExpression>(parseAttribute(tok));
+    }
+    return parseAttribute(tok);
+}
+
 static sp<ParsingExpression> parseQuantifier(ExpressionTokenizer& tok) {
-    auto attrib = parseAttribute(tok);
+    auto attrib = parsePrefix(tok);
     if(!tok.currentToken() || tok.currentToken()->empty()) {
         return attrib;
     }
@@ -165,6 +180,8 @@ void ExpressionTokenizer::genNextToken() {
         case '|':
         case '/':
         case '?':
+        case '!':
+        case '&':
             mOffset += 1;
             mCurrentToken = mExprString.substr(start, mOffset - start);
             break;
@@ -192,24 +209,21 @@ std::string ExpressionTokenizer::consumeString(const char start, const char end)
     std::string ret;
     ret += getCurrentChar();
     mOffset += 1;
-    bool escapingChar = false;
     while(true) {
         if(mOffset >= mExprString.size()) {
             throw std::runtime_error{ "Unterminated string in expression!" };
         }
-        if(getCurrentChar() == '\\' && !escapingChar && (getNextChar() == end || getNextChar() == start)) {
-            escapingChar = true;
-        } else {
-            if(!escapingChar && getCurrentChar() == end) {
-                ret += getCurrentChar();
-                mOffset += 1;
-                return ret;
-            }
-            escapingChar = false;
-        }
-        if(!escapingChar) {
+        if(getCurrentChar() == '\\' && getNextChar() == end) {
+            mOffset += 1;
             ret += getCurrentChar();
+            mOffset += 1;
         }
+        if(getCurrentChar() == end) {
+            ret += getCurrentChar();
+            mOffset += 1;
+            return ret;
+        }
+        ret += getCurrentChar();
         mOffset += 1;
     }
 }
