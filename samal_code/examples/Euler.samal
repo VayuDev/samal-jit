@@ -25,6 +25,8 @@ fn problem5rec(list : [i32], guess : i32) -> i32 {
         @tail_call_self(list, guess + 1)
     }
 }
-fn problem5() -> () {
-    Core.print<i32>(problem5rec(Core.seq<i32>(17), 1))
+fn problem5(limit : i32) -> i32 {
+    res = problem5rec(Core.seq<i32>(limit), 1)
+    Core.print<i32>(res)
+    res
 }

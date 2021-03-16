@@ -317,6 +317,16 @@ Datatype Compiler::compileLiteralBool(bool value) {
 #endif
     return Datatype::createSimple(DatatypeCategory::bool_);
 }
+Datatype Compiler::compileLiteralChar(int32_t value) {
+#ifdef x86_64_BIT_MODE
+    addInstructions(Instruction::PUSH_8, value, 0);
+    mStackSize += 8;
+#else
+    addInstructions(Instruction::PUSH_4, value);
+    mStackSize += 4;
+#endif
+    return Datatype::createSimple(DatatypeCategory::char_);
+}
 Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExpression) {
     auto lhsType = binaryExpression.getLeft()->compile(*this);
     // check if we are comparing with an empty list, in which case we can optimize

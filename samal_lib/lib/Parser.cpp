@@ -108,7 +108,7 @@ Parser::Parser() {
         }
         return IdentifierNode{ toRef(res), baseIdentifier->getNameSplit(),  std::move(templateParameters)};
     };
-    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | IdentifierWithTemplate | '(' Datatype ')' | '(' DatatypeVector ')' | ('$' Datatype)" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | 'char' | IdentifierWithTemplate | '(' Datatype ')' | '(' DatatypeVector ')' | ('$' Datatype)" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             return Datatype::createFunctionType(res[0][5].result.moveValue<Datatype>(), res[0][2].result.moveValue<std::vector<Datatype>>());
@@ -120,15 +120,17 @@ Parser::Parser() {
             return Datatype::createSimple(DatatypeCategory::i64);
         case 4:
             return Datatype::createSimple(DatatypeCategory::bool_);
-        case 5: {
+        case 5:
+            return Datatype::createSimple(DatatypeCategory::char_);
+        case 6: {
             up<IdentifierNode> identifier{ res[0].result.move<IdentifierNode*>() };
             return Datatype::createUndeterminedIdentifierType(*identifier);
         }
-        case 6:
-            return res[0][1].result.moveValue<Datatype>();
         case 7:
-            return Datatype::createTupleType(res[0][1].result.moveValue<std::vector<Datatype>>());
+            return res[0][1].result.moveValue<Datatype>();
         case 8:
+            return Datatype::createTupleType(res[0][1].result.moveValue<std::vector<Datatype>>());
+        case 9:
             return Datatype::createPointerType(res[0][1].result.moveValue<Datatype>());
         default:
             assert(false);
@@ -338,7 +340,7 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionVector
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression "
+    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | ('\\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT ~nws~'\\'') | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression "
                                        " | StructCreationExpression | EnumCreationExpression | MatchExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
         >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
@@ -357,19 +359,21 @@ Parser::Parser() {
         case 2:
             return LiteralBoolNode{ toRef(res), false };
         case 3:
-            return ListCreationNode(toRef(res), res[0][2].result.moveValue<Datatype>());
+            return LiteralCharNode{ toRef(res), res[0][1].result.moveValue<int32_t>() };
         case 4:
-            return ListCreationNode(toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>());
+            return ListCreationNode(toRef(res), res[0][2].result.moveValue<Datatype>());
         case 5:
+            return ListCreationNode(toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>());
         case 6:
         case 7:
         case 8:
         case 9:
-        case 12:
-            return std::move(res[0].result);
         case 10:
-            return std::move(res[0][1].result);
+        case 13:
+            return std::move(res[0].result);
         case 11:
+            return std::move(res[0][1].result);
+        case 12:
             return TupleCreationNode{ toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>() };
         default:
             assert(false);

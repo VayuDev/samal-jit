@@ -1,6 +1,9 @@
 native fn print<T>(p: T) -> ()
-native fn identity<T>(p: T) -> T
 native fn dumpStackTrace() -> ()
+
+fn identity<T>(p: T) -> T {
+    p
+}
 
 fn len<T>(l : [T]) -> i32 {
     if l == [] {

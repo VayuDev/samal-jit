@@ -24,7 +24,7 @@ fn infiniteLoop(v : i32) -> i32 {
 
 enum Maybe<T> {
     Some{T},
-    None{}
+    None{i32, i32, i32}
 }
 
 enum Tree<T> {
@@ -32,11 +32,7 @@ enum Tree<T> {
     Empty{}
 }
 
-fn main(p : i32) -> [i32] {
-    x = Maybe<(i32, [i32])>::Some{(5, [6, 7])}
-    li = match x {
-        Some{element} -> element:1,
-        None{} -> [:i32]
-    }
-    li
+fn main(p : i32) -> [[char]] {
+    x = [['H', 'a', 'l', 'l', 'ö', ' ', '€', '😀'], ['T', 'o', 'm']]
+    x
 }

@@ -209,6 +209,18 @@ std::string LiteralBoolNode::dump(unsigned int indent) const {
 void LiteralBoolNode::findUsedVariables(VariableSearcher&) const {
 }
 
+LiteralCharNode::LiteralCharNode(SourceCodeRef source, int32_t val)
+: LiteralNode(source), mValue(val) {
+}
+Datatype LiteralCharNode::compile(Compiler& comp) const {
+    return comp.compileLiteralChar(mValue);
+}
+void LiteralCharNode::findUsedVariables(VariableSearcher&) const {
+}
+std::string LiteralCharNode::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
 IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters)
 : ExpressionNode(std::move(source)), mName(std::move(name)), mTemplateParameters(std::move(templateParameters)) {
 }

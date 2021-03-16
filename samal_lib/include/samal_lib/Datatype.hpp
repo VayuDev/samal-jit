@@ -19,7 +19,6 @@ enum class DatatypeCategory {
     char_,
     bool_,
     undetermined_identifier,
-    string,
     struct_,
     enum_,
     tuple,

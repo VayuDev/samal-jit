@@ -163,6 +163,7 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
     }
 #ifdef x86_64_BIT_MODE
     switch(mCategory) {
+    case DatatypeCategory::char_:
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
     case DatatypeCategory::function:
@@ -191,6 +192,7 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
     }
 #endif
     switch(mCategory) {
+    case DatatypeCategory::char_:
     case DatatypeCategory::i32:
         return 4;
     case DatatypeCategory::i64:
@@ -232,7 +234,7 @@ void Datatype::attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompleti
     case DatatypeCategory::bool_:
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
-    case DatatypeCategory::string:
+    case DatatypeCategory::char_:
     case DatatypeCategory::undetermined_identifier:
         break;
     case DatatypeCategory::function: {
@@ -298,7 +300,7 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
     case DatatypeCategory::bool_:
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
-    case DatatypeCategory::string:
+    case DatatypeCategory::char_:
         break;
     case DatatypeCategory::function: {
         const auto& ourFunctionType = getFunctionTypeInfo();

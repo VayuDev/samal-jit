@@ -15,6 +15,8 @@ public:
     [[nodiscard]] const Datatype& getDatatype() const&;
     std::vector<uint8_t> toStackValue(VM& vm) const;
     [[nodiscard]] std::string dump() const;
+    [[nodiscard]] bool isWrappingString() const;
+    [[nodiscard]] std::string toCPPString() const;
 
     template<typename T>
     const auto& as() const {

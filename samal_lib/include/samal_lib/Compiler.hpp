@@ -32,6 +32,8 @@ public:
     Datatype compileLiteralI32(int32_t value);
     Datatype compileLiteralI64(int64_t value);
     Datatype compileLiteralBool(bool value);
+    Datatype compileLiteralChar(int32_t value);
+
     Datatype compileBinaryExpression(const BinaryExpressionNode&);
     Datatype compileIfExpression(const IfExpressionNode&);
     enum class AllowGlobalLoad {

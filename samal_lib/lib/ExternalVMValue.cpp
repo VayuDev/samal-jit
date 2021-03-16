@@ -1,5 +1,6 @@
 #include "samal_lib/ExternalVMValue.hpp"
 #include "samal_lib/VM.hpp"
+#include "peg_parser/PegUtil.hpp"
 #include <cassert>
 #include <sstream>
 
@@ -49,6 +50,11 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
 std::string ExternalVMValue::dump() const {
     std::string ret;
     switch(mType.getCategory()) {
+    case DatatypeCategory::char_:
+        ret += '\'';
+        ret += peg::encodeUTF8Codepoint(std::get<int32_t>(mValue));
+        ret += '\'';
+        break;
     case DatatypeCategory::i32:
         ret += std::to_string(std::get<int32_t>(mValue));
         break;
@@ -72,6 +78,12 @@ std::string ExternalVMValue::dump() const {
         break;
     }
     case DatatypeCategory::list: {
+        if(isWrappingString()) {
+            ret += '"';
+            ret += toCPPString();
+            ret += '"';
+            break;
+        }
         ret += "[";
         auto* current = std::get<const uint8_t*>(mValue);
         while(current != nullptr) {
@@ -132,6 +144,7 @@ ExternalVMValue ExternalVMValue::wrapEmptyTuple(VM& vm) {
 ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr) {
     switch(type.getCategory()) {
     case DatatypeCategory::i32:
+    case DatatypeCategory::char_:
         return ExternalVMValue{ vm, type, *(int32_t*)(ptr) };
     case DatatypeCategory::function:
     case DatatypeCategory::i64:
@@ -192,5 +205,22 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
     default:
         return ExternalVMValue{ vm, type, std::monostate{} };
     }
+}
+bool ExternalVMValue::isWrappingString() const {
+    return mType == Datatype::createListType(Datatype::createSimple(DatatypeCategory::char_));
+}
+std::string ExternalVMValue::toCPPString() const {
+    if(!isWrappingString()) {
+        throw std::runtime_error{"This is not wrapping a string, it's wrapping a " + mType.toString() };
+    }
+    std::string ret;
+    auto* current = std::get<const uint8_t*>(mValue);
+    while(current != nullptr) {
+        int32_t charValue;
+        memcpy(&charValue, current + 8, 4);
+        ret += peg::encodeUTF8Codepoint(charValue);
+        current = *(uint8_t**)current;
+    }
+    return ret;
 }
 }
