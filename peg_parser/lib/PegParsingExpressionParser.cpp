@@ -213,10 +213,12 @@ std::string ExpressionTokenizer::consumeString(const char start, const char end)
         if(mOffset >= mExprString.size()) {
             throw std::runtime_error{ "Unterminated string in expression!" };
         }
-        if(getCurrentChar() == '\\' && getNextChar() == end) {
-            mOffset += 1;
-            ret += getCurrentChar();
-            mOffset += 1;
+        if(getCurrentChar() == '\\') {
+            if(getNextChar() == end || getNextChar() == '\\') {
+                mOffset += 1;
+                ret += getCurrentChar();
+                mOffset += 1;
+            }
         }
         if(getCurrentChar() == end) {
             ret += getCurrentChar();
