@@ -20,13 +20,15 @@ Features already implemented include:
  * Easy API for embedding samal into your project
  * Enums
  * Pointer type for recursive structs/enums (all structs/enums are on the stack)
+ * Strings/Chars (Strings are implemented as lists of chars, similar to Haskell)
+    * Unicode (UTF-32) support; a single char can contain any unicode codepoint
 
 ＊ List syntax will change in the future.
 
 ## Planned Features
 
 Planned features (vaguely order):
- * Strings/Chars (Strings will be implemented as lists of chars, similar to Haskell)
+
  * Using declarations (to avoid typing the module name every time)
  * Type casting (maybe using native methods)
  * A proper cli
