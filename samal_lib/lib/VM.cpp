@@ -1059,6 +1059,12 @@ bool VM::interpretInstruction() {
         int32_t amount;
         memcpy(&amount, &mProgram.code.at(mIp + 1), 4);
         mStack.setSize(mStack.getSize() + amount);
+#ifdef _DEBUG
+        // Avoid UB in debug mode, because then we're dumping the stack and don't want any uninitialized data on it.
+        // As we shouldn't use the data if everything is correct, it doesn't actually matter in release mode.
+        // The JIT-Code doesn't initialise the data either.
+        memset(mStack.getTopPtr(), 0, amount);
+#endif
         break;
     }
     default:
