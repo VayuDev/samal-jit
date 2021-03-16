@@ -166,6 +166,14 @@ public:
                 sete(al);
                 push(rax);
                 break;
+            case Instruction::COMPARE_NOT_EQUALS_I32:
+                pop(rax);
+                pop(rbx);
+                cmp(ebx, eax);
+                mov(rax, 0);
+                setne(al);
+                push(rax);
+                break;
             case Instruction::ADD_I64:
                 pop(rax);
                 add(qword[rsp], rax);
@@ -231,6 +239,14 @@ public:
                 cmp(rbx, rax);
                 mov(rax, 0);
                 sete(al);
+                push(rax);
+                break;
+            case Instruction::COMPARE_NOT_EQUALS_I64:
+                pop(rax);
+                pop(rbx);
+                cmp(rbx, rax);
+                mov(rax, 0);
+                setne(al);
                 push(rax);
                 break;
             case Instruction::LOGICAL_OR:
@@ -737,6 +753,22 @@ bool VM::interpretInstruction() {
 #endif
         break;
     }
+    case Instruction::COMPARE_NOT_EQUALS_I32: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(int32_t*)mStack.get(8);
+        auto rhs = *(int32_t*)mStack.get(0);
+        mStack.pop(16);
+        int64_t res = lhs != rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(int32_t*)mStack.get(4);
+        auto rhs = *(int32_t*)mStack.get(0);
+        mStack.pop(8);
+        bool res = lhs != rhs;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
     case Instruction::SUB_I64: {
         auto lhs = *(int64_t*)mStack.get(8);
         auto rhs = *(int64_t*)mStack.get(0);
@@ -806,6 +838,22 @@ bool VM::interpretInstruction() {
         auto rhs = *(int64_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs >= rhs;
+        mStack.push(&res, BOOL_SIZE);
+        break;
+    }
+    case Instruction::COMPARE_EQUALS_I64: {
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
+        mStack.pop(16);
+        int64_t res = lhs == rhs;
+        mStack.push(&res, BOOL_SIZE);
+        break;
+    }
+    case Instruction::COMPARE_NOT_EQUALS_I64: {
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
+        mStack.pop(16);
+        int64_t res = lhs != rhs;
         mStack.push(&res, BOOL_SIZE);
         break;
     }

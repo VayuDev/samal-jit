@@ -395,6 +395,12 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_NOT_EQUALS:
+            addInstructions(Instruction::COMPARE_NOT_EQUALS_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
         break;
     case DatatypeCategory::i64:
@@ -441,6 +447,12 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_NOT_EQUALS:
+            addInstructions(Instruction::COMPARE_NOT_EQUALS_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
         break;
     case DatatypeCategory::list:
@@ -457,7 +469,26 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::LOGICAL_OR);
             mStackSize -= getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+        default:
+            break;
         }
+        break;
+    case DatatypeCategory::char_:
+        switch(binaryExpression.getOperator()) {
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS:
+            addInstructions(Instruction::COMPARE_EQUALS_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::char_) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_NOT_EQUALS:
+            addInstructions(Instruction::COMPARE_NOT_EQUALS_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::char_) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+        default:
+            break;
+        }
+    default:
         break;
     }
     binaryExpression.throwException("Unable to perform the operation between lhs type " + lhsType.toString() + " and rhs type " + rhsType.toString());
