@@ -38,6 +38,18 @@ int main(int argc, char** argv) {
             std::cout << "[Stacktrace] " << vm.dumpVariablesOnStack();
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
+    pipeline.addNativeFunction(samal::NativeFunction{
+        "Core.toI32",
+        samal::Datatype::createFunctionType(samal::Datatype::createSimple(samal::DatatypeCategory::i32), { samal::Datatype::createSimple(samal::DatatypeCategory::char_) }),
+        [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
+            return samal::ExternalVMValue::wrapInt32(vm,  params.at(0).as<int32_t>());
+        } });
+    pipeline.addNativeFunction(samal::NativeFunction{
+        "Core.toChar",
+        samal::Datatype::createFunctionType(samal::Datatype::createSimple(samal::DatatypeCategory::char_), { samal::Datatype::createSimple(samal::DatatypeCategory::i32) }),
+        [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
+            return samal::ExternalVMValue::wrapChar(vm,  params.at(0).as<int32_t>());
+        } });
     samal::VM vm = pipeline.compile();
     std::cout << vm.getProgram().disassemble() << "\n";
     samal::Stopwatch vmStopwatch{ "VM execution" };

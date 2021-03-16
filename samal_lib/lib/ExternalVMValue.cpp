@@ -17,11 +17,15 @@ ExternalVMValue ExternalVMValue::wrapInt32(VM& vm, int32_t val) {
 ExternalVMValue ExternalVMValue::wrapInt64(VM& vm, int64_t val) {
     return ExternalVMValue(vm, Datatype::createSimple(DatatypeCategory::i64), val);
 }
+ExternalVMValue ExternalVMValue::wrapChar(VM& vm, int32_t charValue) {
+    return ExternalVMValue(vm, Datatype::createSimple(DatatypeCategory::char_), charValue);
+}
 const Datatype& ExternalVMValue::getDatatype() const& {
     return mType;
 }
 std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
     switch(mType.getCategory()) {
+    case DatatypeCategory::char_:
     case DatatypeCategory::i32: {
         auto val = std::get<int32_t>(mValue);
 #ifdef x86_64_BIT_MODE

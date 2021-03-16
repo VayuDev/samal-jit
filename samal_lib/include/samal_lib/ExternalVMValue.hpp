@@ -10,6 +10,7 @@ public:
     static ExternalVMValue wrapInt32(VM& vm, int32_t);
     static ExternalVMValue wrapInt64(VM& vm, int64_t);
     static ExternalVMValue wrapEmptyTuple(VM& vm);
+    static ExternalVMValue wrapChar(VM& vm, int32_t charUTF32Value);
     static ExternalVMValue wrapStackedValue(Datatype type, VM& vm, size_t stackOffset);
     static ExternalVMValue wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr);
     [[nodiscard]] const Datatype& getDatatype() const&;
