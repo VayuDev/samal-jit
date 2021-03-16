@@ -21,5 +21,6 @@ struct UTF8Result {
 };
 
 std::optional<UTF8Result> decodeUTF8Codepoint(std::string_view bytes);
+[[maybe_unused]] std::string encodeUTF8Codepoint(int32_t codepoint);
 
 }
