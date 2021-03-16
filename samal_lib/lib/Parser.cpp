@@ -340,7 +340,8 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionVector
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | ('\\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT ~nws~'\\'') | '[' ':' Datatype ']' |  '[' ExpressionVector ']' | LambdaCreationExpression "
+    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | ('\\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT ~nws~'\\'') | LiteralString | '[' ':' Datatype ']' "
+                                       " | '[' ExpressionVector ']' | LambdaCreationExpression "
                                        " | StructCreationExpression | EnumCreationExpression | MatchExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
         >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
@@ -360,23 +361,49 @@ Parser::Parser() {
             return LiteralBoolNode{ toRef(res), false };
         case 3:
             return LiteralCharNode{ toRef(res), res[0][1].result.moveValue<int32_t>() };
-        case 4:
-            return ListCreationNode(toRef(res), res[0][2].result.moveValue<Datatype>());
         case 5:
-            return ListCreationNode(toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>());
+            return ListCreationNode(toRef(res), res[0][2].result.moveValue<Datatype>());
         case 6:
+            return ListCreationNode(toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>());
+        case 4:
         case 7:
         case 8:
         case 9:
         case 10:
-        case 13:
-            return std::move(res[0].result);
         case 11:
-            return std::move(res[0][1].result);
+        case 14:
+            return std::move(res[0].result);
         case 12:
+            return std::move(res[0][1].result);
+        case 13:
             return TupleCreationNode{ toRef(res), res[0][1].result.moveValue<std::vector<up<ExpressionNode>>>() };
         default:
             assert(false);
+        }
+    };
+    mPegParser["LiteralString"] << R"('"' ~nws~(~nws~'\"' | ~nws~'\n' | ~nws~(!~nws~'"' ~nws~BUILTIN_ANY_UTF8_CODEPOINT))* '"')" >> [](peg::MatchInfo& res) -> peg::Any {
+        std::vector<up<ExpressionNode>> characterLiteralNodes;
+        for(auto& ch: res[1].subs) {
+            int32_t charValue = 0;
+            switch(*ch.choice) {
+            case 0:
+                charValue = '"';
+                break;
+            case 1:
+                charValue = '\n';
+                break;
+            case 2:
+                charValue = ch[0][1].result.moveValue<int32_t>();
+                break;
+            default:
+                assert(false);
+            }
+            characterLiteralNodes.emplace_back(std::make_unique<LiteralCharNode>(toRef(res), charValue));
+        }
+        if(characterLiteralNodes.empty()) {
+            return ListCreationNode{toRef(res), Datatype::createSimple(DatatypeCategory::char_)};
+        } else {
+            return ListCreationNode{toRef(res), std::move(characterLiteralNodes)};
         }
     };
     mPegParser["MatchExpression"] << "'match' Expression '{' MatchCaseVector '}'" >> [](peg::MatchInfo& res) -> peg::Any {

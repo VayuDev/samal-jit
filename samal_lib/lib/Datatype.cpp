@@ -41,6 +41,8 @@ std::string Datatype::toString() const {
     }
     case DatatypeCategory::bool_:
         return "bool";
+    case DatatypeCategory::char_:
+        return "char";
     case DatatypeCategory::undetermined_identifier:
         return "<undetermined '" + getUndeterminedIdentifierString() + "'>";
     case DatatypeCategory::struct_:

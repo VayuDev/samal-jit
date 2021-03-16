@@ -339,11 +339,20 @@ fn test() -> (Vec2, [i32], i32, Maybe<Maybe<$i32>>, $i32) {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == "(Main.Vec2{x: [1, 2, 3], y: 3}, [1, 2, 3], 3, Main.Maybe::Some{Main.Maybe::Some{$5}}, $5)");
 }
-TEST_CASE("Module and div", "[samal_whole_system]") {
+TEST_CASE("Modulo and div", "[samal_whole_system]") {
     auto vm = compileSimple(R"(
 fn test() -> (i32, i64) {
     ((5 % 3 + 13) / 2, (5i64 % 3i64 + 13i64) / 2i64)
 })");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == "(7, 7i64)");
+}
+
+TEST_CASE("Character support", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn test() -> [[char]] {
+    ["Hallö \"von\" €😀", "Tom"]
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"(["Hallö "von" €😀", "Tom"])");
 }
