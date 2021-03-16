@@ -91,3 +91,44 @@ fn filter<T>(list : [T], condition : fn(T) -> bool) -> [T] {
         }
     }
 }
+
+fn contains<T>(list : [T], element : T) -> bool {
+    if list == [] {
+        false
+    } else {
+        if list:head == element {
+            true
+        } else {
+            contains<T>(list:tail)
+        }
+    }
+}
+
+fn takeWhileEx<T>(list : [T], callback : fn(T) -> bool) -> ([T], [T]) {
+    if list == [] {
+        ([:T], [:T])
+    } else {
+        if callback(list:head) {
+            childRet = takeWhileEx<T>(list:tail, callback)
+            (list:head + childRet:0, childRet:1)
+        } else {
+            ([:T], list)
+        }
+    }
+}
+
+fn splitByChar(str : [char], delim : char) -> [[char]] {
+    if str == "" {
+        [:[char]]
+    } else {
+        takeWhileRet = takeWhileEx<char>(str, fn(ch : char) -> bool {
+            ch != delim
+        })
+        part = takeWhileRet:0
+        takeWhileRet = takeWhileEx<char>(takeWhileRet:1, fn(ch : char) -> bool {
+            ch == delim
+        })
+        rest = takeWhileRet:1
+        part + splitByChar(rest, delim)
+    }
+}
