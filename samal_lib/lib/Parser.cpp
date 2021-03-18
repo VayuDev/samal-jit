@@ -108,7 +108,7 @@ Parser::Parser() {
         }
         return IdentifierNode{ toRef(res), baseIdentifier->getNameSplit(),  std::move(templateParameters)};
     };
-    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | 'char' | IdentifierWithTemplate | '(' Datatype ')' | '(' DatatypeVector ')' | ('$' Datatype)" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Datatype"] << "('fn' '(' DatatypeVector ')' '->' Datatype) | '[' Datatype ']' | 'i32' | 'i64' | 'bool' | 'byte' | 'char' | IdentifierWithTemplate | '(' Datatype ')' | '(' DatatypeVector ')' | ('$' Datatype)" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
             return Datatype::createFunctionType(res[0][5].result.moveValue<Datatype>(), res[0][2].result.moveValue<std::vector<Datatype>>());
@@ -121,16 +121,18 @@ Parser::Parser() {
         case 4:
             return Datatype::createSimple(DatatypeCategory::bool_);
         case 5:
+            return Datatype::createSimple(DatatypeCategory::byte);
+        case 6:
             return Datatype::createSimple(DatatypeCategory::char_);
-        case 6: {
+        case 7: {
             up<IdentifierNode> identifier{ res[0].result.move<IdentifierNode*>() };
             return Datatype::createUndeterminedIdentifierType(*identifier);
         }
-        case 7:
-            return res[0][1].result.moveValue<Datatype>();
         case 8:
-            return Datatype::createTupleType(res[0][1].result.moveValue<std::vector<Datatype>>());
+            return res[0][1].result.moveValue<Datatype>();
         case 9:
+            return Datatype::createTupleType(res[0][1].result.moveValue<std::vector<Datatype>>());
+        case 10:
             return Datatype::createPointerType(res[0][1].result.moveValue<Datatype>());
         default:
             assert(false);
@@ -299,7 +301,9 @@ Parser::Parser() {
             case 1: {
                 uint32_t index;
                 const auto& node = res[1][0][0][1];
-                std::from_chars(node.start, node.start + node.len, index);
+                if(std::from_chars(node.start, node.start + node.len, index).ec != std::errc{}) {
+                    throw std::runtime_error{"Unable to parse u32"};
+                }
                 ret = TupleAccessExpressionNode{
                     toRef(res),
                     up<ExpressionNode>{ ret.move<ExpressionNode*>() },
@@ -326,13 +330,15 @@ Parser::Parser() {
         }
         return ret;
     };
-    mPegParser["PrefixExpression"] << "('$' PrefixExpression) | ('@' PrefixExpression) | LiteralExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["PrefixExpression"] << "('!' PrefixExpression) | ('$' PrefixExpression) | ('@' PrefixExpression) | LiteralExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
         case 0:
-            return MoveToHeapExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}};
+            todo();
         case 1:
-            return MoveToStackExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}};
+            return MoveToHeapExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}};
         case 2:
+            return MoveToStackExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}};
+        case 3:
             return std::move(res[0].result);
         }
         assert(false);
@@ -340,7 +346,7 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionVector
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~'i64'?) | 'true' | 'false' | ('\\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT ~nws~'\\'') | LiteralString | '[' ':' Datatype ']' "
+    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~(~nws~'b' | ~nws~'i64')?) | 'true' | 'false' | ('\\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT ~nws~'\\'') | LiteralString | '[' ':' Datatype ']' "
                                        " | '[' ExpressionVector ']' | LambdaCreationExpression "
                                        " | StructCreationExpression | EnumCreationExpression | MatchExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
         >> [](peg::MatchInfo& res) -> peg::Any {
@@ -348,12 +354,28 @@ Parser::Parser() {
         case 0:
             if(res[0][2].subs.empty()) {
                 int32_t val;
-                std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
+                if(std::from_chars(res.startTrimmed(), res.endTrimmed(), val).ec != std::errc{}) {
+                    throw std::runtime_error{"Unable to parse i32"};
+                }
                 return LiteralInt32Node{ toRef(res), val };
             } else {
-                int64_t val;
-                std::from_chars(res.startTrimmed(), res.endTrimmed(), val);
-                return LiteralInt64Node{ toRef(res), val };
+                switch(*res[0][2][0].choice) {
+                case 0: {
+                    uint8_t val;
+                    if(std::from_chars(res.startTrimmed(), res.endTrimmed(), val).ec != std::errc{}) {
+                        throw std::runtime_error{"Unable to parse byte"};
+                    }
+                    return LiteralByteNode{ toRef(res), val };
+                }
+                case 1: {
+                    int64_t val;
+                    if(std::from_chars(res.startTrimmed(), res.endTrimmed(), val).ec != std::errc{}) {
+                        throw std::runtime_error{"Unable to parse i64"};
+                    }
+                    return LiteralInt64Node{ toRef(res), val };
+                }
+                }
+                assert(false);
             }
         case 1:
             return LiteralBoolNode{ toRef(res), true };

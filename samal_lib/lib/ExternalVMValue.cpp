@@ -54,6 +54,10 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
 std::string ExternalVMValue::dump() const {
     std::string ret;
     switch(mType.getCategory()) {
+    case DatatypeCategory::byte:
+        ret += std::to_string(std::get<uint8_t>(mValue));
+        ret += "b";
+        break;
     case DatatypeCategory::char_:
         ret += '\'';
         ret += peg::encodeUTF8Codepoint(std::get<int32_t>(mValue));
@@ -147,6 +151,8 @@ ExternalVMValue ExternalVMValue::wrapEmptyTuple(VM& vm) {
 }
 ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr) {
     switch(type.getCategory()) {
+    case DatatypeCategory::byte:
+        return ExternalVMValue{vm, type, *ptr};
     case DatatypeCategory::i32:
     case DatatypeCategory::char_:
         return ExternalVMValue{ vm, type, *(int32_t*)(ptr) };

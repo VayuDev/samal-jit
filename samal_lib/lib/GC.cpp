@@ -93,8 +93,9 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
     case DatatypeCategory::bool_:
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
-    case DatatypeCategory::f32:
     case DatatypeCategory::f64:
+    case DatatypeCategory::char_:
+    case DatatypeCategory::byte:
         break;
     case DatatypeCategory::tuple: {
         int32_t offset = type.getSizeOnStack();

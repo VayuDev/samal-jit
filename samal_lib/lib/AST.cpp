@@ -221,6 +221,18 @@ std::string LiteralCharNode::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 
+LiteralByteNode::LiteralByteNode(SourceCodeRef source, uint8_t val)
+: LiteralNode(source), mValue(val) {
+}
+Datatype LiteralByteNode::compile(Compiler& comp) const {
+    return comp.compileLiteralByte(mValue);
+}
+void LiteralByteNode::findUsedVariables(VariableSearcher&) const {
+}
+std::string LiteralByteNode::dump(unsigned int indent) const {
+    return ASTNode::dump(indent);
+}
+
 IdentifierNode::IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters)
 : ExpressionNode(std::move(source)), mName(std::move(name)), mTemplateParameters(std::move(templateParameters)) {
 }

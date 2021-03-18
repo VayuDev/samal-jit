@@ -41,6 +41,8 @@ std::string Datatype::toString() const {
     }
     case DatatypeCategory::bool_:
         return "bool";
+    case DatatypeCategory::byte:
+        return "byte";
     case DatatypeCategory::char_:
         return "char";
     case DatatypeCategory::undetermined_identifier:
@@ -165,6 +167,7 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
     }
 #ifdef x86_64_BIT_MODE
     switch(mCategory) {
+    case DatatypeCategory::byte:
     case DatatypeCategory::char_:
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
@@ -194,6 +197,8 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
     }
 #endif
     switch(mCategory) {
+    case DatatypeCategory::byte:
+        return 1;
     case DatatypeCategory::char_:
     case DatatypeCategory::i32:
         return 4;
@@ -237,6 +242,7 @@ void Datatype::attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompleti
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
     case DatatypeCategory::char_:
+    case DatatypeCategory::byte:
     case DatatypeCategory::undetermined_identifier:
         break;
     case DatatypeCategory::function: {
@@ -303,6 +309,7 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
     case DatatypeCategory::i32:
     case DatatypeCategory::i64:
     case DatatypeCategory::char_:
+    case DatatypeCategory::byte:
         break;
     case DatatypeCategory::function: {
         const auto& ourFunctionType = getFunctionTypeInfo();

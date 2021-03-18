@@ -184,6 +184,18 @@ private:
     int32_t mValue;
 };
 
+class LiteralByteNode : public LiteralNode {
+public:
+    explicit LiteralByteNode(SourceCodeRef source, uint8_t val);
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] std::string dump(unsigned indent) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "LiteralByteNode"; }
+
+private:
+    uint8_t mValue;
+};
+
 class IdentifierNode : public ExpressionNode {
 public:
     explicit IdentifierNode(SourceCodeRef source, std::vector<std::string> name, std::vector<Datatype> templateParameters);

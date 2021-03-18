@@ -15,7 +15,6 @@ enum class DatatypeCategory {
     i64,
     i32,
     f64,
-    f32,
     char_,
     bool_,
     undetermined_identifier,
@@ -25,6 +24,7 @@ enum class DatatypeCategory {
     function,
     list,
     pointer,
+    byte
 };
 
 enum class TemplateParamOrUserType {

@@ -37,7 +37,7 @@ private:
         std::string selectedFieldName;
         std::vector<ExternalVMValue> elements;
     };
-    std::variant<std::monostate, int32_t, int64_t, std::vector<ExternalVMValue>, StructValue, EnumValue, const uint8_t*> mValue;
+    std::variant<std::monostate, int32_t, int64_t, std::vector<ExternalVMValue>, StructValue, EnumValue, const uint8_t*, uint8_t> mValue;
 
     explicit ExternalVMValue(VM& vm, Datatype type, decltype(mValue) val);
 };
