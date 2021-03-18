@@ -1099,7 +1099,6 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
     int32_t offsetFromTop = 0;
     bool firstIteration = true;
     while(true) {
-        assert(offsetFromTop >= 0);
         const Program::Function* currentFunction = nullptr;
         for(auto& func : mProgram.functions) {
             if(ip >= func.offset && ip < func.offset + func.len) {
@@ -1117,6 +1116,7 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
         assert(stackInfo);
 
         int32_t nextFunctionOffset = offsetFromTop + virtualStackSize;
+        assert(nextFunctionOffset >= 0);
         bool afterPop = false;
         while(stackInfo) {
             if(stackInfo->isAtPopInstruction()) {
@@ -1149,7 +1149,7 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
         }
         nextFunctionOffset -= currentFunction->type.getFunctionTypeInfo().first.getSizeOnStack();
         nextFunctionOffset += 8;
-        assert(nextFunctionOffset >= 0);
+        //assert(nextFunctionOffset >= 0);
         ip = prevIp;
         offsetFromTop = nextFunctionOffset;
         firstIteration = false;
