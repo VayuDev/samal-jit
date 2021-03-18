@@ -346,7 +346,7 @@ Parser::Parser() {
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionVector
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also
     //  be prevented by using packrat parsing in the peg parser :^).
-    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~(~nws~'b' | ~nws~'i64')?) | 'true' | 'false' | ('\\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT ~nws~'\\'') | LiteralString | '[' ':' Datatype ']' "
+    mPegParser["LiteralExpression"] << "~sws~(~nws~'-'? ~nws~[\\d]+ ~nws~(~nws~'b' | ~nws~'i64')?) | 'true' | 'false' | ('\\'' ~nws~LiteralCharRaw ~nws~'\\'') | LiteralString | '[' ':' Datatype ']' "
                                        " | '[' ExpressionVector ']' | LambdaCreationExpression "
                                        " | StructCreationExpression | EnumCreationExpression | MatchExpression | IdentifierWithTemplate | '(' Expression ')' | '(' ExpressionVector ')' |  ScopeExpression"
         >> [](peg::MatchInfo& res) -> peg::Any {
@@ -403,24 +403,30 @@ Parser::Parser() {
             assert(false);
         }
     };
-    mPegParser["LiteralString"] << R"('"' ~nws~(~nws~'\"' | ~nws~'\n' | ~nws~(!~nws~'"' ~nws~BUILTIN_ANY_UTF8_CODEPOINT))* '"')" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["LiteralCharRaw"] << R"(~nws~'\"' | ~nws~'\n' | ~nws~'\r' | ~nws~(!~nws~'"' !~nws~'\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT))" >> [](peg::MatchInfo& res) -> peg::Any {
+        int32_t charValue = 0;
+        switch(*res.choice) {
+        case 0:
+            charValue = '"';
+            break;
+        case 1:
+            charValue = '\n';
+            break;
+        case 2:
+            charValue = '\r';
+            break;
+        case 3:
+            charValue = res[0][2].result.moveValue<int32_t>();
+            break;
+        default:
+            assert(false);
+        }
+        return peg::Any::create<int32_t>(std::move(charValue));
+    };
+    mPegParser["LiteralString"] << R"('"' LiteralCharRaw* '"')" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<up<ExpressionNode>> characterLiteralNodes;
         for(auto& ch: res[1].subs) {
-            int32_t charValue = 0;
-            switch(*ch.choice) {
-            case 0:
-                charValue = '"';
-                break;
-            case 1:
-                charValue = '\n';
-                break;
-            case 2:
-                charValue = ch[0][1].result.moveValue<int32_t>();
-                break;
-            default:
-                assert(false);
-            }
-            characterLiteralNodes.emplace_back(std::make_unique<LiteralCharNode>(toRef(res), charValue));
+            characterLiteralNodes.emplace_back(std::make_unique<LiteralCharNode>(toRef(res), ch.result.moveValue<int32_t>()));
         }
         if(characterLiteralNodes.empty()) {
             return ListCreationNode{toRef(res), Datatype::createSimple(DatatypeCategory::char_)};
