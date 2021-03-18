@@ -135,7 +135,7 @@ bool Datatype::operator==(const Datatype& other) const {
     if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap && other.mCategory != DatatypeCategory::undetermined_identifier) {
         return completeWithSavedTemplateParameters() == other;
     }
-    if(other.mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap && mCategory != DatatypeCategory::undetermined_identifier) {
+    if(other.mCategory == DatatypeCategory::undetermined_identifier && other.mUndefinedTypeReplacementMap && mCategory != DatatypeCategory::undetermined_identifier) {
         return *this == other.completeWithSavedTemplateParameters();
     }
     if(mCategory != other.mCategory)
