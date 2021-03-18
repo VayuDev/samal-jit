@@ -117,6 +117,18 @@ fn takeWhileEx<T>(list : [T], callback : fn(T) -> bool) -> ([T], [T]) {
     }
 }
 
+fn takeWhile<T>(list : [T], callback : fn(T) -> bool) -> [T] {
+    if list == [] {
+        [:T]
+    } else {
+        if callback(list:head) {
+            list:head + takeWhile<T>(list:tail, callback)
+        } else {
+            [:T]
+        }
+    }
+}
+
 fn splitByChar(str : [char], delim : char) -> [[char]] {
     if str == "" {
         [:[char]]
