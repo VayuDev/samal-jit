@@ -742,6 +742,12 @@ Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode&
         }
         ++i;
     }
+    // check initial argument type
+    if(!functionNameType.getFunctionTypeInfo().second.empty()) {
+        if(functionNameType.getFunctionTypeInfo().second.at(0) != initialValueType) {
+            functionChain.throwException("Chained argument is wrong; should be " + functionNameType.getFunctionTypeInfo().second.at(0).toString() + ", but is " + initialValueType.toString());
+        }
+    }
 
     addInstructions(Instruction::CALL, paramTypesSummedSize);
     mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
