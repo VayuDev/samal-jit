@@ -1020,6 +1020,7 @@ bool VM::interpretInstruction() {
                     rhsPtr = *(uint8_t**)rhsPtr;
                 }
             }
+            case DatatypeCategory::char_:
             case DatatypeCategory::i32:
                 return *(int32_t*)a == *(int32_t*)b;
             }
