@@ -403,7 +403,7 @@ Parser::Parser() {
             assert(false);
         }
     };
-    mPegParser["LiteralCharRaw"] << R"(~nws~'\"' | ~nws~'\n' | ~nws~'\r' | ~nws~(!~nws~'"' !~nws~'\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT))" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["LiteralCharRaw"] << R"(~nws~'\"' | ~nws~'\n' | ~nws~'\r' | ~nws~'\0' | ~nws~(!~nws~'"' !~nws~'\'' ~nws~BUILTIN_ANY_UTF8_CODEPOINT))" >> [](peg::MatchInfo& res) -> peg::Any {
         int32_t charValue = 0;
         switch(*res.choice) {
         case 0:
@@ -416,6 +416,9 @@ Parser::Parser() {
             charValue = '\r';
             break;
         case 3:
+            charValue = '\0';
+            break;
+        case 4:
             charValue = res[0][2].result.moveValue<int32_t>();
             break;
         default:
