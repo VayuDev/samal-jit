@@ -1160,14 +1160,20 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
     auto& nativeFunc = mProgram.nativeFunctions.at(nativeFuncId);
     const auto& functionTypeInfo = nativeFunc.functionType.getFunctionTypeInfo();
     auto returnTypeSize = functionTypeInfo.first.getSizeOnStack();
+
+    size_t sumOfParamSizes = 0;
+    for(auto& param: functionTypeInfo.second) {
+        sumOfParamSizes += param.getSizeOnStack();
+    }
     std::vector<ExternalVMValue> params;
     params.reserve(functionTypeInfo.second.size());
-    size_t sizeOfParams = 0;
+    size_t offset = 0;
     for(auto& paramType : functionTypeInfo.second) {
-        params.emplace_back(ExternalVMValue::wrapStackedValue(paramType, *this, sizeOfParams));
-        sizeOfParams += paramType.getSizeOnStack();
+        offset += paramType.getSizeOnStack();
+        params.emplace(params.begin(), ExternalVMValue::wrapStackedValue(paramType, *this, sumOfParamSizes - offset));
     }
-    mStack.pop(sizeOfParams);
+
+    mStack.pop(offset);
     std::reverse(params.begin(), params.end());
     auto returnValue = nativeFunc.callback(*this, params);
     assert(returnValue.getDatatype() == functionTypeInfo.first);
