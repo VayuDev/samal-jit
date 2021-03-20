@@ -63,7 +63,7 @@ void GC::performGarbageCollection() {
         for(auto& alloc: mTemporaryAllocations) {
             totalTemporarySize += alloc.len;
         }
-        getOtherRegion() = Region{getActiveRegion().size + totalTemporarySize + 1024 * 1024};
+        getOtherRegion() = Region{getActiveRegion().size + totalTemporarySize};
         //printf("Resizing heap due to temporary allocations to %zu\n", getOtherRegion().size);
     }
     mMovedPointers.clear();
