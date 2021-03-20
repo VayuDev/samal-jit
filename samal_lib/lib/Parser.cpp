@@ -426,7 +426,7 @@ Parser::Parser() {
         }
         return peg::Any::create<int32_t>(std::move(charValue));
     };
-    mPegParser["LiteralString"] << R"('"' LiteralCharRaw* '"')" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["LiteralString"] << R"('"' ~nws~LiteralCharRaw* '"')" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<up<ExpressionNode>> characterLiteralNodes;
         for(auto& ch: res[1].subs) {
             characterLiteralNodes.emplace_back(std::make_unique<LiteralCharNode>(toRef(res), ch.result.moveValue<int32_t>()));
