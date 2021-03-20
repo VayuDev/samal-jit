@@ -342,7 +342,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
     // check if we are comparing with an empty list, in which case we can optimize
     if(lhsType.getCategory() == DatatypeCategory::list) {
         auto* rhsListCreation = dynamic_cast<ListCreationNode*>(binaryExpression.getRight().get());
-        if(rhsListCreation && rhsListCreation->getParams().empty()) {
+        if(rhsListCreation && rhsListCreation->getParams().empty() && binaryExpression.getOperator() == BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS) {
             addInstructions(Instruction::IS_LIST_EMPTY);
             mStackSize -= lhsType.getSizeOnStack();
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
