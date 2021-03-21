@@ -90,7 +90,7 @@ Parser::Parser() {
         return params;
     };
     mPegParser["IdentifierPartString"] << "~sws~(~nws~(~nws~[a-zA-Z] ~nws~(~nws~[\\da-zA-Z])*))" >> [](peg::MatchInfo& res) -> peg::Any {
-        return std::string{std::string_view{res.startTrimmed(), res.endTrimmed()}};
+        return std::string{std::string_view{res.startTrimmed(), static_cast<size_t>(res.endTrimmed() - res.startTrimmed())}};
     };
     mPegParser["Identifier"] << "IdentifierPartString ('.' IdentifierPartString)?" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<std::string> parts;
