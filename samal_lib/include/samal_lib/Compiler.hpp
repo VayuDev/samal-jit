@@ -79,7 +79,11 @@ private:
     void saveVariableLocation(std::string name, Datatype type, StorageType storageType, int32_t offset = 0);
     void saveCurrentStackSizeToDebugInfo();
 
-    Program::Function& compileFunctionlikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body);
+    // compiles normal functions and lambdas
+    Program::Function& helperCompileFunctionLikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body);
+
+    // compiles normal function calls and chained function calls
+    Datatype helperCompileFunctionCallLikeThing(const up<ExpressionNode>& functionNameNode, const std::vector<up<ExpressionNode>>& params, const ExpressionNode* chainedInitialParamValue = nullptr);
 
     int32_t addLabel(Instruction futureInstruction);
     uint8_t* labelToPtr(int32_t label);

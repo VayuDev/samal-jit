@@ -356,3 +356,29 @@ fn test() -> [[char]] {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == R"(["Hallö "von" €😀", "Tom"])");
 }
+
+TEST_CASE("Function template type inference", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn add<T>(a : T, b : T) -> T {
+    a + b
+}
+
+fn makeLambda<T>(p : T) -> fn(T) -> T {
+    fn(p2: T) -> T {
+        p + p2
+    }
+}
+fn test() -> (i32, i64, i32) {
+    a = add(2, 5)
+    b =
+        3i64
+        |> add(5i64)
+
+    c = 2 |> makeLambda()
+
+
+    (a, b, c(3))
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"((7, 8i64, 5))");
+}

@@ -137,17 +137,17 @@ void Compiler::compileFunction(const FunctionDeclarationNode& function) {
     for(auto& param : function.getParameters()) {
         functionParams.emplace_back(param.name->getName(), param.type);
     }
-    compileFunctionlikeThing(fullFunctionName, function.getReturnType(), functionParams, {}, *function.getBody());
+    helperCompileFunctionLikeThing(fullFunctionName, function.getReturnType(), functionParams, {}, *function.getBody());
 }
 Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompile) {
     std::vector<std::pair<std::string, Datatype>> normalParameters;
     for(auto& realParam : lambdaToCompile.lambda->getParameters()) {
         normalParameters.emplace_back(realParam.name->getName(), realParam.type);
     }
-    return compileFunctionlikeThing("lambda", lambdaToCompile.lambda->getReturnType(), normalParameters, lambdaToCompile.copiedParameters, *lambdaToCompile.lambda->getBody());
+    return helperCompileFunctionLikeThing("lambda", lambdaToCompile.lambda->getReturnType(), normalParameters, lambdaToCompile.copiedParameters, *lambdaToCompile.lambda->getBody());
 }
-Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFunctionName, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body) {
-    printf("\nCompiling function %s\n", fullFunctionName.c_str());
+Program::Function& Compiler::helperCompileFunctionLikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body) {
+    printf("\nCompiling function %s\n", name.c_str());
 
     auto start = mProgram.code.size();
     mCurrentFunctionStartingIp = start;
@@ -202,7 +202,7 @@ Program::Function& Compiler::compileFunctionlikeThing(const std::string& fullFun
         .offset = static_cast<int32_t>(start),
         .len = static_cast<int32_t>(mProgram.code.size() - start),
         .type = functionType,
-        .name = fullFunctionName,
+        .name = name,
         .templateParameters = mCurrentTemplateTypeReplacementMap,
         .stackInformation = std::move(mCurrentStackInfoTree),
         .stackSizePerIp = std::move(mIpToStackSize) });
@@ -718,9 +718,14 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
     return returnType;
 }
-Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
-    Datatype functionNameType;
+Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& functionNameNode, const std::vector<up<ExpressionNode>>& params, const ExpressionNode* chainedInitialParamValue) {
+    // compile chainedInitialParamValue if it exists
+    Datatype chainedInitialParamType;
+    if(chainedInitialParamValue) {
+        chainedInitialParamType = chainedInitialParamValue->compile(*this);
+    }
 
+    Datatype functionNameType;
     // variables used for automatic template type inference
     bool couldCompileIdentifierLoad = false;
     std::optional<std::string> functionIdentifierLoadCompileError;
@@ -729,10 +734,10 @@ Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
     std::string fullFunctionName;
     CallableDeclaration* callableDeclaration = nullptr;
     try {
-        functionNameType = node.getName()->compile(*this);
+        functionNameType = functionNameNode->compile(*this);
         couldCompileIdentifierLoad = true;
     } catch(std::exception& e) {
-        auto* functionIdentifier = dynamic_cast<IdentifierNode*>(node.getName().get());
+        auto* functionIdentifier = dynamic_cast<IdentifierNode*>(functionNameNode.get());
         if(!functionIdentifier) {
             throw;
         }
@@ -752,29 +757,53 @@ Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
     }
 
     if(functionNameType.getCategory() != DatatypeCategory::function) {
-        node.throwException("Calling non-function type " + functionNameType.toString());
+        throw std::runtime_error{"Calling non-function type " + functionNameType.toString()};
     }
-    auto& functionInfo = functionNameType.getFunctionTypeInfo();
-    if(node.getParams().size() != functionInfo.second.size()) {
-        node.throwException("Calling function with invalid number of arguments; function is of type "
-            + functionNameType.toString() + ", but " + std::to_string(node.getParams().size()) + " arguments were passed");
-    }
+
     size_t i = 0;
     int32_t paramTypesSummedSize = 0;
-    for(auto& param : node.getParams()) {
+    if(chainedInitialParamValue) {
+        // repush initial value back to top if it exists
+        addInstructions(Instruction::REPUSH_FROM_N, chainedInitialParamType.getSizeOnStack(), 8);
+        mStackSize += 8;
+        addInstructions(Instruction::POP_N_BELOW, chainedInitialParamType.getSizeOnStack(), 8 + chainedInitialParamType.getSizeOnStack());
+        mStackSize -= 8;
+        // check if number of parameters is correct
+        if(params.size() + 1 != functionNameType.getFunctionTypeInfo().second.size()) {
+            throw std::runtime_error{"Calling function with invalid number of arguments; function is of type "
+                                         + functionNameType.toString() + ", but " + std::to_string(params.size()) + " arguments were passed"};
+        }
+
+        // use chained parameter for type inference
+        if(!couldCompileIdentifierLoad) {
+            functionNameType.getFunctionTypeInfo().second.at(0).inferTemplateTypes(chainedInitialParamType, inferredTemplateParameters);
+        }
+
+        // in addition to repushing, we need to skip the first element when checking param types because it's chained
+        i = 1;
+        paramTypesSummedSize += chainedInitialParamType.getSizeOnStack();
+    } else {
+        // normal function, check param count
+        if(params.size() != functionNameType.getFunctionTypeInfo().second.size()) {
+            throw std::runtime_error{"Calling function with invalid number of arguments; function is of type "
+                                         + functionNameType.toString() + ", but " + std::to_string(params.size()) + " arguments were passed"};
+        }
+    }
+    for(auto& param : params) {
         auto actualParamType = param->compile(*this);
         paramTypesSummedSize += actualParamType.getSizeOnStack();
         if(couldCompileIdentifierLoad) {
-            if(functionInfo.second.at(i) != actualParamType) {
-                node.throwException("Calling function with invalid arguments; argument at index "
-                                                + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + actualParamType.toString());
+            if(functionNameType.getFunctionTypeInfo().second.at(i) != actualParamType) {
+                throw std::runtime_error("Calling function with invalid arguments; argument at index "
+                                        + std::to_string(i) + " should be an " + functionNameType.getFunctionTypeInfo().second.at(i).toString() + ", but is a " + actualParamType.toString());
             }
         } else {
             // we failed to load the identifier, so now we used the parameters to infer the type
-            functionInfo.second.at(i).inferTemplateTypes(actualParamType, inferredTemplateParameters);
+            functionNameType.getFunctionTypeInfo().second.at(i).inferTemplateTypes(actualParamType, inferredTemplateParameters);
         }
         ++i;
     }
+
     if(!couldCompileIdentifierLoad) {
         // now we need to complete the function type
         // if we fail now, it's game over
@@ -782,10 +811,19 @@ Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
         try {
             functionNameType = functionNameType.completeWithTemplateParameters(inferredTemplateParameters, mUsingModuleNames, Datatype::AllowIncompleteTypes::No);
         } catch(std::exception& e) {
-            node.throwException("Couldn't infer function type, please specify template parameters");
+            throw std::runtime_error("Couldn't infer function type, please specify template parameters");
         }
         bool found = addToTemplateFunctionsToInstantiate(*callableDeclaration, inferredTemplateParameters, fullFunctionName, pushLabel);
         assert(found);
+    }
+
+    if(chainedInitialParamValue) {
+        // check if chained param type is correct now that we can be sure that we have the correct function type
+        if(!functionNameType.getFunctionTypeInfo().second.empty()) {
+            if(functionNameType.getFunctionTypeInfo().second.at(0) != chainedInitialParamType) {
+                throw std::runtime_error("Chained argument is wrong; should be " + functionNameType.getFunctionTypeInfo().second.at(0).toString() + ", but is " + chainedInitialParamType.toString());
+            }
+        }
     }
 
 
@@ -795,46 +833,21 @@ Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
 
     return functionNameType.getFunctionTypeInfo().first;
 }
-Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode& functionChain) {
-    auto initialValueType = functionChain.getInitialValue()->compile(*this);
-    auto& functionCall = *functionChain.getFunctionCall();
-    auto functionNameType = functionCall.getName()->compile(*this);
-    // check initial argument type
-    if(!functionNameType.getFunctionTypeInfo().second.empty()) {
-        if(functionNameType.getFunctionTypeInfo().second.at(0) != initialValueType) {
-            functionChain.throwException("Chained argument is wrong; should be " + functionNameType.getFunctionTypeInfo().second.at(0).toString() + ", but is " + initialValueType.toString());
-        }
+Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
+    try {
+        return helperCompileFunctionCallLikeThing(node.getName(), node.getParams());
+    } catch(std::exception& e) {
+        node.throwException(e.what());
     }
-    if(functionNameType.getCategory() != DatatypeCategory::function) {
-        functionCall.throwException("Calling non-function type " + functionNameType.toString());
+    assert(false);
+}
+Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode& node) {
+    try {
+        return helperCompileFunctionCallLikeThing(node.getFunctionCall()->getName(), node.getFunctionCall()->getParams(), node.getInitialValue().get());
+    } catch(std::exception& e) {
+        node.throwException(e.what());
     }
-    auto& functionInfo = functionNameType.getFunctionTypeInfo();
-    if(functionCall.getParams().size() + 1 != functionInfo.second.size()) {
-        functionCall.throwException("Calling function with invalid number of arguments; function is of type "
-            + functionNameType.toString() + ", but " + std::to_string(functionCall.getParams().size() + 1) + " arguments were passed (one chained)");
-    }
-    // move initial value back to the top of the stack
-    addInstructions(Instruction::REPUSH_FROM_N, initialValueType.getSizeOnStack(), 8);
-    mStackSize += 8;
-    addInstructions(Instruction::POP_N_BELOW, initialValueType.getSizeOnStack(), 8 + initialValueType.getSizeOnStack());
-    mStackSize -= 8;
-    size_t i = 1;
-    int32_t paramTypesSummedSize = initialValueType.getSizeOnStack();
-    for(auto& param : functionCall.getParams()) {
-        auto type = param->compile(*this);
-        paramTypesSummedSize += type.getSizeOnStack();
-        if(functionInfo.second.at(i) != type) {
-            functionCall.throwException("Calling function with invalid arguments; argument at index "
-                + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + type.toString());
-        }
-        ++i;
-    }
-
-    addInstructions(Instruction::CALL, paramTypesSummedSize);
-    mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
-    mStackSize += functionInfo.first.getSizeOnStack();
-
-    return functionInfo.first;
+    assert(false);
 }
 Datatype Compiler::compileTupleCreationExpression(const TupleCreationNode& tupleCreation) {
     std::vector<Datatype> paramTypes;
