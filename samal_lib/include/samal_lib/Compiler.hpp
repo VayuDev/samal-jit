@@ -92,11 +92,15 @@ private:
         UndeterminedIdentifierReplacementMap replacementMap;
     };
     std::vector<TemplateFunctionToInstantiate> mTemplateFunctionsToInstantiate;
+
     struct CallableDeclaration {
         CallableDeclarationNode* astNode{ nullptr };
         Datatype type;
     };
     std::unordered_map<std::string, CallableDeclaration> mCallableDeclarations;
+
+    [[nodiscard]] bool addToTemplateFunctionsToInstantiate(CallableDeclaration& node, UndeterminedIdentifierReplacementMap replacementMap, const std::string& fullFunctionName, int32_t labelToInsertId);
+    std::optional<std::pair<std::string, Compiler::CallableDeclaration&>> findMatchingCallableDeclaration(const std::string& functionName);
 
     struct Module {
         std::string name;

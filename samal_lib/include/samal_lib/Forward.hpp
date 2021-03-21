@@ -32,6 +32,7 @@ class TailCallSelfStatementNode;
 class MatchExpression;
 class MoveToHeapExpression;
 class MoveToStackExpression;
+class CallableDeclarationNode;
 
 struct Parameter;
 using StructField = Parameter;

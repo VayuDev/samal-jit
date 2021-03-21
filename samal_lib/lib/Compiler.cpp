@@ -556,6 +556,76 @@ Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
 
     return *returnType;
 }
+std::optional<std::pair<std::string, Compiler::CallableDeclaration&>> Compiler::findMatchingCallableDeclaration(const std::string& functionName) {
+    auto maybeDeclaration = mCallableDeclarations.end();
+    if(functionName.find('.') != std::string::npos) {
+        maybeDeclaration = mCallableDeclarations.find(functionName);
+    } else {
+        for(auto& module : mUsingModuleNames) {
+            maybeDeclaration = mCallableDeclarations.find(module + "." + functionName);
+            if(maybeDeclaration != mCallableDeclarations.end()) {
+                break;
+            }
+        }
+    }
+    if(maybeDeclaration == mCallableDeclarations.end()) {
+        return {};
+    }
+    return std::pair<std::string, Compiler::CallableDeclaration&>(maybeDeclaration->first, maybeDeclaration->second);
+}
+bool Compiler::addToTemplateFunctionsToInstantiate(CallableDeclaration& node, UndeterminedIdentifierReplacementMap replacementMap, const std::string& fullFunctionName, int32_t labelToInsertId) {
+    // check if we already compiled this template instantiation (or plan on compiling it) and, if not, add it for later compilation
+
+    auto nodeAsFunctionDeclaration = dynamic_cast<FunctionDeclarationNode*>(node.astNode);
+    if(nodeAsFunctionDeclaration) {
+        bool alreadyExists = false;
+        for(auto& func : mProgram.functions) {
+            if(func.name == fullFunctionName && func.templateParameters == replacementMap) {
+                alreadyExists = true;
+            }
+        }
+        for(auto& plannedFunc : mTemplateFunctionsToInstantiate) {
+            if(plannedFunc.function == nodeAsFunctionDeclaration && plannedFunc.replacementMap == replacementMap) {
+                alreadyExists = true;
+            }
+        }
+        if(!alreadyExists) {
+            mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ nodeAsFunctionDeclaration, replacementMap });
+        }
+        mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = labelToInsertId, .fullFunctionName = fullFunctionName, .templateParameters = std::move(replacementMap) });
+        return true;
+    }
+    auto nodeAsNativeFunctionDeclaration = dynamic_cast<NativeFunctionDeclarationNode*>(node.astNode);
+    if(nodeAsNativeFunctionDeclaration) {
+        auto completedDeclarationType = node.type.completeWithTemplateParameters(replacementMap, mUsingModuleNames);
+        bool found = false;
+        // iterate backwards so that we find specified (filled-in) template functions first and the raw undetermined-identifier versions later
+        for(int32_t i = mProgram.nativeFunctions.size() - 1; i >= 0; --i) {
+            const auto& nativeFunction = mProgram.nativeFunctions.at(i);
+            // the name has to match and either the full completed type, or, if the native function accepts any types, at least those incomplete types have to match
+            if(nativeFunction.fullName == fullFunctionName) {
+                if(nativeFunction.functionType == completedDeclarationType) {
+                    found = true;
+                } else if(nativeFunction.functionType == node.type) {
+                    found = true;
+                    auto cpy = mProgram.nativeFunctions.at(i);
+                    cpy.functionType = completedDeclarationType;
+                    mProgram.nativeFunctions.emplace_back(std::move(cpy));
+                    i = mProgram.nativeFunctions.size() - 1;
+                }
+                if(found) {
+                    int32_t lowerByte = 3;
+                    int32_t upperByte = i;
+                    memcpy(labelToPtr(labelToInsertId) + 1, &lowerByte, 4);
+                    memcpy(labelToPtr(labelToInsertId) + 5, &upperByte, 4);
+                    break;
+                }
+            }
+        }
+        return found;
+    }
+    assert(false);
+}
 Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, AllowGlobalLoad allowGlobalLoad) {
     auto stackCpy = mStackFrames;
 
@@ -576,16 +646,9 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     }
 
     // try looking through other functions
-    auto maybeDeclaration = mCallableDeclarations.end();
-    if(identifier.getNameSplit().size() > 1) {
-        maybeDeclaration = mCallableDeclarations.find(identifier.getName());
-    } else {
-        for(auto& module : mUsingModuleNames) {
-            maybeDeclaration = mCallableDeclarations.find(module + "." + identifier.getName());
-        }
-    }
-    if(maybeDeclaration == mCallableDeclarations.end()) {
-        identifier.throwException("Identifier not found");
+    auto maybeDeclaration = findMatchingCallableDeclaration(identifier.getName());
+    if(!maybeDeclaration) {
+        identifier.throwException("Identifier " + identifier.getName() + " not found");
     }
     auto& declaration = *maybeDeclaration;
     std::string fullFunctionName = declaration.first;
@@ -605,7 +668,8 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
             // not any kind of function
             identifier.throwException("Identifier is not a function");
         }
-        auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, functionsModuleUsingNames, Datatype::AllowIncompleteTypes::Yes);
+        UndeterminedIdentifierReplacementMap replacementMap = mCurrentUndeterminedTypeReplacementMap;
+        auto completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames, Datatype::AllowIncompleteTypes::Yes);
         // it's a native function, maybe it is a template-native function?
         if(functionIsTemplateFunction) {
             // we have a templated native function, so we need to build a replacement map to get the correct type
@@ -617,32 +681,12 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
                 }
             }
             // The order her is important because we first need to consider passed template parameters, then ones from the surrounding scope
-            auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
+            replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
             replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
             completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
         }
-        bool found = false;
-        // iterate backwards so that we find specified (filled-in) template functions first and the raw undetermined-identifier versions later
-        for(int32_t i = mProgram.nativeFunctions.size() - 1; i >= 0; --i) {
-            const auto& nativeFunction = mProgram.nativeFunctions.at(i);
-            // the name has to match and either the full completed type, or, if the native function accepts any types, at least those incomplete types have to match
-            if(nativeFunction.fullName == fullFunctionName) {
-                if(nativeFunction.functionType == completedDeclarationType) {
-                    found = true;
-                } else if(nativeFunction.functionType == declaration.second.type) {
-                    found = true;
-                    auto cpy = mProgram.nativeFunctions.at(i);
-                    cpy.functionType = completedDeclarationType;
-                    mProgram.nativeFunctions.emplace_back(std::move(cpy));
-                    i = mProgram.nativeFunctions.size() - 1;
-                }
-                if(found) {
-                    addInstructions(Instruction::PUSH_8, 3, i);
-                    mStackSize += 8;
-                    break;
-                }
-            }
-        }
+        bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8));
+        mStackSize += 8;
         if(!found) {
             identifier.throwException("No native function was found that matches the name " + fullFunctionName + " and type " + completedDeclarationType.toString());
         }
@@ -665,59 +709,102 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     }
     // template function
     auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
-    // check if we already compiled this template instantiation (or plan on compiling it) and, if not, add it for later compilation
-    bool alreadyExists = false;
-    for(auto& func : mProgram.functions) {
-        if(func.name == fullFunctionName && func.templateParameters == replacementMap) {
-            alreadyExists = true;
-        }
+    bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8));
+    if(!found) {
+        assert(false);
     }
-    for(auto& plannedFunc : mTemplateFunctionsToInstantiate) {
-        if(plannedFunc.function == declarationAsFunction && plannedFunc.replacementMap == replacementMap) {
-            alreadyExists = true;
-        }
-    }
-    if(!alreadyExists) {
-        mTemplateFunctionsToInstantiate.emplace_back(TemplateFunctionToInstantiate{ declarationAsFunction, replacementMap });
-    }
-    mLabelsToInsertFunctionIds.emplace_back(FunctionIdInCodeToInsert{ .label = addLabel(Instruction::PUSH_8), .fullFunctionName = fullFunctionName, .templateParameters = replacementMap });
     mStackSize += 8;
     replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
     auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
     return returnType;
 }
-Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& functionCall) {
-    auto functionNameType = functionCall.getName()->compile(*this);
+Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
+    Datatype functionNameType;
+
+    // variables used for automatic template type inference
+    bool couldCompileIdentifierLoad = false;
+    std::optional<std::string> functionIdentifierLoadCompileError;
+    int32_t pushLabel = -1;
+    UndeterminedIdentifierReplacementMap inferredTemplateParameters;
+    std::string fullFunctionName;
+    CallableDeclaration* callableDeclaration = nullptr;
+    try {
+        functionNameType = node.getName()->compile(*this);
+        couldCompileIdentifierLoad = true;
+    } catch(std::exception& e) {
+        auto* functionIdentifier = dynamic_cast<IdentifierNode*>(node.getName().get());
+        if(!functionIdentifier) {
+            throw;
+        }
+        couldCompileIdentifierLoad = false;
+        functionIdentifierLoadCompileError = e.what();
+
+        // get the incomplete type
+        auto declaration = findMatchingCallableDeclaration(functionIdentifier->getName());
+        if(!declaration) {
+            throw;
+        }
+        callableDeclaration = &declaration.value().second;
+        functionNameType = declaration->second.type;
+        fullFunctionName = declaration->first;
+        pushLabel = addLabel(Instruction::PUSH_8);
+        mStackSize += 8;
+    }
+
     if(functionNameType.getCategory() != DatatypeCategory::function) {
-        functionCall.throwException("Calling non-function type " + functionNameType.toString());
+        node.throwException("Calling non-function type " + functionNameType.toString());
     }
     auto& functionInfo = functionNameType.getFunctionTypeInfo();
-    if(functionCall.getParams().size() != functionInfo.second.size()) {
-        functionCall.throwException("Calling function with invalid number of arguments; function is of type "
-            + functionNameType.toString() + ", but " + std::to_string(functionCall.getParams().size()) + " arguments were passed");
+    if(node.getParams().size() != functionInfo.second.size()) {
+        node.throwException("Calling function with invalid number of arguments; function is of type "
+            + functionNameType.toString() + ", but " + std::to_string(node.getParams().size()) + " arguments were passed");
     }
     size_t i = 0;
     int32_t paramTypesSummedSize = 0;
-    for(auto& param : functionCall.getParams()) {
-        auto type = param->compile(*this);
-        paramTypesSummedSize += type.getSizeOnStack();
-        if(functionInfo.second.at(i) != type) {
-            functionCall.throwException("Calling function with invalid arguments; argument at index "
-                + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + type.toString());
+    for(auto& param : node.getParams()) {
+        auto actualParamType = param->compile(*this);
+        paramTypesSummedSize += actualParamType.getSizeOnStack();
+        if(couldCompileIdentifierLoad) {
+            if(functionInfo.second.at(i) != actualParamType) {
+                node.throwException("Calling function with invalid arguments; argument at index "
+                                                + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + actualParamType.toString());
+            }
+        } else {
+            // we failed to load the identifier, so now we used the parameters to infer the type
+            functionInfo.second.at(i).inferTemplateTypes(actualParamType, inferredTemplateParameters);
         }
         ++i;
     }
+    if(!couldCompileIdentifierLoad) {
+        // now we need to complete the function type
+        // if we fail now, it's game over
+        inferredTemplateParameters.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
+        try {
+            functionNameType = functionNameType.completeWithTemplateParameters(inferredTemplateParameters, mUsingModuleNames, Datatype::AllowIncompleteTypes::No);
+        } catch(std::exception& e) {
+            node.throwException("Couldn't infer function type, please specify template parameters");
+        }
+        bool found = addToTemplateFunctionsToInstantiate(*callableDeclaration, inferredTemplateParameters, fullFunctionName, pushLabel);
+        assert(found);
+    }
+
 
     addInstructions(Instruction::CALL, paramTypesSummedSize);
     mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
-    mStackSize += functionInfo.first.getSizeOnStack();
+    mStackSize += functionNameType.getFunctionTypeInfo().first.getSizeOnStack();
 
-    return functionInfo.first;
+    return functionNameType.getFunctionTypeInfo().first;
 }
 Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode& functionChain) {
     auto initialValueType = functionChain.getInitialValue()->compile(*this);
     auto& functionCall = *functionChain.getFunctionCall();
     auto functionNameType = functionCall.getName()->compile(*this);
+    // check initial argument type
+    if(!functionNameType.getFunctionTypeInfo().second.empty()) {
+        if(functionNameType.getFunctionTypeInfo().second.at(0) != initialValueType) {
+            functionChain.throwException("Chained argument is wrong; should be " + functionNameType.getFunctionTypeInfo().second.at(0).toString() + ", but is " + initialValueType.toString());
+        }
+    }
     if(functionNameType.getCategory() != DatatypeCategory::function) {
         functionCall.throwException("Calling non-function type " + functionNameType.toString());
     }
@@ -741,12 +828,6 @@ Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode&
                 + std::to_string(i) + " should be an " + functionInfo.second.at(i).toString() + ", but is a " + type.toString());
         }
         ++i;
-    }
-    // check initial argument type
-    if(!functionNameType.getFunctionTypeInfo().second.empty()) {
-        if(functionNameType.getFunctionTypeInfo().second.at(0) != initialValueType) {
-            functionChain.throwException("Chained argument is wrong; should be " + functionNameType.getFunctionTypeInfo().second.at(0).toString() + ", but is " + initialValueType.toString());
-        }
     }
 
     addInstructions(Instruction::CALL, paramTypesSummedSize);

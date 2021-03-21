@@ -398,6 +398,61 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
     cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
     return cpy;
 }
+void Datatype::inferTemplateTypes(const Datatype& realType, UndeterminedIdentifierReplacementMap& output) const {
+    if(getCategory() != realType.getCategory() && getCategory() != DatatypeCategory::undetermined_identifier) {
+        throw std::runtime_error{"Unable to infer template types, type " + toString() + " is incompatible with " + realType.toString()};
+    }
+    switch(mCategory) {
+    case DatatypeCategory::bool_:
+    case DatatypeCategory::i32:
+    case DatatypeCategory::i64:
+    case DatatypeCategory::char_:
+    case DatatypeCategory::byte:
+        break;
+    case DatatypeCategory::undetermined_identifier:
+        output.emplace(getUndeterminedIdentifierString(), std::make_pair(realType, TemplateParamOrUserType::TemplateParam));
+        break;
+    case DatatypeCategory::function: {
+        auto& funcType = getFunctionTypeInfo();
+        funcType.first.inferTemplateTypes(realType.getFunctionTypeInfo().first, output);
+        size_t i = 0;
+        for(auto& param : funcType.second) {
+            param.inferTemplateTypes(realType.getFunctionTypeInfo().second.at(i), output);
+            ++i;
+        }
+        break;
+    }
+    case DatatypeCategory::tuple: {
+        for(size_t i = 0; i < getTupleInfo().size(); ++i) {
+            getTupleInfo().at(i).inferTemplateTypes(realType.getTupleInfo().at(i), output);
+        }
+        break;
+    }
+    case DatatypeCategory::pointer:
+    case DatatypeCategory::list: {
+        std::get<Datatype>(*mFurtherInfo).inferTemplateTypes(std::get<Datatype>(*realType.mFurtherInfo), output);
+        break;
+    }
+    case DatatypeCategory::struct_: {
+        for(size_t i = 0; i < getStructInfo().fields.size(); ++i) {
+            std::get<StructInfo>(*mFurtherInfo).fields.at(i).type.inferTemplateTypes(realType.getStructInfo().fields.at(i).type, output);
+        }
+        break;
+    }
+    case DatatypeCategory::enum_: {
+        const auto& fields = getEnumInfo().fields;
+        for(size_t i = 0; i < fields.size(); ++i) {
+            const auto& fieldElements = fields.at(i).params;
+            for(size_t j = 0; j < fieldElements.size(); ++j) {
+                std::get<EnumInfo>(*mFurtherInfo).fields.at(i).params.at(j).inferTemplateTypes(realType.getEnumInfo().fields.at(i).params.at(j), output);
+            }
+        }
+        break;
+    }
+    default:
+        assert(false);
+    }
+}
 int32_t Datatype::EnumInfo::getLargestFieldSize(int32_t depth) const {
     int32_t largestFieldSize = 0;
     for(auto& field: fields) {
