@@ -90,6 +90,8 @@ public:
     [[nodiscard]] Datatype completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes = AllowIncompleteTypes::No) const;
     [[nodiscard]] Datatype completeWithSavedTemplateParameters(AllowIncompleteTypes = AllowIncompleteTypes::No) const;
 
+    void inferTemplateTypes(const Datatype& realType, UndeterminedIdentifierReplacementMap& output) const;
+
 private:
     enum class InternalCall {
         Yes,
