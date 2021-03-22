@@ -20,6 +20,30 @@ ExternalVMValue ExternalVMValue::wrapInt64(VM& vm, int64_t val) {
 ExternalVMValue ExternalVMValue::wrapChar(VM& vm, int32_t charValue) {
     return ExternalVMValue(vm, Datatype::createSimple(DatatypeCategory::char_), charValue);
 }
+ExternalVMValue ExternalVMValue::wrapString(VM& vm, const std::string& str) {
+    const auto chunkSize = 8 + 4;
+    uint8_t* startPtr = nullptr;
+
+    size_t offset = 0;
+    uint8_t* ptr = nullptr;
+    while(offset < str.size()) {
+        uint8_t* nextPtr = vm.alloc(chunkSize);
+        memset(nextPtr, 0, chunkSize);
+        if(startPtr == nullptr) {
+            startPtr = nextPtr;
+        }
+        if(ptr) {
+            memcpy(ptr, &nextPtr, sizeof(nextPtr));
+        }
+        auto encoded = peg::decodeUTF8Codepoint(std::string_view{str}.substr(offset));
+        assert(encoded);
+        memcpy(nextPtr + 8, &encoded->utf32Value, 4);
+
+        offset += encoded->len;
+        ptr = nextPtr;
+    }
+    return ExternalVMValue(vm, Datatype::createListType(Datatype::createSimple(DatatypeCategory::char_)), startPtr);
+}
 const Datatype& ExternalVMValue::getDatatype() const& {
     return mType;
 }
@@ -34,7 +58,6 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
         return std::vector<uint8_t>{ (uint8_t)(val >> 0), (uint8_t)(val >> 8), (uint8_t)(val >> 16), (uint8_t)(val >> 24) };
 #endif
     }
-    case DatatypeCategory::function:
     case DatatypeCategory::i64: {
         auto val = std::get<int64_t>(mValue);
         return std::vector<uint8_t>{ (uint8_t)(val >> 0), (uint8_t)(val >> 8), (uint8_t)(val >> 16), (uint8_t)(val >> 24), (uint8_t)(val >> 32), (uint8_t)(val >> 40), (uint8_t)(val >> 48), (uint8_t)(val >> 56) };
@@ -46,6 +69,15 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
             bytes.insert(bytes.end(), childBytes.begin(), childBytes.end());
         }
         return bytes;
+    }
+    case DatatypeCategory::function:
+    case DatatypeCategory::list: {
+        auto val = (uintptr_t)std::get<const uint8_t*>(mValue);
+        if constexpr(sizeof(void*) == 4) {
+            return std::vector<uint8_t>{ (uint8_t)(val >> 0), (uint8_t)(val >> 8), (uint8_t)(val >> 16), (uint8_t)(val >> 24), 0, 0, 0, 0 };
+        } else {
+            return std::vector<uint8_t>{ (uint8_t)(val >> 0), (uint8_t)(val >> 8), (uint8_t)(val >> 16), (uint8_t)(val >> 24), (uint8_t)(val >> 32), (uint8_t)(val >> 40), (uint8_t)(val >> 48), (uint8_t)(val >> 56) };
+        }
     }
     default:
         assert(false);

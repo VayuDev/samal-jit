@@ -51,6 +51,9 @@ public:
     void generateStacktrace(const std::function<void(const uint8_t* ptr, const Datatype&, const std::string& name)>& variableCallback, const std::function<void(const std::string&)>& functionCallback) const;
     std::string dumpVariablesOnStack();
     int32_t getIp() const;
+    inline uint8_t* alloc(int32_t len) {
+        return mGC.alloc(len);
+    }
 
 private:
     __always_inline bool interpretInstruction();
