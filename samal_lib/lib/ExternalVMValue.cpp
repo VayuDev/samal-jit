@@ -44,6 +44,18 @@ ExternalVMValue ExternalVMValue::wrapString(VM& vm, const std::string& str) {
     }
     return ExternalVMValue(vm, Datatype::createListType(Datatype::createSimple(DatatypeCategory::char_)), startPtr);
 }
+ExternalVMValue ExternalVMValue::wrapEnum(VM& vm, const Datatype& enumType, const std::string& fieldName, std::vector<ExternalVMValue>&& elements) {
+    int32_t index = -1;
+    for(int32_t i = 0; i < (int32_t)enumType.getEnumInfo().fields.size(); ++i) {
+        if(enumType.getEnumInfo().fields.at(i).name == fieldName) {
+            index = i;
+        }
+    }
+    if(index == -1) {
+        throw std::runtime_error{"Enum " + enumType.toString() + " doesn't have the field " + fieldName};
+    }
+    return ExternalVMValue(vm, enumType, EnumValue{index, std::move(elements)});
+}
 const Datatype& ExternalVMValue::getDatatype() const& {
     return mType;
 }
@@ -78,6 +90,33 @@ std::vector<uint8_t> ExternalVMValue::toStackValue(VM& vm) const {
         } else {
             return std::vector<uint8_t>{ (uint8_t)(val >> 0), (uint8_t)(val >> 8), (uint8_t)(val >> 16), (uint8_t)(val >> 24), (uint8_t)(val >> 32), (uint8_t)(val >> 40), (uint8_t)(val >> 48), (uint8_t)(val >> 56) };
         }
+    }
+    case DatatypeCategory::enum_: {
+        const auto& enumValue = std::get<EnumValue>(mValue);
+        const auto& selectedFieldType = mType.getEnumInfo().fields.at(enumValue.selectedFieldIndex);
+        auto totalSize = mType.getEnumInfo().getLargestFieldSizePlusIndex();
+#ifdef x86_64_BIT_MODE
+        int64_t index = enumValue.selectedFieldIndex;
+#else
+        int32_t index = enumValue.selectedFieldIndex;
+#endif
+        std::vector<uint8_t> bytes;
+        bytes.resize(totalSize);
+        if(enumValue.elements.size() != selectedFieldType.params.size()) {
+            throw std::runtime_error{"Invalid number of enum parameters specified"};
+        }
+        memcpy(bytes.data(), &index, sizeof(index));
+        int32_t usedBytes = sizeof(index);
+        for(ssize_t i = enumValue.elements.size() - 1; i >= 0; --i) {
+            if(enumValue.elements.at(i).getDatatype() != selectedFieldType.params.at(i)) {
+                throw std::runtime_error{"Wrong datatype passed to enum"};
+            }
+            auto childBytes = enumValue.elements.at(i).toStackValue(vm);
+            memcpy(bytes.data() + usedBytes, childBytes.data(), childBytes.size());
+            usedBytes += childBytes.size();
+        }
+
+        return bytes;
     }
     default:
         assert(false);
@@ -156,9 +195,9 @@ std::string ExternalVMValue::dump() const {
     case DatatypeCategory::enum_: {
         // TODO dump template params
         const auto& enumVal = std::get<EnumValue>(mValue);
-        ret += enumVal.name;
+        ret += mType.getEnumInfo().name;
         ret += "::";
-        ret += enumVal.selectedFieldName;
+        ret += mType.getEnumInfo().fields.at(enumVal.selectedFieldIndex).name;
         ret += "{";
         for(auto& field: enumVal.elements) {
             ret += field.dump();
@@ -216,7 +255,6 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
     }
     case DatatypeCategory::enum_: {
         EnumValue val;
-        val.name = type.getEnumInfo().name;
 #ifdef x86_64_BIT_MODE
         int64_t index = -1;
         memcpy(&index, ptr, 8);
@@ -226,7 +264,7 @@ ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_
 #endif
         auto offset = type.getEnumInfo().getLargestFieldSizePlusIndex();
         const auto& selectedField = type.getEnumInfo().fields.at(index);
-        val.selectedFieldName = selectedField.name;
+        val.selectedFieldIndex = index;
         for(auto& element: selectedField.params) {
             offset -= element.completeWithSavedTemplateParameters().getSizeOnStack();
             val.elements.push_back(ExternalVMValue::wrapFromPtr(element, vm, ptr + offset));

@@ -132,11 +132,19 @@ const Datatype::EnumInfo& Datatype::getEnumInfo() const {
     return std::get<EnumInfo>(*mFurtherInfo);
 }
 bool Datatype::operator==(const Datatype& other) const {
-    if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap && other.mCategory != DatatypeCategory::undetermined_identifier) {
-        return completeWithSavedTemplateParameters() == other;
-    }
-    if(other.mCategory == DatatypeCategory::undetermined_identifier && other.mUndefinedTypeReplacementMap && mCategory != DatatypeCategory::undetermined_identifier) {
-        return *this == other.completeWithSavedTemplateParameters();
+    try {
+        // This can fail if we are comparing to an incomplete type that doesn't resolve all its template parameters.
+        // This normally only happens if you create a type with Pipeline::incompleteType and use it e.g. as a native function type, but
+        // you're actually expecting template parameters. In that case we have an mUndefinedTemplateReplacementMap (for completing user types like enums),
+        // but it doesn't contain the template parameter.
+        if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap && other.mCategory != DatatypeCategory::undetermined_identifier) {
+            return completeWithSavedTemplateParameters() == other;
+        }
+        if(other.mCategory == DatatypeCategory::undetermined_identifier && other.mUndefinedTypeReplacementMap && mCategory != DatatypeCategory::undetermined_identifier) {
+            return *this == other.completeWithSavedTemplateParameters();
+        }
+    } catch(...) {
+
     }
     if(mCategory != other.mCategory)
         return false;

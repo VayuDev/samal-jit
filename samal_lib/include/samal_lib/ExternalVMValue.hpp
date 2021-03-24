@@ -12,6 +12,7 @@ public:
     static ExternalVMValue wrapEmptyTuple(VM& vm);
     static ExternalVMValue wrapChar(VM& vm, int32_t charUTF32Value);
     static ExternalVMValue wrapString(VM& vm, const std::string& string);
+    static ExternalVMValue wrapEnum(VM& vm, const Datatype& enumType, const std::string& fieldName, std::vector<ExternalVMValue>&& elements);
     static ExternalVMValue wrapStackedValue(Datatype type, VM& vm, size_t stackOffset);
     static ExternalVMValue wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr);
     [[nodiscard]] const Datatype& getDatatype() const&;
@@ -34,8 +35,7 @@ private:
         std::vector<Field> fields;
     };
     struct EnumValue {
-        std::string name;
-        std::string selectedFieldName;
+        int32_t selectedFieldIndex;
         std::vector<ExternalVMValue> elements;
     };
     std::variant<std::monostate, int32_t, int64_t, std::vector<ExternalVMValue>, StructValue, EnumValue, const uint8_t*, uint8_t> mValue;

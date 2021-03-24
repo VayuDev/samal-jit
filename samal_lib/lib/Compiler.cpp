@@ -739,7 +739,7 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
     } catch(std::exception& e) {
         auto* functionIdentifier = dynamic_cast<IdentifierNode*>(functionNameNode.get());
         if(!functionIdentifier) {
-            throw;
+            throw std::runtime_error{std::string{} + "Error while trying to infer parameter types: Identifier not found\n" + e.what()};
         }
         couldCompileIdentifierLoad = false;
         functionIdentifierLoadCompileError = e.what();
@@ -747,7 +747,7 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
         // get the incomplete type
         auto declaration = findMatchingCallableDeclaration(functionIdentifier->getName());
         if(!declaration) {
-            throw;
+            throw std::runtime_error{std::string{} + "Error while trying to infer parameter types: Callable declaration not found\n" + e.what()};
         }
         callableDeclaration = &declaration.value().second;
         functionNameType = declaration->second.type;

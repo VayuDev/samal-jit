@@ -9,7 +9,7 @@ class Parser {
 public:
     Parser();
     [[nodiscard]] std::pair<up<ModuleRootNode>, peg::PegTokenizer> parse(std::string moduleName, std::string code) const;
-
+    [[nodiscard]] std::pair<Datatype, peg::PegTokenizer> parseDatatype(std::string code) const;
 private:
     peg::PegParser mPegParser;
 };

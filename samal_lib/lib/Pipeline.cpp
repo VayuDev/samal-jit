@@ -44,5 +44,33 @@ VM Pipeline::compile() {
 void Pipeline::addNativeFunction(NativeFunction function) {
     mNativeFunctions.emplace_back(std::move(function));
 }
+Datatype Pipeline::type(const std::string& typeString) {
+    return parseTypeInternal(typeString, Datatype::AllowIncompleteTypes::No);
+}
+Datatype Pipeline::incompleteType(const std::string& typeString) {
+    return parseTypeInternal(typeString, Datatype::AllowIncompleteTypes::Yes);
+}
+Datatype Pipeline::parseTypeInternal(const std::string& typeString, Datatype::AllowIncompleteTypes allowIncompleteTypes) {
+    auto [parsedType, tokenizer] = mParser->parseDatatype(typeString);
+    UndeterminedIdentifierReplacementMap replacementMap;
+    for(auto& module: mModules) {
+        for(auto& decl: module->getDeclarations()) {
+            Datatype type;
+            auto declAsStructDecl = dynamic_cast<StructDeclarationNode*>(decl.get());
+            auto fullName = module->getModuleName() + "." + decl->getIdentifier()->getName();
+            if(declAsStructDecl) {
+                type = Datatype::createStructType(fullName, declAsStructDecl->getFields(), declAsStructDecl->getTemplateParameterVector());
+            }
+            auto declAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(decl.get());
+            if(declAsEnumDecl) {
+                type = Datatype::createEnumType(fullName, declAsEnumDecl->getFields(), declAsEnumDecl->getTemplateParameterVector());
+            }
+            if(type.getCategory() != DatatypeCategory::invalid) {
+                replacementMap.emplace(fullName, std::make_pair(std::move(type), TemplateParamOrUserType::UserType));
+            }
+        }
+    }
+    return parsedType.completeWithTemplateParameters(replacementMap, {}, allowIncompleteTypes);
+}
 
 }

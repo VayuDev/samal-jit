@@ -568,6 +568,15 @@ Parser::Parser() {
     };
 }
 
+std::pair<Datatype, peg::PegTokenizer> Parser::parseDatatype(std::string code) const {
+    Stopwatch stopwatch{ "Parsing the code" };
+    auto ret = mPegParser.parse("Datatype", std::move(code));
+    if(ret.first.index() == 0) {
+        return std::make_pair(std::get<0>(ret.first).getMatchInfoMut().result.moveValue<Datatype>(), ret.second);
+    }
+    throw std::runtime_error{"Unable to parse datatype from '" + code + "'"};
+}
+
 std::pair<up<ModuleRootNode>, peg::PegTokenizer> Parser::parse(std::string moduleName, std::string code) const {
     Stopwatch stopwatch{ "Parsing the code" };
     auto ret = mPegParser.parse("Start", std::move(code));
