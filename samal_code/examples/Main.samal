@@ -32,7 +32,6 @@ enum Tree<T> {
     Empty{}
 }
 
-fn main(p : i32) -> [char] {
-    x = Core.seq<i32>(20000)
-        |> Core.map<i32, char>(Core.toChar<i32>)
+fn main() -> i32 {
+    Lists.testFib()
 }

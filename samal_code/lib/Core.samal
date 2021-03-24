@@ -2,6 +2,7 @@ native fn print<T>(p: T) -> ()
 native fn dumpStackTrace() -> ()
 native fn toI32<T>(p : T) -> i32
 native fn toChar<T>(p : T) -> char
+native fn toString<T>(p : T) -> [char]
 
 fn identity<T>(p: T) -> T {
     p
@@ -127,6 +128,11 @@ fn takeWhile<T>(list : [T], callback : fn(T) -> bool) -> [T] {
             [:T]
         }
     }
+}
+
+enum Maybe<T> {
+    Some{T},
+    None{}
 }
 
 fn splitByChar(str : [char], delim : char) -> [[char]] {

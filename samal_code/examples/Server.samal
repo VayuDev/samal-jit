@@ -1,0 +1,112 @@
+native fn openServerSocket(port : i32) -> Core.Maybe<i32>
+native fn acceptClientSocket(serverSocket : i32) -> i32
+native fn readByte(socket : i32) -> byte
+native fn readChar(socket : i32) -> char
+native fn closeSocket(socket : i32) -> ()
+native fn writeString(socket : i32, str : [char]) -> ()
+
+struct HTTPRequest {
+    method : [char],
+    version : [char],
+    url : [char],
+    headers : [([char], [char])]
+}
+
+fn readUntilEmptyHeader(socket : i32, prepend : [char], lastThreeChars : [char]) -> [char] {
+    ch = readChar(socket)
+    lastFourChars = Core.concat(lastThreeChars, [ch])
+    if lastFourChars == "\r\n\r\n" || ch == '\0' {
+        Core.concat(prepend, [ch])
+    } else {
+        lastThreeChars = if Core.len(lastFourChars) > 3 {
+            lastFourChars:tail
+        } else {
+            lastFourChars
+        }
+        @tail_call_self(socket, Core.concat(prepend, [ch]), lastThreeChars)
+    }
+}
+
+enum Maybe<T> {
+    Some{T},
+    None{}
+}
+
+fn readHTTPHeader(socket : i32) -> Maybe<HTTPRequest> {
+    str = readUntilEmptyHeader(socket, "", "")
+    lines = Core.splitByChar(str, '\n')
+    lines = Core.map(lines, fn(line : [char]) -> [char] {
+        Core.takeWhile(line, fn(ch : char) -> bool {
+            ch != '\r'
+        })
+    })
+
+    firstLineSplit = Core.splitByChar(lines:head, ' ')
+    if Core.len(firstLineSplit) != 3 {
+        Maybe<HTTPRequest>::None{}
+    } else {
+        headers =
+            lines:tail
+            |> Core.map(fn(line : [char]) -> Maybe<([char], [char])> {
+                splitList =
+                    Core.takeWhileEx(line, fn(ch : char) -> bool {
+                        ch != ':'
+                    })
+                if splitList:1 == "" {
+                    Maybe<([char], [char])>::None{}
+                } else {
+                    Maybe<([char], [char])>::Some{(splitList:0, splitList:1:tail:tail)}
+                }
+            })
+            |> Core.filter(fn(line : Maybe<([char], [char])>) -> bool {
+                match line {
+                    Some{m} -> true,
+                    None{} -> false
+                }
+            })
+            |> Core.map(fn(e : Maybe<([char], [char])>) -> ([char], [char]) {
+                match e {
+                    Some{n} -> n,
+                    None{} -> ("", "")
+                }
+            })
+        Maybe<HTTPRequest>::Some{HTTPRequest{method : firstLineSplit:head, version : firstLineSplit:tail:tail:head, url : firstLineSplit:tail:head, headers : headers}}
+    }
+
+}
+
+fn loop(serverSocket : i32) -> () {
+    clientSocket = acceptClientSocket(serverSocket)
+    maybeHeader = readHTTPHeader(clientSocket)
+    match maybeHeader {
+        Some{header} -> {
+            Core.print(header)
+
+            response = match IO.readFileAsString(header:url:tail) {
+                Some{fileContent} -> fileContent,
+                None{} -> "Error: File " |> Core.concat(header:url:tail) |> Core.concat(" not found")
+            }
+            fullResponse =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: "
+                |> Core.concat(Core.toString(Core.len(response)))
+                |> Core.concat("\r\n\r\n")
+                |> Core.concat(response)
+
+            writeString(clientSocket, fullResponse)
+        },
+        None{} -> ()
+    }
+
+    closeSocket(clientSocket)
+    @tail_call_self(serverSocket)
+}
+
+fn main() -> () {
+    match openServerSocket(8080) {
+        Some{socket} -> {
+            Core.print("Socket created")
+            loop(socket)
+        },
+        None{} -> Core.print("Failed to create socket")
+    }
+}

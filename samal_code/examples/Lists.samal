@@ -27,7 +27,7 @@ fn testAvg(p : i32) -> i32 {
     avg<i32>([1, 3, 5, 7])
 }
 
-fn testFib(p : i32) -> i32 {
+fn testFib() -> i32 {
     Templ.fib<i32>(28)
     Templ.fib<i32>(28)
     Templ.fib<i32>(28)
