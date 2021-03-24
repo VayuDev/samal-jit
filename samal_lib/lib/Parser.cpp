@@ -570,7 +570,7 @@ Parser::Parser() {
 
 std::pair<Datatype, peg::PegTokenizer> Parser::parseDatatype(std::string code) const {
     Stopwatch stopwatch{ "Parsing the code" };
-    auto ret = mPegParser.parse("Datatype", std::move(code));
+    auto ret = mPegParser.parse("Datatype", code);
     if(ret.first.index() == 0) {
         return std::make_pair(std::get<0>(ret.first).getMatchInfoMut().result.moveValue<Datatype>(), ret.second);
     }
