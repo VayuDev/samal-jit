@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 int main(int argc, char** argv) {
     using namespace samal;
@@ -73,7 +74,11 @@ int main(int argc, char** argv) {
         "IO.readFileAsString",
         pl.type("fn([char]) -> Core.Maybe<[char]>"),
         [maybeStringType](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
-            std::ifstream file(params.at(0).toCPPString());
+            auto path = params.at(0).toCPPString();
+            if(!std::filesystem::is_regular_file(path)) {
+                return ExternalVMValue::wrapEnum(vm, maybeStringType, "None", {});
+            }
+            std::ifstream file(path);
             if(!file) {
                 return ExternalVMValue::wrapEnum(vm, maybeStringType, "None", {});
             }

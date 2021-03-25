@@ -72,7 +72,6 @@ fn readHTTPHeader(socket : i32) -> Maybe<HTTPRequest> {
             })
         Maybe<HTTPRequest>::Some{HTTPRequest{method : firstLineSplit:head, version : firstLineSplit:tail:tail:head, url : firstLineSplit:tail:head, headers : headers}}
     }
-
 }
 
 fn loop(serverSocket : i32) -> () {
@@ -82,15 +81,26 @@ fn loop(serverSocket : i32) -> () {
         Some{header} -> {
             Core.print(header)
 
-            response = match IO.readFileAsString(header:url:tail) {
-                Some{fileContent} -> fileContent,
-                None{} -> "Error: File " |> Core.concat(header:url:tail) |> Core.concat(" not found")
+            path = Core.concat("/www", header:url)
+            extension = IO.getExtension(path)
+            contentType =
+                if extension == ".html" {
+                    "text/html"
+                } else {
+                    "text/plain"
+                }
+
+            response = match IO.readFileAsString(path) {
+                Some{fileContent} -> (fileContent, contentType),
+                None{} -> ("Error: File " |> Core.concat(path) |> Core.concat(" not found"), "text/plain")
             }
             fullResponse =
-                "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: "
-                |> Core.concat(Core.toString(Core.len(response)))
+                "HTTP/1.1 200 OK\r\nContent-Type: "
+                |> Core.concat(response:1)
+                |> Core.concat(" charset=utf-8\r\nContent-Length: ")
+                |> Core.concat(Core.toString(Core.len(response:0)))
                 |> Core.concat("\r\n\r\n")
-                |> Core.concat(response)
+                |> Core.concat(response:0)
 
             writeString(clientSocket, fullResponse)
         },
