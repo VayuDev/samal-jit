@@ -383,10 +383,9 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
         break;
     }
     case DatatypeCategory::struct_: {
-        size_t i = 0;
-        for(auto& element : getStructInfo().fields) {
+
+        for(size_t i = 0; i < getStructInfo().fields.size(); ++i) {
             std::get<StructInfo>(*cpy.mFurtherInfo).fields.at(i).type = getStructInfo().fields.at(i).type.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes);
-            ++i;
         }
         break;
     }

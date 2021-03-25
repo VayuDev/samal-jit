@@ -6,7 +6,7 @@ namespace peg {
 
 const std::regex gNextStringRegex{ "^[^ \n\t]*", std::regex::optimize };
 
-std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool reverseOrder) const {
+std::string ExpressionFailInfo::dump(const PegTokenizer& tokenizer, bool) const {
     auto [line, column] = tokenizer.getPosition(mState);
     std::string msg;
     switch(mReason) {

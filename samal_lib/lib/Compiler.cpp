@@ -411,6 +411,9 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+
+        default:
+            break;
         }
         break;
     case DatatypeCategory::i64:
@@ -463,6 +466,9 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+
+        default:
+            break;
         }
         break;
     case DatatypeCategory::list:
@@ -1122,11 +1128,9 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
 #ifdef x86_64_BIT_MODE
     addInstructions(Instruction::PUSH_8, enumFieldIndex, 0);
     mStackSize += 8;
-    int32_t sizeOfIndex = 8;
 #else
     addInstructions(Instruction::PUSH_4, enumFieldIndex);
     mStackSize += 4;
-    int32_t sizeOfIndex = 4;
 #endif
 
     return enumType;
@@ -1202,9 +1206,6 @@ MatchCompileReturn Compiler::compileTryMatchEnumField(const EnumFieldMatchCondit
     mStackSize -= getSimpleSize(DatatypeCategory::bool_);
 
     // if we're here then the match succeeded
-
-    auto oldStackSizeWithoutChildren = mStackSize;
-
     int32_t localOffset = enumInfo.getIndexSize();
     std::vector<int32_t> childrenCleanupLabels;
 

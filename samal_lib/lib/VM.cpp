@@ -1023,8 +1023,9 @@ bool VM::interpretInstruction() {
             case DatatypeCategory::char_:
             case DatatypeCategory::i32:
                 return *(int32_t*)a == *(int32_t*)b;
+            default:
+                todo();
             }
-            todo();
         };
         int64_t result = isEqual(datatype, (uint8_t*)mStack.get(0), (uint8_t*)mStack.get(datatypeSize));
         mStack.pop(datatypeSize * 2);
@@ -1145,7 +1146,7 @@ void VM::generateStacktrace(const std::function<void(const uint8_t* ptr, const D
         }
         int32_t prevIp;
         memcpy(&prevIp, mStack.get(offsetFromTop + virtualStackSize + 4), 4);
-        if(prevIp == mProgram.code.size()) {
+        if(prevIp == static_cast<int32_t>(mProgram.code.size())) {
             break;
         }
         nextFunctionOffset -= currentFunction->type.getFunctionTypeInfo().first.getSizeOnStack();
