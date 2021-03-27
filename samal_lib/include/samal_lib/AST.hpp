@@ -43,18 +43,18 @@ public:
     [[nodiscard]] virtual inline const char* getClassName() const { return "CompilableASTNode"; }
 };
 
-class ExpressionNode : public CompilableASTNode {
-public:
-    explicit ExpressionNode(SourceCodeRef source);
-    [[nodiscard]] inline const char* getClassName() const override { return "ExpressionNode"; }
-
-private:
-};
-
 class StatementNode : public CompilableASTNode {
 public:
     explicit StatementNode(SourceCodeRef source);
     [[nodiscard]] inline const char* getClassName() const override { return "StatementNode"; }
+
+private:
+};
+
+class ExpressionNode : public StatementNode {
+public:
+    explicit ExpressionNode(SourceCodeRef source);
+    [[nodiscard]] inline const char* getClassName() const override { return "ExpressionNode"; }
 
 private:
 };
@@ -327,9 +327,9 @@ private:
 
 class ScopeNode : public ExpressionNode {
 public:
-    explicit ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions);
+    explicit ScopeNode(SourceCodeRef source, std::vector<up<StatementNode>> expressions);
     Datatype compile(Compiler& comp) const override;
-    [[nodiscard]] inline const std::vector<up<ExpressionNode>>& getExpressions() const {
+    [[nodiscard]] inline const std::vector<up<StatementNode>>& getExpressions() const {
         return mExpressions;
     }
     void findUsedVariables(VariableSearcher&) const override;
@@ -337,7 +337,7 @@ public:
     [[nodiscard]] inline const char* getClassName() const override { return "ScopeNode"; }
 
 private:
-    std::vector<up<ExpressionNode>> mExpressions;
+    std::vector<up<StatementNode>> mExpressions;
 };
 
 using IfExpressionChildList = std::vector<std::pair<up<ExpressionNode>, up<ScopeNode>>>;

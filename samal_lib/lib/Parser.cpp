@@ -154,9 +154,9 @@ Parser::Parser() {
         return params;
     };
     mPegParser["ScopeExpression"] << "'{' (Statement ~snn~'\n')* '}'" >> [](peg::MatchInfo& res) {
-        std::vector<up<ExpressionNode>> expressions;
+        std::vector<up<StatementNode>> expressions;
         for(auto& expr : res[1].subs) {
-            expressions.emplace_back(expr[0].result.move<ExpressionNode*>());
+            expressions.emplace_back(expr[0].result.move<StatementNode*>());
         }
         return ScopeNode{ toRef(res), std::move(expressions) };
     };

@@ -61,7 +61,7 @@ CompilableASTNode::CompilableASTNode(SourceCodeRef source)
 }
 
 ExpressionNode::ExpressionNode(SourceCodeRef source)
-: CompilableASTNode(source) {
+: StatementNode(source) {
 }
 
 StatementNode::StatementNode(SourceCodeRef source)
@@ -350,9 +350,10 @@ void LambdaCreationNode::findUsedVariables(VariableSearcher& searcher) const {
     for(auto& param : mParameters) {
         param.name->findUsedVariables(searcher);
     }
+    mBody->findUsedVariables(searcher);
 }
 
-ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<ExpressionNode>> expressions)
+ScopeNode::ScopeNode(SourceCodeRef source, std::vector<up<StatementNode>> expressions)
 : ExpressionNode(std::move(source)), mExpressions(std::move(expressions)) {
 }
 std::string ScopeNode::dump(unsigned int indent) const {
