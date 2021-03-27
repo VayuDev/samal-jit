@@ -1179,7 +1179,8 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
     auto returnValue = nativeFunc.callback(*this, params);
     assert(returnValue.getDatatype() == functionTypeInfo.first);
     auto returnValueBytes = returnValue.toStackValue(*this);
-    mStack.push(returnValueBytes.data(), returnValueBytes.size());
+    if(!returnValueBytes.empty())
+        mStack.push(returnValueBytes.data(), returnValueBytes.size());
     mStack.popBelow(returnTypeSize, 8);
 }
 int32_t VM::getIp() const {
