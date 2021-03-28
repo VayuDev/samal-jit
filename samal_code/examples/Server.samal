@@ -91,13 +91,17 @@ fn loop(serverSocket : i32) -> () {
                 }
 
             response = match IO.readFileAsString(path) {
-                Some{fileContent} -> (fileContent, contentType),
-                None{} -> ("Error: File " |> Core.concat(path) |> Core.concat(" not found"), "text/plain")
+                Some{fileContent} -> (fileContent, "200 OK", contentType),
+                None{} -> {
+                    ("Error: File " |> Core.concat(path) |> Core.concat(" not found"), "404 Not found", "text/plain")
+                }
             }
             fullResponse =
-                "HTTP/1.1 200 OK\r\nContent-Type: "
+                "HTTP/1.1 "
                 |> Core.concat(response:1)
-                |> Core.concat(" charset=utf-8\r\nContent-Length: ")
+                |> Core.concat("\r\nContent-Type: ")
+                |> Core.concat(response:2)
+                |> Core.concat("; charset=utf-8\r\nContent-Length: ")
                 |> Core.concat(Core.toString(Core.len(response:0)))
                 |> Core.concat("\r\n\r\n")
                 |> Core.concat(response:0)
