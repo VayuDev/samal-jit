@@ -64,7 +64,7 @@ private:
 
     std::array<Region, 2> mRegions{Region{}, Region{}};
     size_t mActiveRegion{ 0 };
-    std::vector<std::pair<uint8_t*, uint8_t*>> mMovedPointers;
+    std::unordered_map<uint8_t*, uint8_t*> mMovedPointers;
 
     enum class ScanningHeapOrStack {
         Heap,

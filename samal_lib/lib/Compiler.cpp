@@ -360,7 +360,12 @@ Datatype Compiler::compileLiteralByte(uint8_t value) {
     return Datatype::createSimple(DatatypeCategory::byte);
 }
 Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExpression) {
+    pushTinyStackFrame();
+    DestructorWrapper destructor{[this] {
+        popTinyStackFrame();
+    }};
     auto lhsType = binaryExpression.getLeft()->compile(*this);
+    saveTinyStackFrameVariableLocation(lhsType);
     // check if we are comparing with an empty list, in which case we can optimize
     if(lhsType.getCategory() == DatatypeCategory::list) {
         auto* rhsListCreation = dynamic_cast<ListCreationNode*>(binaryExpression.getRight().get());
@@ -373,6 +378,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
     }
 
     auto rhsType = binaryExpression.getRight()->compile(*this);
+    saveTinyStackFrameVariableLocation(rhsType);
     if(rhsType.getCategory() == DatatypeCategory::list && rhsType.getListContainedType() == lhsType) {
         // prepend to list
         addInstructions(Instruction::LIST_PREPEND, lhsType.getSizeOnStack());
@@ -1096,12 +1102,15 @@ Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
     // TODO check if at the end of a function/branch
     auto oldStackSize = mStackSize;
     int32_t paramsSize = 0;
+    pushTinyStackFrame();
     for(auto& p : node.getParams()) {
         auto paramType = p->compile(*this);
+        saveTinyStackFrameVariableLocation(paramType);
         paramsSize += paramType.getSizeOnStack();
     }
     addInstructions(Instruction::POP_N_BELOW, oldStackSize, paramsSize);
     mStackSize -= oldStackSize;
+    popTinyStackFrame();
     addInstructions(Instruction::JUMP, mCurrentFunctionStartingIp);
     // This isn't actually true but it's what is expected
     mStackSize = oldStackSize + mCurrentFunctionReturnType.getSizeOnStack();
