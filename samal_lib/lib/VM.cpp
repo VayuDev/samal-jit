@@ -895,9 +895,12 @@ bool VM::interpretInstruction() {
             *(int32_t*)mStack.get(offset + 4) = mIp + instructionToWidth(Instruction::CALL);
             *(int32_t*)mStack.get(offset) = 0;
 
-            uint8_t buffer[lambdaParamsLen];
-            memcpy(buffer, lambdaParams + 16, lambdaParamsLen);
-            mStack.push(buffer, lambdaParamsLen);
+            assert(lambdaParamsLen >= 0);
+            if(lambdaParamsLen > 0) {
+                uint8_t buffer[lambdaParamsLen];
+                memcpy(buffer, lambdaParams + 16, lambdaParamsLen);
+                mStack.push(buffer, lambdaParamsLen);
+            }
         } else {
             // it's a default function call or a native function call
             if(firstHalfOfParam == 3) {
