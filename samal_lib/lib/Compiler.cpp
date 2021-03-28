@@ -244,6 +244,28 @@ void Compiler::popStackFrame(const Datatype& frameReturnType) {
     mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::Yes));
     mCurrentStackInfoTreeNode = mCurrentStackInfoTreeNode->getParent();
 }
+void Compiler::saveVariableLocation(std::string name, Datatype type, StorageType storageType, int32_t offset) {
+    mStackFrames.top().variables.erase(name);
+    mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize - offset, .type = type });
+    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize - offset, name, std::move(type), storageType));
+}
+void Compiler::saveCurrentStackSizeToDebugInfo() {
+    mIpToStackSize.emplace(mProgram.code.size(), mStackSize);
+}
+void Compiler::pushTinyStackFrame() {
+    pushStackFrame();
+}
+void Compiler::popTinyStackFrame() {
+    mStackFrames.pop();
+    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, StackInformationTree::IsAtPopInstruction::Yes));
+    mCurrentStackInfoTreeNode = mCurrentStackInfoTreeNode->getParent();
+}
+void Compiler::saveTinyStackFrameVariableLocation(Datatype type) {
+    std::string name{"param$"};
+    name += std::to_string(mStackFrames.top().variables.size());
+    mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize, .type = type });
+    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize, name, std::move(type), StorageType::Local));
+}
 
 void Compiler::addInstructions(Instruction insn, int32_t param) {
     saveCurrentStackSizeToDebugInfo();
@@ -725,10 +747,13 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     return returnType;
 }
 Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& functionNameNode, const std::vector<up<ExpressionNode>>& params, const ExpressionNode* chainedInitialParamValue) {
+    pushTinyStackFrame();
+
     // compile chainedInitialParamValue if it exists
     Datatype chainedInitialParamType;
     if(chainedInitialParamValue) {
         chainedInitialParamType = chainedInitialParamValue->compile(*this);
+        saveTinyStackFrameVariableLocation(chainedInitialParamType);
     }
 
     Datatype functionNameType;
@@ -772,8 +797,11 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
         // repush initial value back to top if it exists
         addInstructions(Instruction::REPUSH_FROM_N, chainedInitialParamType.getSizeOnStack(), 8);
         mStackSize += 8;
+        popTinyStackFrame();
+        pushTinyStackFrame();
         addInstructions(Instruction::POP_N_BELOW, chainedInitialParamType.getSizeOnStack(), 8 + chainedInitialParamType.getSizeOnStack());
         mStackSize -= 8;
+        saveTinyStackFrameVariableLocation(chainedInitialParamType);
         // check if number of parameters is correct
         if(params.size() + 1 != functionNameType.getFunctionTypeInfo().second.size()) {
             throw std::runtime_error{"Calling function with invalid number of arguments; function is of type "
@@ -797,6 +825,7 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
     }
     for(auto& param : params) {
         auto actualParamType = param->compile(*this);
+        saveTinyStackFrameVariableLocation(actualParamType);
         paramTypesSummedSize += actualParamType.getSizeOnStack();
         if(couldCompileIdentifierLoad) {
             if(functionNameType.getFunctionTypeInfo().second.at(i) != actualParamType) {
@@ -837,6 +866,8 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
     mStackSize -= paramTypesSummedSize + functionNameType.getSizeOnStack();
     mStackSize += functionNameType.getFunctionTypeInfo().first.getSizeOnStack();
 
+    popTinyStackFrame();
+
     return functionNameType.getFunctionTypeInfo().first;
 }
 Datatype Compiler::compileFunctionCall(const FunctionCallExpressionNode& node) {
@@ -857,9 +888,14 @@ Datatype Compiler::compileChainedFunctionCall(const FunctionChainExpressionNode&
 }
 Datatype Compiler::compileTupleCreationExpression(const TupleCreationNode& tupleCreation) {
     std::vector<Datatype> paramTypes;
+    pushTinyStackFrame();
     for(auto& param : tupleCreation.getParams()) {
-        paramTypes.emplace_back(param->compile(*this));
+        auto paramType = param->compile(*this);
+        saveTinyStackFrameVariableLocation(paramType);
+        paramTypes.emplace_back(std::move(paramType));
     }
+    addInstructions(Instruction::NOOP);
+    popTinyStackFrame();
     return Datatype::createTupleType(std::move(paramTypes));
 }
 Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode& tupleAccess) {
@@ -910,18 +946,29 @@ Datatype Compiler::compileLambdaCreationExpression(const LambdaCreationNode& nod
                 isParameter = true;
             }
         }
-        // if not, check in the surrounding scope
-        if(!isParameter) {
-            try {
-                auto identifierType = compileIdentifierLoad(*identifier, AllowGlobalLoad::No);
-                sizeOfCopiedScopeValues += identifierType.getSizeOnStack();
-                usedIdentifierTypes.emplace_back(identifierType);
-                usedIdentifiersWithType.emplace_back(identifier->getName(), identifierType);
-            } catch(std::exception& e) {
-                // If we can't find the identifier in the surrounding scope, it could just be that the identifier
-                // is declared & assigned to within the lambda, so no need to abort (yet)
+        if(isParameter)
+            continue;
+        // if it's not a parameter, check if we already copied it
+        bool isAlreadyCopied = false;
+        for(auto& copiedIdentifier: usedIdentifiersWithType) {
+            if(identifier->getName() == copiedIdentifier.first) {
+                isAlreadyCopied = true;
             }
         }
+        if(isAlreadyCopied)
+            continue;
+
+        // if not, check in the surrounding scope
+        try {
+            auto identifierType = compileIdentifierLoad(*identifier, AllowGlobalLoad::No);
+            sizeOfCopiedScopeValues += identifierType.getSizeOnStack();
+            usedIdentifierTypes.emplace_back(identifierType);
+            usedIdentifiersWithType.emplace_back(identifier->getName(), identifierType);
+        } catch(std::exception& e) {
+            // If we can't find the identifier in the surrounding scope, it could just be that the identifier
+            // is declared & assigned to within the lambda, so no need to abort (yet)
+        }
+
     }
 
     auto auxiliaryType = Datatype::createTupleType(std::move(usedIdentifierTypes));
@@ -947,8 +994,16 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
     if(elementType) {
         elementType = elementType->completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
     }
+    if(node.getParams().empty()) {
+        assert(elementType);
+        addInstructions(Instruction::PUSH_8, 0, 0);
+        mStackSize += 8;
+        return Datatype::createListType(*elementType);
+    }
+    pushTinyStackFrame();
     for(auto& param : node.getParams()) {
         auto paramType = param->compile(*this);
+        saveTinyStackFrameVariableLocation(paramType);
         if(elementType) {
             if(paramType != *elementType) {
                 node.throwException("Not all elements in the list have the same type; previous elements had the type " + elementType->toString() + ", but one has type " + paramType.toString());
@@ -958,13 +1013,10 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
         }
     }
     assert(elementType);
-    if(node.getParams().empty()) {
-        addInstructions(Instruction::PUSH_8, 0, 0);
-    } else {
-        addInstructions(Instruction::CREATE_LIST, elementType->getSizeOnStack(), node.getParams().size());
-        mStackSize -= elementType->getSizeOnStack() * node.getParams().size();
-    }
+    addInstructions(Instruction::CREATE_LIST, elementType->getSizeOnStack(), node.getParams().size());
+    mStackSize -= elementType->getSizeOnStack() * node.getParams().size();
     mStackSize += 8;
+    popTinyStackFrame();
     return Datatype::createListType(std::move(*elementType));
 }
 Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression& node) {
@@ -984,14 +1036,6 @@ Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression&
         return listType;
     }
     assert(false);
-}
-void Compiler::saveVariableLocation(std::string name, Datatype type, StorageType storageType, int32_t offset) {
-    mStackFrames.top().variables.erase(name);
-    mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize - offset, .type = type });
-    mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize - offset, name, std::move(type), storageType));
-}
-void Compiler::saveCurrentStackSizeToDebugInfo() {
-    mIpToStackSize.emplace(mProgram.code.size(), mStackSize);
 }
 Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
     auto structType = node.getStructType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);

@@ -39,9 +39,14 @@ private:
     size_t mDataReserved{ 0 };
 };
 
+struct VMParameters {
+    int32_t functionsCallsPerGCRun = 400000;
+    int32_t initialHeapSize = 1024 * 1024;
+};
+
 class VM final {
 public:
-    explicit VM(Program program);
+    explicit VM(Program program, VMParameters params = {});
     ~VM();
     ExternalVMValue run(const std::string& functionName, std::vector<uint8_t> initialStack);
     ExternalVMValue run(const std::string& functionName, const std::vector<ExternalVMValue>& params);

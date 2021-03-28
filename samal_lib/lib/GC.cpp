@@ -7,28 +7,29 @@
 #ifndef MAP_NORESERVE
 #define MAP_NORESERVE 0
 #endif
-#define INITIAL_HEAP_SIZE (1024 * 1024)
 
 namespace samal {
 
 GC::Region::Region(size_t len) {
     if(len > 0) {
-        base = (uint8_t*)mmap(nullptr, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
+        base = (uint8_t*)malloc(len);
         assert(base);
         size = len;
     }
+    offset = 0;
 }
 GC::Region::~Region() {
     if(base) {
-        if(munmap(base, size)) {
-            perror("munmap()");
-        }
+        free(base);
+        base = nullptr;
     }
 }
 GC::Region::Region(GC::Region&& other) noexcept {
     operator=(std::move(other));
 }
 GC::Region& GC::Region::operator=(GC::Region&& other) noexcept {
+    if(base)
+        free(base);
     base = other.base;
     size = other.size;
     offset = other.offset;
@@ -38,12 +39,17 @@ GC::Region& GC::Region::operator=(GC::Region&& other) noexcept {
     return *this;
 }
 
-GC::GC(VM& vm)
+GC::GC(VM& vm, const VMParameters& params)
 : mVM(vm) {
-    mRegions[0] = Region{ INITIAL_HEAP_SIZE };
-    mRegions[1] = Region{ INITIAL_HEAP_SIZE };
+    mConfigFunctionsCallsPerGCRun = params.functionsCallsPerGCRun;
+    mRegions[0] = Region{ static_cast<size_t>(params.initialHeapSize) };
+    mRegions[1] = Region{ static_cast<size_t>(params.initialHeapSize) };
 }
 uint8_t* GC::alloc(int32_t size) {
+    // ensure that every memory allocation is divisible by 2 (used for pointer tagging for lambdas/functions)
+    if(size % 2 == 1) {
+        size += 1;
+    }
     if(mRegions[mActiveRegion].offset + size >= mRegions[mActiveRegion].size) {
         // not enough memory, add to temporary allocations
         mTemporaryAllocations.emplace_back(TemporaryAllocation{{new uint8_t[size], ArrayDeleter{}}, (size_t)size});
@@ -54,7 +60,9 @@ uint8_t* GC::alloc(int32_t size) {
     return ptr;
 }
 void GC::performGarbageCollection() {
-    //Stopwatch stopwatch{"GC"};
+#ifdef _DEBUG
+    Stopwatch stopwatch{"GC"};
+#endif
     //printf("Before size: %i\n", (int)mRegions[mActiveRegion].offset);
     getOtherRegion().offset = 0;
     if(!mTemporaryAllocations.empty() || getOtherRegion().size < getActiveRegion().size) {
@@ -75,18 +83,25 @@ void GC::performGarbageCollection() {
     mTemporaryAllocations.clear();
     //printf("After size: %i\n", (int)mRegions[mActiveRegion].offset);
 }
-bool GC::copyToOther(uint8_t** ptr, size_t len) {
-    auto maybePointerAddress = mMovedPointers.find(*ptr);
-    if(maybePointerAddress == mMovedPointers.end()) {
+std::pair<bool, uint8_t*> GC::copyToOther(uint8_t** ptr, size_t len) {
+    uint8_t* maybePointerAddress = nullptr;
+    for(auto [from, to]: mMovedPointers) {
+        if(from == *ptr) {
+            maybePointerAddress = to;
+            break;
+        }
+    }
+    if(!maybePointerAddress) {
         uint8_t* newPtr = getOtherRegion().top();
+        assert(getOtherRegion().size >= getOtherRegion().offset + len);
         memcpy(newPtr, *ptr, len);
         getOtherRegion().offset += len;
-        mMovedPointers.emplace(*ptr, newPtr);
+        mMovedPointers.emplace_back(std::make_pair(*ptr, newPtr));
         *ptr = newPtr;
-        return true;
+        return std::make_pair(true, newPtr);
     } else {
-        *ptr = maybePointerAddress->second;
-        return false;
+        *ptr = maybePointerAddress;
+        return std::make_pair(false, maybePointerAddress);
     }
 }
 void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack scanningHeapOrStack) {
@@ -111,9 +126,10 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         if(*ptrToCurrent == nullptr)
             break;
         auto containedTypeSize = type.getListContainedType().getSizeOnStack();
-        searchForPtrs(*ptrToCurrent + 8, type.getListContainedType(), ScanningHeapOrStack::Heap);
-        if(copyToOther(ptrToCurrent, containedTypeSize + 8)) {
-            searchForPtrs(*ptrToCurrent, type, ScanningHeapOrStack::Heap);
+        auto[copied, newPtr] = copyToOther(ptrToCurrent, containedTypeSize + 8);
+        if(copied) {
+            searchForPtrs(newPtr, type, ScanningHeapOrStack::Heap);
+            searchForPtrs(newPtr + 8, type.getListContainedType(), ScanningHeapOrStack::Heap);
         }
 
         break;
@@ -127,14 +143,25 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         }
         // it's a lambda
         auto lambdaPtr = *(uint8_t**)ptr;
-        int32_t capturedLambdaTypesId;
-        memcpy(&capturedLambdaTypesId, lambdaPtr + 8, 4);
-        searchForPtrs(lambdaPtr + 16, mVM.getProgram().auxiliaryDatatypes.at(capturedLambdaTypesId), ScanningHeapOrStack::Heap);
+        assert(lambdaPtr);
 
         int32_t sizeOfLambda = -1;
         memcpy(&sizeOfLambda, lambdaPtr, 4);
         sizeOfLambda += 16;
-        copyToOther((uint8_t**)ptr, sizeOfLambda);
+        auto [copied, newPtr] = copyToOther((uint8_t**)ptr, sizeOfLambda);
+        if(!copied)
+            break;
+
+        int32_t capturedLambdaTypesId;
+        memcpy(&capturedLambdaTypesId, lambdaPtr + 8, 4);
+
+        size_t offset = 0;
+        const auto& helperTuple = mVM.getProgram().auxiliaryDatatypes.at(capturedLambdaTypesId).getTupleInfo();
+        for(ssize_t i = 0; i < helperTuple.size(); ++i) {
+            searchForPtrs(newPtr + 16 + offset, helperTuple.at(i), ScanningHeapOrStack::Heap);
+            offset += helperTuple.at(i).getSizeOnStack();
+        }
+
         break;
     }
     case DatatypeCategory::struct_: {
@@ -164,8 +191,9 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         break;
     }
     case DatatypeCategory::pointer: {
-        searchForPtrs(*(uint8_t**)ptr, type.getPointerBaseType(), ScanningHeapOrStack::Heap);
-        copyToOther((uint8_t**)ptr, type.getPointerBaseType().getSizeOnStack());
+        auto[copied, newPtr] = copyToOther((uint8_t**)ptr, type.getPointerBaseType().getSizeOnStack());
+        if(copied)
+            searchForPtrs(newPtr, type.getPointerBaseType(), ScanningHeapOrStack::Heap);
         break;
     }
     default:
@@ -173,10 +201,10 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
     }
 }
 void GC::requestCollection() {
-    callsSinceLastRun++;
-    if(callsSinceLastRun > 400000) {
+    mFunctionCallsSinceLastRun++;
+    if(mFunctionCallsSinceLastRun > mConfigFunctionsCallsPerGCRun) {
         performGarbageCollection();
-        callsSinceLastRun = 0;
+        mFunctionCallsSinceLastRun = 0;
     }
 }
 GC::Region& GC::getActiveRegion() {

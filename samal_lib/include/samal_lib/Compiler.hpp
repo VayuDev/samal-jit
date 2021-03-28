@@ -70,6 +70,11 @@ private:
     void pushStackFrame();
     void popStackFrame(const Datatype& frameReturnType);
 
+    // Tiny stack frames are used for e.g. parameters in function calls or list creations
+    void pushTinyStackFrame();
+    void popTinyStackFrame();
+    void saveTinyStackFrameVariableLocation(Datatype type);
+
     void addInstructions(Instruction insn);
     void addInstructions(Instruction insn, int32_t param);
     void addInstructions(Instruction insn, int32_t param1, int32_t param2);

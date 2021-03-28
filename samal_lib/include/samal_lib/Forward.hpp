@@ -46,6 +46,7 @@ class Stack;
 struct Program;
 class VariableSearcher;
 class Parser;
+struct VMParameters;
 
 enum class TemplateParamOrUserType;
 

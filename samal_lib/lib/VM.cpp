@@ -396,6 +396,8 @@ public:
                 mov(qword[rsp], rbx);
                 break;
             }
+            case Instruction::NOOP:
+                break;
             default:
                 // we hit an instruction that we don't know, so exit the jit
                 labels.erase(--labels.end());
@@ -467,8 +469,8 @@ class JitCode {
 };
 #endif
 
-VM::VM(Program program)
-: mProgram(std::move(program)), mGC(*this) {
+VM::VM(Program program, VMParameters params)
+: mProgram(std::move(program)), mGC(*this, params) {
 #ifdef SAMAL_ENABLE_JIT
     mCompiledCode = std::make_unique<JitCode>(mProgram.code);
 #endif
@@ -1057,6 +1059,8 @@ bool VM::interpretInstruction() {
         mGC.requestCollection();
         break;
     }
+    case Instruction::NOOP:
+        break;
     case Instruction::INCREASE_STACK_SIZE: {
         int32_t amount;
         memcpy(&amount, &mProgram.code.at(mIp + 1), 4);

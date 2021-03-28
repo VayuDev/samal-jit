@@ -8,7 +8,7 @@
 #include <charconv>
 #include <iostream>
 
-samal::VM compileSimple(const char* code) {
+samal::VM compileSimple(const char* code, samal::VMParameters params = {}) {
     samal::Parser parser;
     auto ast = parser.parse("Main", code);
     REQUIRE(ast.first);
@@ -16,7 +16,7 @@ samal::VM compileSimple(const char* code) {
     modules.emplace_back(std::move(ast.first));
     samal::Compiler comp{ modules, {} };
     auto program = comp.compile();
-    return samal::VM{ std::move(program) };
+    return samal::VM{ std::move(program), params };
 }
 
 TEST_CASE("Ensure that fib64 works", "[samal_whole_system]") {
@@ -381,4 +381,74 @@ fn test() -> (i32, i64, i32) {
 })");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == R"((7, 8i64, 5))");
+}
+
+TEST_CASE("GC doesn't collect our parameters early for chained function calls", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn identity<T>(p: T) -> T {
+    p
+}
+fn concat<T>(l1 : [T], l2 : [T]) -> [T] {
+    if l1 == [] {
+        l2
+    } else {
+        l1:head + concat<T>(l1:tail, l2)
+    }
+}
+fn returnConcat() -> fn([char], [char]) -> [char] {
+    concat<char>
+}
+
+fn test() -> [char] {
+    "Hallo" |> returnConcat()(identity("welt"))
+})", samal::VMParameters{.functionsCallsPerGCRun = 0, .initialHeapSize = 0});
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"("Hallowelt")");
+}
+TEST_CASE("GC doesn't collect our parameters early for normal function calls", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn identity<T>(p: T) -> T {
+    p
+}
+fn concat<T>(l1 : [T], l2 : [T]) -> [T] {
+    if l1 == [] {
+        l2
+    } else {
+        l1:head + concat<T>(l1:tail, l2)
+    }
+}
+fn returnConcat() -> fn([char], [char]) -> [char] {
+    concat<char>
+}
+
+fn test() -> [char] {
+    concat("Hallo", identity("welt"))
+})", samal::VMParameters{.functionsCallsPerGCRun = 0, .initialHeapSize = 0});
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"("Hallowelt")");
+}
+
+TEST_CASE("GC doesn't collect our parameters early for tuples", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn identity<T>(p: T) -> T {
+    p
+}
+
+fn test() -> ([char], [char]) {
+    ("Hallo", identity("Welt"))
+})", samal::VMParameters{.functionsCallsPerGCRun = 0, .initialHeapSize = 0});
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"(("Hallo", "Welt"))");
+}
+
+TEST_CASE("GC doesn't collect our parameters early for lists", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn identity<T>(p: T) -> T {
+    p
+}
+fn test() -> [[char]] {
+    ["Hallo", identity("Welt")]
+})", samal::VMParameters{.functionsCallsPerGCRun = 0, .initialHeapSize = 0});
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"(["Hallo", "Welt"])");
 }
