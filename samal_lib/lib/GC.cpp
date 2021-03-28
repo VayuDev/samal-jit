@@ -84,24 +84,18 @@ void GC::performGarbageCollection() {
     //printf("After size: %i\n", (int)mRegions[mActiveRegion].offset);
 }
 std::pair<bool, uint8_t*> GC::copyToOther(uint8_t** ptr, size_t len) {
-    uint8_t* maybePointerAddress = nullptr;
-    for(auto [from, to]: mMovedPointers) {
-        if(from == *ptr) {
-            maybePointerAddress = to;
-            break;
-        }
-    }
-    if(!maybePointerAddress) {
+    auto maybePointerAddress = mMovedPointers.find(*ptr);
+    if(maybePointerAddress == mMovedPointers.end()) {
         uint8_t* newPtr = getOtherRegion().top();
         assert(getOtherRegion().size >= getOtherRegion().offset + len);
         memcpy(newPtr, *ptr, len);
         getOtherRegion().offset += len;
-        mMovedPointers.emplace_back(std::make_pair(*ptr, newPtr));
+        mMovedPointers.emplace(*ptr, newPtr);
         *ptr = newPtr;
         return std::make_pair(true, newPtr);
     } else {
-        *ptr = maybePointerAddress;
-        return std::make_pair(false, maybePointerAddress);
+        *ptr = maybePointerAddress->second;
+        return std::make_pair(false, maybePointerAddress->second);
     }
 }
 void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack scanningHeapOrStack) {
