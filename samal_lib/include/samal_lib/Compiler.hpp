@@ -64,6 +64,8 @@ public:
 
 
 private:
+    Program compileInternal();
+
     Program mProgram;
     std::vector<up<ModuleRootNode>>& mRoots;
 

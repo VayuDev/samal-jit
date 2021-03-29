@@ -11,6 +11,15 @@ Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots, std::vector<NativeFun
 Compiler::~Compiler() = default;
 
 Program Compiler::compile() {
+    try {
+        return compileInternal();
+    } catch(std::exception& e) {
+        // TODO use something like mCurrentModuleName instead
+        throw std::runtime_error{"Error while compiling " + mUsingModuleNames.at(0) + ".samal:\n" + e.what()};
+    }
+}
+
+Program Compiler::compileInternal() {
     // 1. declare all functions
     for(auto& module : mRoots) {
         for(auto& decl : module->getDeclarations()) {
@@ -855,7 +864,9 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
             throw std::runtime_error("Couldn't infer function type, please specify template parameters");
         }
         bool found = addToTemplateFunctionsToInstantiate(*callableDeclaration, inferredTemplateParameters, fullFunctionName, pushLabel);
-        assert(found);
+        if(!found) {
+            throw std::runtime_error{"Function implementation for " + fullFunctionName + " wasn't found, it's probably a native function you forgot to implement"};
+        }
     }
 
     if(chainedInitialParamValue) {
