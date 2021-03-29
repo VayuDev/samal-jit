@@ -24,6 +24,10 @@ fn concat<T>(l1 : [T], l2 : [T]) -> [T] {
     }
 }
 
+fn prepend<T>(l1 : [T], l2 : [T]) -> [T] {
+    concat(l2, l1)
+}
+
 fn map<T, S>(l : [T], callback : fn(T) -> S) -> [S] {
     if l == [] {
         [:S]
