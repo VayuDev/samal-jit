@@ -36,6 +36,11 @@ enum Maybe<T> {
 fn readHTTPHeader(socket : i32) -> Maybe<HTTPRequest> {
     str = readStringUntilEmptyHeader(socket)
     lines = Core.splitByChar(str, '\n')
+    lines = if lines == [] {
+        [""]
+    } else {
+        lines
+    }
     lines = Core.map(lines, fn(line : [char]) -> [char] {
         Core.takeWhile(line, fn(ch : char) -> bool {
             ch != '\r'
@@ -109,7 +114,10 @@ fn loop(serverSocket : i32) -> () {
 
             writeString(clientSocket, fullResponse)
         },
-        None{} -> ()
+        None{} -> {
+            Core.print("Invalid http request")
+            ()
+        }
     }
 
     closeSocket(clientSocket)
