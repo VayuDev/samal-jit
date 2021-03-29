@@ -15,6 +15,7 @@ int main(int argc, char** argv) {
     Pipeline pl;
     pl.addFile("samal_code/lib/Core.samal");
     pl.addFile("samal_code/lib/IO.samal");
+    pl.addFile("samal_code/lib/Net.samal");
     pl.addFile("samal_code/examples/Templ.samal");
     pl.addFile("samal_code/examples/Lists.samal");
     pl.addFile("samal_code/examples/Structs.samal");
@@ -90,7 +91,7 @@ int main(int argc, char** argv) {
     auto maybeI32Type = pl.type("Core.Maybe<i32>");
     // Server functions
     pl.addNativeFunction(NativeFunction{
-        "Server.openServerSocket",
+        "Net.openServerSocket",
         pl.type("fn(i32) -> Core.Maybe<i32>"),
         [maybeI32Type](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
             int32_t sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -117,7 +118,7 @@ int main(int argc, char** argv) {
             return ExternalVMValue::wrapEnum(vm, maybeI32Type, "Some", {ExternalVMValue::wrapInt32(vm, sock)});
         }});
     pl.addNativeFunction(NativeFunction{
-        "Server.acceptClientSocket",
+        "Net.acceptClientSocket",
         pl.type("fn(i32) -> i32"),
         [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
             auto sock = params.at(0).as<int32_t>();
@@ -143,7 +144,7 @@ int main(int argc, char** argv) {
             return ExternalVMValue::wrapInt32(vm, conn);
         }});
     pl.addNativeFunction(NativeFunction{
-        "Server.readStringUntilEmptyHeader",
+        "Net.recvStringUntilEmptyHeader",
         pl.type("fn(i32) -> [char]"),
         [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
             auto sock = params.at(0).as<int32_t>();
@@ -161,7 +162,7 @@ int main(int argc, char** argv) {
             }
         }});
     pl.addNativeFunction(NativeFunction{
-        "Server.readChar",
+        "Net.recvChar",
         pl.type("fn(i32) -> char"),
         [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
             auto sock = params.at(0).as<int32_t>();
@@ -173,7 +174,7 @@ int main(int argc, char** argv) {
             return ExternalVMValue::wrapChar(vm, buf);
         }});
     pl.addNativeFunction(NativeFunction{
-        "Server.writeString",
+        "Net.sendString",
         pl.type("fn(i32, [char]) -> ()"),
         [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
             auto sock = params.at(0).as<int32_t>();
@@ -182,7 +183,7 @@ int main(int argc, char** argv) {
             return ExternalVMValue::wrapEmptyTuple(vm);
         }});
     pl.addNativeFunction(NativeFunction{
-        "Server.closeSocket",
+        "Net.closeSocket",
         pl.type("fn(i32) -> ()"),
         [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
             auto sock = params.at(0).as<int32_t>();

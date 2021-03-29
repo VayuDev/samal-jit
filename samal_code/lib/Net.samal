@@ -1,0 +1,76 @@
+native fn openServerSocket(port : i32) -> Core.Maybe<i32>
+native fn closeSocket(socket : i32) -> ()
+native fn acceptClientSocket(serverSocket : i32) -> i32
+native fn recvByte(socket : i32) -> byte
+native fn recvStringUntilEmptyHeader(socket : i32) -> [char]
+native fn recvChar(socket : i32) -> char
+native fn sendString(socket : i32, str : [char]) -> ()
+
+fn recvUntilEmptyHeader(socket : i32, prepend : [char], lastThreeChars : [char]) -> [char] {
+    ch = recvChar(socket)
+    lastFourChars = Core.concat(lastThreeChars, [ch])
+    if lastFourChars == "\r\n\r\n" || ch == '\0' {
+        Core.concat(prepend, [ch])
+    } else {
+        lastThreeChars = if Core.len(lastFourChars) > 3 {
+            lastFourChars:tail
+        } else {
+            lastFourChars
+        }
+        @tail_call_self(socket, Core.concat(prepend, [ch]), lastThreeChars)
+    }
+}
+
+struct HTTPRequest {
+    method : [char],
+    version : [char],
+    url : [char],
+    headers : [([char], [char])]
+}
+
+fn recvHTTPHeader(socket : i32) -> Core.Maybe<HTTPRequest> {
+    str = recvStringUntilEmptyHeader(socket)
+    lines = Core.splitByChar(str, '\n')
+    lines = if lines == [] {
+        [""]
+    } else {
+        lines
+    }
+    lines = Core.map(lines, fn(line : [char]) -> [char] {
+        Core.takeWhile(line, fn(ch : char) -> bool {
+            ch != '\r'
+        })
+    })
+
+    firstLineSplit = Core.splitByChar(lines:head, ' ')
+    if Core.len(firstLineSplit) != 3 {
+        Core.Maybe<HTTPRequest>::None{}
+    } else {
+        headers =
+            lines:tail
+            |> Core.map(fn(line : [char]) -> Core.Maybe<([char], [char])> {
+                splitList =
+                    Core.takeWhileEx(line, fn(ch : char) -> bool {
+                        ch != ':'
+                    })
+                if splitList:1 == "" {
+                    Core.Maybe<([char], [char])>::None{}
+                } else {
+                    Core.Maybe<([char], [char])>::Some{(splitList:0, splitList:1:tail:tail)}
+                }
+            })
+            |> Core.filter(fn(line : Core.Maybe<([char], [char])>) -> bool {
+                match line {
+                    Some{m} -> true,
+                    None{} -> false
+                }
+            })
+            |> Core.map(fn(e : Core.Maybe<([char], [char])>) -> ([char], [char]) {
+                match e {
+                    Some{n} -> n,
+                    None{} -> ("", "")
+                }
+            })
+        Core.Maybe<HTTPRequest>::Some{HTTPRequest{method : firstLineSplit:head, version : firstLineSplit:tail:tail:head, url : firstLineSplit:tail:head, headers : headers}}
+    }
+}
