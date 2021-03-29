@@ -15,11 +15,11 @@ int main(int argc, char** argv) {
     Pipeline pl;
     pl.addFile("samal_code/lib/Core.samal");
     pl.addFile("samal_code/lib/IO.samal");
-    /*pipeline.addFile("samal_code/examples/Templ.samal");
-    pipeline.addFile("samal_code/examples/Lists.samal");
-    pipeline.addFile("samal_code/examples/Structs.samal");
-    pipeline.addFile("samal_code/examples/Euler.samal");
-    pipeline.addFile("samal_code/examples/Main.samal");*/
+    pl.addFile("samal_code/examples/Templ.samal");
+    pl.addFile("samal_code/examples/Lists.samal");
+    pl.addFile("samal_code/examples/Structs.samal");
+    pl.addFile("samal_code/examples/Euler.samal");
+    pl.addFile("samal_code/examples/Main.samal");
     pl.addFile("samal_code/examples/Server.samal");
     pl.addNativeFunction(samal::NativeFunction{
         "Core.print",
@@ -141,6 +141,24 @@ int main(int argc, char** argv) {
                 return ExternalVMValue::wrapInt32(vm, 0);
 
             return ExternalVMValue::wrapInt32(vm, conn);
+        }});
+    pl.addNativeFunction(NativeFunction{
+        "Server.readStringUntilEmptyHeader",
+        pl.type("fn(i32) -> [char]"),
+        [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
+            auto sock = params.at(0).as<int32_t>();
+            // TODO read whole utf-8 codepoint
+            std::string ret;
+            while(true) {
+                char buf = -1;
+                if(read(sock, &buf, 1) <= 0) {
+                    return ExternalVMValue::wrapString(vm, ret);
+                }
+                ret += buf;
+                if(ret.size() >= 4 && std::string_view{ret}.substr(ret.size() - 4) == "\r\n\r\n") {
+                    return ExternalVMValue::wrapString(vm, ret);
+                }
+            }
         }});
     pl.addNativeFunction(NativeFunction{
         "Server.readChar",

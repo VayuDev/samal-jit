@@ -1,6 +1,7 @@
 native fn openServerSocket(port : i32) -> Core.Maybe<i32>
 native fn acceptClientSocket(serverSocket : i32) -> i32
 native fn readByte(socket : i32) -> byte
+native fn readStringUntilEmptyHeader(socket : i32) -> [char]
 native fn readChar(socket : i32) -> char
 native fn closeSocket(socket : i32) -> ()
 native fn writeString(socket : i32, str : [char]) -> ()
@@ -33,7 +34,7 @@ enum Maybe<T> {
 }
 
 fn readHTTPHeader(socket : i32) -> Maybe<HTTPRequest> {
-    str = readUntilEmptyHeader(socket, "", "")
+    str = readStringUntilEmptyHeader(socket)
     lines = Core.splitByChar(str, '\n')
     lines = Core.map(lines, fn(line : [char]) -> [char] {
         Core.takeWhile(line, fn(ch : char) -> bool {
