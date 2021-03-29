@@ -27,7 +27,6 @@ public:
 
     void compileFunction(const FunctionDeclarationNode& function);
     Datatype compileLambdaCreationExpression(const LambdaCreationNode&);
-    void compileNativeFunction(const NativeFunctionDeclarationNode& function);
     Datatype compileScope(const ScopeNode& scope);
     Datatype compileLiteralI32(int32_t value);
     Datatype compileLiteralI64(int64_t value);
