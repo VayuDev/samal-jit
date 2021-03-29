@@ -37,9 +37,9 @@ void Pipeline::addFileFromMemory(std::string moduleName, std::string fileContent
     mModules.emplace_back(std::move(module));
     mTokenizers.emplace_back(std::move(tokenizer));
 }
-VM Pipeline::compile() {
+VM Pipeline::compile(VMParameters params) {
     samal::Compiler compiler{ mModules, std::move(mNativeFunctions) };
-    return samal::VM{ compiler.compile() };
+    return samal::VM{ compiler.compile(), params };
 }
 void Pipeline::addNativeFunction(NativeFunction function) {
     mNativeFunctions.emplace_back(std::move(function));

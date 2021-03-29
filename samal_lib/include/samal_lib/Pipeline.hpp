@@ -13,7 +13,7 @@ public:
     void addFile(const std::string& path);
     void addFileFromMemory(std::string moduleName, std::string fileContents);
     void addNativeFunction(NativeFunction function);
-    samal::VM compile();
+    samal::VM compile(VMParameters params = {});
 
     Datatype type(const std::string& typeString);
     Datatype incompleteType(const std::string& typeString);
