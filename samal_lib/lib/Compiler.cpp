@@ -860,9 +860,10 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
         // if we fail now, it's game over
         inferredTemplateParameters.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
         try {
-            functionNameType = functionNameType.completeWithTemplateParameters(inferredTemplateParameters, mUsingModuleNames, Datatype::AllowIncompleteTypes::No);
+            const auto& functionsModuleUsingNames = mModules.at(mDeclarationNodeToModuleId.at(callableDeclaration->astNode)).usingModuleNames;
+            functionNameType = functionNameType.completeWithTemplateParameters(inferredTemplateParameters, functionsModuleUsingNames, Datatype::AllowIncompleteTypes::No);
         } catch(std::exception& e) {
-            throw std::runtime_error("Couldn't infer function type, please specify template parameters");
+            throw std::runtime_error(std::string{} + "Couldn't infer function type, maybe try specifying template parameters. (" + e.what() + ")");
         }
         bool found = addToTemplateFunctionsToInstantiate(*callableDeclaration, inferredTemplateParameters, fullFunctionName, pushLabel);
         if(!found) {
