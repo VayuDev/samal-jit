@@ -16,14 +16,20 @@ static SourceCodeRef toRef(const peg::MatchInfo& res) {
 
 Parser::Parser() {
     Stopwatch stopwatch{ "Parser construction" };
-    mPegParser["Start"] << "Declaration+" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Start"] << "UsingDeclarations* TypeOrFunctionDeclaration+" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<up<DeclarationNode>> decls;
-        for(auto& d : res.subs) {
+        for(auto& d : res[0].subs) {
+            decls.emplace_back(d.result.move<DeclarationNode*>());
+        }
+        for(auto& d : res[1].subs) {
             decls.emplace_back(d.result.move<DeclarationNode*>());
         }
         return ModuleRootNode{ toRef(res), std::move(decls) };
     };
-    mPegParser["Declaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration | EnumDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["UsingDeclarations"] << "'using' IdentifierPartString ~nws~'\n'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return UsingDeclaration{toRef(res), res[1].result.moveValue<std::string>()};
+    };
+    mPegParser["TypeOrFunctionDeclaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration | EnumDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
         return std::move(res[0].result);
     };
     mPegParser["FunctionDeclaration"] << "'fn' IdentifierWithTemplate '(' ParameterVector ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {

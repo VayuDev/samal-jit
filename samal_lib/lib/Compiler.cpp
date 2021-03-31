@@ -41,23 +41,29 @@ Program Compiler::compileInternal() {
         Module module;
         module.name = moduleNode->getModuleName();
         module.usingModuleNames.push_back(module.name);
-        mModules.emplace_back(std::move(module));
         // map all child declaration nodes to the index of the module
         for(auto& decl : moduleNode->getDeclarations()) {
-            mDeclarationNodeToModuleId.emplace(decl.get(), mModules.size() - 1);
+            mDeclarationNodeToModuleId.emplace(decl.get(), mModules.size());
+            // add using module names
+            auto declAsUsingDeclaration = dynamic_cast<UsingDeclaration*>(decl.get());
+            if(declAsUsingDeclaration) {
+                module.usingModuleNames.push_back(declAsUsingDeclaration->getUsingModuleName());
+            }
         }
+        mModules.emplace_back(std::move(module));
     }
     // 3. create mStructTypeReplacementMap
     for(auto& moduleNode : mRoots) {
         for(auto& declNode : moduleNode->getDeclarations()) {
-            std::string fullTypeName = moduleNode->getModuleName() + "." + declNode->getIdentifier()->getName();
             auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
             if(declNodeAsStructDecl) {
+                std::string fullTypeName = moduleNode->getModuleName() + "." + declNodeAsStructDecl->getIdentifier()->getName();
                 mCustomUserDatatypeReplacementMap.emplace(fullTypeName, std::make_pair(Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()), TemplateParamOrUserType::UserType));
                 continue;
             }
             auto declNodeAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(declNode.get());
             if(declNodeAsEnumDecl) {
+                std::string fullTypeName = moduleNode->getModuleName() + "." + declNodeAsEnumDecl->getIdentifier()->getName();
                 mCustomUserDatatypeReplacementMap.emplace(fullTypeName, std::make_pair(Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()), TemplateParamOrUserType::UserType));
                 continue;
             }
@@ -88,7 +94,8 @@ Program Compiler::compileInternal() {
     for(auto& module : mRoots) {
         mUsingModuleNames = findModuleByName(module->getModuleName()).usingModuleNames;
         for(auto& decl : module->getDeclarations()) {
-            if(!decl->hasTemplateParameters() && std::string_view{ decl->getClassName() } == "FunctionDeclarationNode") {
+            auto declAsFunctionDeclaration = dynamic_cast<FunctionDeclarationNode*>(decl.get());
+            if(declAsFunctionDeclaration && !declAsFunctionDeclaration->hasTemplateParameters()) {
                 mCurrentUndeterminedTypeReplacementMap = mCustomUserDatatypeReplacementMap;
                 mCurrentTemplateTypeReplacementMap.clear();
                 decl->compile(*this);

@@ -571,17 +571,6 @@ private:
     std::vector<MatchCase> mCases;
 };
 
-class DeclarationNode : public CompilableASTNode {
-public:
-    explicit DeclarationNode(SourceCodeRef source);
-    [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
-    [[nodiscard]] virtual std::vector<std::string> getTemplateParameterVector() const = 0;
-    [[nodiscard]] virtual const IdentifierNode* getIdentifier() const = 0;
-    [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
-
-private:
-};
-
 class ModuleRootNode : public CompilableASTNode {
 public:
     explicit ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>>&& declarations);
@@ -599,7 +588,23 @@ private:
     std::string mName;
 };
 
-class CallableDeclarationNode : public DeclarationNode {
+class DeclarationNode : public CompilableASTNode {
+public:
+    explicit DeclarationNode(SourceCodeRef source);
+    [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
+private:
+};
+
+class TypeOrCallableDeclarationAstNode : public DeclarationNode {
+public:
+    explicit TypeOrCallableDeclarationAstNode(SourceCodeRef source);
+    [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
+    [[nodiscard]] virtual std::vector<std::string> getTemplateParameterVector() const = 0;
+    [[nodiscard]] virtual const IdentifierNode* getIdentifier() const = 0;
+    [[nodiscard]] inline const char* getClassName() const override { return "TypeOrCallableDeclarationAstNode"; }
+};
+
+class CallableDeclarationNode : public TypeOrCallableDeclarationAstNode {
 public:
     explicit CallableDeclarationNode(SourceCodeRef source);
     [[nodiscard]] virtual Datatype getDatatype() const = 0;
@@ -658,7 +663,7 @@ private:
     Datatype mReturnType;
 };
 
-class StructDeclarationNode : public DeclarationNode {
+class StructDeclarationNode : public TypeOrCallableDeclarationAstNode {
 public:
     StructDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> values);
     [[nodiscard]] bool hasTemplateParameters() const override;
@@ -677,7 +682,7 @@ private:
     std::vector<Parameter> mValues;
 };
 
-class EnumDeclarationNode : public DeclarationNode {
+class EnumDeclarationNode : public TypeOrCallableDeclarationAstNode {
 public:
     EnumDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<EnumField> fields);
     [[nodiscard]] bool hasTemplateParameters() const override;
@@ -694,6 +699,20 @@ public:
 private:
     up<IdentifierNode> mName;
     std::vector<EnumField> mFields;
+};
+
+class UsingDeclaration : public DeclarationNode {
+public:
+    UsingDeclaration(SourceCodeRef source, std::string usingModuleName);
+    [[nodiscard]] const std::string& getUsingModuleName() const {
+        return mUsingModuleName;
+    }
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "UsingDeclaration"; }
+
+private:
+    std::string mUsingModuleName;
 };
 
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params);

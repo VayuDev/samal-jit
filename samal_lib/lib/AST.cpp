@@ -582,6 +582,10 @@ DeclarationNode::DeclarationNode(SourceCodeRef source)
 : CompilableASTNode(std::move(source)) {
 }
 
+TypeOrCallableDeclarationAstNode::TypeOrCallableDeclarationAstNode(SourceCodeRef source)
+    : DeclarationNode(std::move(source)) {
+}
+
 ModuleRootNode::ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>>&& declarations)
 : CompilableASTNode(std::move(source)), mDeclarations(std::move(declarations)) {
 }
@@ -621,7 +625,7 @@ void ModuleRootNode::findUsedVariables(VariableSearcher& searcher) const {
 }
 
 CallableDeclarationNode::CallableDeclarationNode(SourceCodeRef source)
-: DeclarationNode(source) {
+: TypeOrCallableDeclarationAstNode(source) {
 }
 
 std::string FunctionDeclarationNode::dump(unsigned indent) const {
@@ -696,7 +700,7 @@ std::string NativeFunctionDeclarationNode::dump(unsigned int indent) const {
 }
 
 StructDeclarationNode::StructDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<Parameter> values)
-: DeclarationNode(std::move(source)), mName(std::move(name)), mValues(std::move(values)) {
+: TypeOrCallableDeclarationAstNode(std::move(source)), mName(std::move(name)), mValues(std::move(values)) {
 }
 bool StructDeclarationNode::hasTemplateParameters() const {
     return !mName->getTemplateParameters().empty();
@@ -718,7 +722,7 @@ std::string StructDeclarationNode::dump(unsigned int indent) const {
 }
 
 EnumDeclarationNode::EnumDeclarationNode(SourceCodeRef source, up<IdentifierNode> name, std::vector<EnumField> fields)
-: DeclarationNode(std::move(source)), mName(std::move(name)), mFields(std::move(fields)) {
+: TypeOrCallableDeclarationAstNode(std::move(source)), mName(std::move(name)), mFields(std::move(fields)) {
 }
 bool EnumDeclarationNode::hasTemplateParameters() const {
     return !mName->getTemplateParameters().empty();
@@ -746,5 +750,14 @@ Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter
         parameterTypes.push_back(param.type);
     }
     return Datatype::createFunctionType(returnType, std::move(parameterTypes));
+}
+
+UsingDeclaration::UsingDeclaration(SourceCodeRef source, std::string usingModuleName)
+: DeclarationNode(std::move(source)), mUsingModuleName(std::move(usingModuleName)) {
+}
+Datatype UsingDeclaration::compile(Compiler& comp) const {
+    assert(false);
+}
+void UsingDeclaration::findUsedVariables(VariableSearcher&) const {
 }
 }

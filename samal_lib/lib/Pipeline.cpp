@@ -55,17 +55,16 @@ Datatype Pipeline::parseTypeInternal(const std::string& typeString, Datatype::Al
     UndeterminedIdentifierReplacementMap replacementMap;
     for(auto& module: mModules) {
         for(auto& decl: module->getDeclarations()) {
-            Datatype type;
             auto declAsStructDecl = dynamic_cast<StructDeclarationNode*>(decl.get());
-            auto fullName = module->getModuleName() + "." + decl->getIdentifier()->getName();
             if(declAsStructDecl) {
-                type = Datatype::createStructType(fullName, declAsStructDecl->getFields(), declAsStructDecl->getTemplateParameterVector());
+                auto fullName = module->getModuleName() + "." + declAsStructDecl->getIdentifier()->getName();
+                Datatype type = Datatype::createStructType(fullName, declAsStructDecl->getFields(), declAsStructDecl->getTemplateParameterVector());
+                replacementMap.emplace(fullName, std::make_pair(std::move(type), TemplateParamOrUserType::UserType));
             }
             auto declAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(decl.get());
             if(declAsEnumDecl) {
-                type = Datatype::createEnumType(fullName, declAsEnumDecl->getFields(), declAsEnumDecl->getTemplateParameterVector());
-            }
-            if(type.getCategory() != DatatypeCategory::invalid) {
+                auto fullName = module->getModuleName() + "." + declAsEnumDecl->getIdentifier()->getName();
+                Datatype type = Datatype::createEnumType(fullName, declAsEnumDecl->getFields(), declAsEnumDecl->getTemplateParameterVector());
                 replacementMap.emplace(fullName, std::make_pair(std::move(type), TemplateParamOrUserType::UserType));
             }
         }
