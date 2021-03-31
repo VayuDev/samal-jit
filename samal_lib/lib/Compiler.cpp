@@ -195,6 +195,7 @@ Program::Function& Compiler::helperCompileFunctionLikeThing(const std::string& n
         mStackFrames.pop();
     }
     assert(mStackSize == static_cast<int32_t>(completedReturnType.getSizeOnStack()));
+    assert(mStackFrames.empty());
     addInstructions(Instruction::RETURN, completedReturnType.getSizeOnStack());
     mStackSize = 0;
 
@@ -315,6 +316,7 @@ void Compiler::addInstructionOneByteParam(Instruction insn, int8_t param) {
 }
 int32_t Compiler::addLabel(Instruction insn) {
     saveCurrentStackSizeToDebugInfo();
+    printf("Adding label %s\n", instructionToString(insn));
     auto len = instructionToWidth(insn);
     mProgram.code.resize(mProgram.code.size() + len);
     memcpy(&mProgram.code.at(mProgram.code.size() - len), &insn, 1);
@@ -571,8 +573,8 @@ Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
         mStackSize -= bodyReturnType.getSizeOnStack();
 
         auto labelPtr = labelToPtr(jumpToNextLabel);
-        *(Instruction*)labelPtr = Instruction::JUMP_IF_FALSE;
-        *((int32_t*)((uint8_t*)labelPtr + 1)) = mProgram.code.size();
+        int32_t programCodeSize = mProgram.code.size();
+        memcpy(labelPtr + 1, &programCodeSize, 4);
     }
     assert(returnType);
 
@@ -752,13 +754,12 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     }
     // template function
     auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
-    bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8));
-    if(!found) {
-        assert(false);
-    }
-    mStackSize += 8;
     replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
     auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
+
+    bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8));
+    mStackSize += 8;
+    assert(found);
     return returnType;
 }
 Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& functionNameNode, const std::vector<up<ExpressionNode>>& params, const ExpressionNode* chainedInitialParamValue) {
