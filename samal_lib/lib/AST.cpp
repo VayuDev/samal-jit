@@ -585,6 +585,9 @@ DeclarationNode::DeclarationNode(SourceCodeRef source)
 TypeOrCallableDeclarationAstNode::TypeOrCallableDeclarationAstNode(SourceCodeRef source)
     : DeclarationNode(std::move(source)) {
 }
+std::string TypeOrCallableDeclarationAstNode::getDeclaredName() const {
+    return getIdentifier()->getName();
+}
 
 ModuleRootNode::ModuleRootNode(SourceCodeRef source, std::vector<up<DeclarationNode>>&& declarations)
 : CompilableASTNode(std::move(source)), mDeclarations(std::move(declarations)) {

@@ -591,6 +591,7 @@ private:
 class DeclarationNode : public CompilableASTNode {
 public:
     explicit DeclarationNode(SourceCodeRef source);
+    [[nodiscard]] virtual std::string getDeclaredName() const = 0;
     [[nodiscard]] inline const char* getClassName() const override { return "DeclarationNode"; }
 private:
 };
@@ -598,6 +599,7 @@ private:
 class TypeOrCallableDeclarationAstNode : public DeclarationNode {
 public:
     explicit TypeOrCallableDeclarationAstNode(SourceCodeRef source);
+    [[nodiscard]] std::string getDeclaredName() const override;
     [[nodiscard]] virtual bool hasTemplateParameters() const = 0;
     [[nodiscard]] virtual std::vector<std::string> getTemplateParameterVector() const = 0;
     [[nodiscard]] virtual const IdentifierNode* getIdentifier() const = 0;
@@ -704,6 +706,9 @@ private:
 class UsingDeclaration : public DeclarationNode {
 public:
     UsingDeclaration(SourceCodeRef source, std::string usingModuleName);
+    [[nodiscard]] inline std::string getDeclaredName() const override {
+        return mUsingModuleName;
+    }
     [[nodiscard]] const std::string& getUsingModuleName() const {
         return mUsingModuleName;
     }

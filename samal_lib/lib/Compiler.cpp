@@ -1,6 +1,7 @@
 #include "samal_lib/Compiler.hpp"
 #include "samal_lib/AST.hpp"
 #include "samal_lib/StackInformationTree.hpp"
+#include <unordered_set>
 
 namespace samal {
 
@@ -15,6 +16,9 @@ Program Compiler::compile() {
         return compileInternal();
     } catch(std::exception& e) {
         // TODO use something like mCurrentModuleName instead
+        if(mUsingModuleNames.empty()) {
+            throw std::runtime_error{"Error while compiling: " + std::string(e.what())};
+        }
         throw std::runtime_error{"Error while compiling " + mUsingModuleNames.at(0) + ".samal:\n" + e.what()};
     }
 }
@@ -41,13 +45,47 @@ Program Compiler::compileInternal() {
         Module module;
         module.name = moduleNode->getModuleName();
         module.usingModuleNames.push_back(module.name);
+        struct DeclarationName {
+            std::string name;
+            SourceCodeRef location;
+            std::string moduleName;
+        };
+        struct DeclarationNameHasher {
+            size_t operator()(const DeclarationName& d) const {
+                return std::hash<std::string>()(d.name);
+            }
+        };
+        struct DeclarationNameComparer {
+            bool operator()(const DeclarationName& a, const DeclarationName& b) const {
+                return a.name == b.name;
+            }
+        };
+        std::unordered_set<DeclarationName, DeclarationNameHasher, DeclarationNameComparer> includedModuleNames;
+        auto insertIntoIncludedModuleNames = [&] (const DeclarationNode& node, const std::string& moduleName) {
+            DeclarationName toInsertObj{node.getDeclaredName(), node.getSourceCodeRef(), moduleName};
+            if(!includedModuleNames.emplace(toInsertObj).second) {
+                auto foundDeclaration = includedModuleNames.find(toInsertObj);
+                node.throwException("Declaration '" + node.getDeclaredName() + "' in module '" + moduleName + "' already exists, declared in '"
+                    + foundDeclaration->moduleName + "' (" + std::to_string(foundDeclaration->location.line)
+                    + ":" + std::to_string(foundDeclaration->location.column) + ")");
+            }
+        };
         // map all child declaration nodes to the index of the module
         for(auto& decl : moduleNode->getDeclarations()) {
             mDeclarationNodeToModuleId.emplace(decl.get(), mModules.size());
+            insertIntoIncludedModuleNames(*decl.get(), module.name);
             // add using module names
             auto declAsUsingDeclaration = dynamic_cast<UsingDeclaration*>(decl.get());
             if(declAsUsingDeclaration) {
                 module.usingModuleNames.push_back(declAsUsingDeclaration->getUsingModuleName());
+                // also add the other module's declarations to our set
+                for(auto& otherModule: mRoots) {
+                    if(otherModule->getModuleName() == declAsUsingDeclaration->getUsingModuleName()) {
+                        for(auto& otherModuleDecl : otherModule->getDeclarations()) {
+                            insertIntoIncludedModuleNames(*otherModuleDecl.get(), otherModule->getModuleName());
+                        }
+                    }
+                }
             }
         }
         mModules.emplace_back(std::move(module));
