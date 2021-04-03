@@ -1,3 +1,5 @@
+using Core
+
 native fn openServerSocket(port : i32) -> Core.Maybe<i32>
 native fn closeSocket(socket : i32) -> ()
 native fn acceptClientSocket(serverSocket : i32) -> i32
@@ -26,6 +28,34 @@ struct HTTPRequest {
     version : [char],
     url : [char],
     headers : [([char], [char])]
+}
+
+struct HTTPResponse {
+    body : [char],
+    status : i32,
+    contentType : [char]
+}
+
+fn sendResponse(socket : i32, response : HTTPResponse) -> () {
+    statusString = if response:status == 200 {
+        "200 OK"
+    } else if response:status == 404 {
+        "404 Not Found"
+    } else {
+        "500 Internal Server Error"
+    }
+
+    fullResponse =
+        response:body
+        |> prepend("\r\n\r\n")
+        |> prepend(toString(len(response:body)))
+        |> prepend("; charset=utf-8\r\nContent-Length: ")
+        |> prepend(response:contentType)
+        |> prepend("\r\nContent-Type: ")
+        |> prepend(statusString)
+        |> prepend("HTTP/1.1 ")
+
+    sendString(socket, fullResponse)
 }
 
 fn recvHTTPHeader(socket : i32) -> Core.Maybe<HTTPRequest> {

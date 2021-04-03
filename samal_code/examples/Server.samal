@@ -1,13 +1,73 @@
 using Core
 
-fn loop(serverSocket : i32) -> () {
+struct Handler {
+    url : [char],
+    callback : fn(Net.HTTPRequest) -> Net.HTTPResponse
+}
+
+struct ServerConfig {
+    port : i32,
+    handlers : [Handler]
+}
+
+fn search<T>(list : [T], callback : fn(T) -> bool) -> bool {
+    if list == [] {
+        false
+    } else {
+        if callback(list:head) {
+            true
+        } else {
+            @tail_call_self(list:tail, callback)
+        }
+    }
+}
+
+fn loop(serverSocket : i32, config : ServerConfig) -> () {
     clientSocket = Net.acceptClientSocket(serverSocket)
     maybeHeader = Net.recvHTTPHeader(clientSocket)
     match maybeHeader {
         Some{header} -> {
-            print(header)
+            handlerFound = search(config:handlers, fn(handler : Handler) -> bool {
+                if handler:url == header:url || handler:url == "*" {
+                    response = handler:callback(header)
+                    Net.sendResponse(clientSocket, response)
+                    true
+                } else {
+                    print("Handler " |> concat(handler:url) |> concat(" failed"))
+                    false
+                }
+            })
+            if handlerFound {
+                ()
+            } else {
+                Net.sendResponse(clientSocket, Net.HTTPResponse{body: " not found" |> Core.prepend(header:url) |> Core.prepend("Error: Path "), status : 404, contentType: "text/plain"})
+            }
+            ()
+        },
+        None{} -> {
+            print("Invalid http request")
+            ()
+        }
+    }
 
-            path = Core.concat("/www", header:url)
+    Net.closeSocket(clientSocket)
+    @tail_call_self(serverSocket, config)
+}
+
+fn runServer(config : ServerConfig) -> () {
+    match Net.openServerSocket(config:port) {
+        Some{socket} -> {
+            print("Socket created")
+            loop(socket, config)
+        },
+        None{} -> print("Failed to create socket")
+    }
+}
+
+fn main() -> () {
+    handlers = [
+        Handler{url : "*", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {
+            path = Core.concat("/www", request:url)
             extension = IO.getExtension(path)
             contentType =
                 if extension == ".html" {
@@ -17,39 +77,13 @@ fn loop(serverSocket : i32) -> () {
                 }
 
             response = match IO.readFileAsString(path) {
-                Some{fileContent} -> (fileContent, "200 OK", contentType),
+                Some{fileContent} -> Net.HTTPResponse{body : fileContent, status : 200, contentType : contentType},
                 None{} -> {
-                    (" not found" |> Core.prepend(path) |> Core.prepend("Error: File "), "404 Not found", "text/plain")
+                    Net.HTTPResponse{body: " not found" |> Core.prepend(request:url) |> Core.prepend("Error: Path "), status : 404, contentType: "text/plain"}
                 }
             }
-            fullResponse =
-                response:0
-                |> Core.prepend("\r\n\r\n")
-                |> Core.prepend(Core.toString(Core.len(response:0)))
-                |> Core.prepend("; charset=utf-8\r\nContent-Length: ")
-                |> Core.prepend(response:2)
-                |> Core.prepend("\r\nContent-Type: ")
-                |> Core.prepend(response:1)
-                |> Core.prepend("HTTP/1.1 ")
-
-            Net.sendString(clientSocket, fullResponse)
-        },
-        None{} -> {
-            Core.print("Invalid http request")
-            ()
-        }
-    }
-
-    Net.closeSocket(clientSocket)
-    @tail_call_self(serverSocket)
-}
-
-fn main() -> () {
-    match Net.openServerSocket(8080) {
-        Some{socket} -> {
-            print("Socket created")
-            loop(socket)
-        },
-        None{} -> print("Failed to create socket")
-    }
+            response
+        }}
+    ]
+    runServer(ServerConfig{port : 8080, handlers : handlers})
 }
