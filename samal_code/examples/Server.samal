@@ -1,9 +1,11 @@
+using Core
+
 fn loop(serverSocket : i32) -> () {
     clientSocket = Net.acceptClientSocket(serverSocket)
     maybeHeader = Net.recvHTTPHeader(clientSocket)
     match maybeHeader {
         Some{header} -> {
-            Core.print(header)
+            print(header)
 
             path = Core.concat("/www", header:url)
             extension = IO.getExtension(path)
@@ -45,9 +47,9 @@ fn loop(serverSocket : i32) -> () {
 fn main() -> () {
     match Net.openServerSocket(8080) {
         Some{socket} -> {
-            Core.print("Socket created")
+            print("Socket created")
             loop(socket)
         },
-        None{} -> Core.print("Failed to create socket")
+        None{} -> print("Failed to create socket")
     }
 }
