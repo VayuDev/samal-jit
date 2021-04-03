@@ -33,7 +33,6 @@ fn loop(serverSocket : i32, config : ServerConfig) -> () {
                     Net.sendResponse(clientSocket, response)
                     true
                 } else {
-                    print("Handler " |> concat(handler:url) |> concat(" failed"))
                     false
                 }
             })
@@ -66,6 +65,14 @@ fn runServer(config : ServerConfig) -> () {
 
 fn main() -> () {
     handlers = [
+        Handler{url : "/", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {
+            response = match IO.readFileAsString("/www/index.html") {
+                Some{fileContent} -> Net.HTTPResponse{body : fileContent, status : 200, contentType : "text/html"},
+                None{} -> {
+                    Net.HTTPResponse{body: "Error: Path index.html not found", status : 404, contentType: "text/plain"}
+                }
+            }
+        }},
         Handler{url : "*", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {
             path = Core.concat("/www", request:url)
             extension = IO.getExtension(path)
@@ -85,5 +92,5 @@ fn main() -> () {
             response
         }}
     ]
-    runServer(ServerConfig{port : 8080, handlers : handlers})
+    runServer(ServerConfig{port : 8081, handlers : handlers})
 }
