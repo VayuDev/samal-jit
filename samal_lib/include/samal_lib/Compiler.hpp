@@ -127,7 +127,7 @@ private:
     UndeterminedIdentifierReplacementMap mCurrentTemplateTypeReplacementMap;
 
     int32_t mCurrentFunctionStartingIp{ -1 };
-    Datatype mCurrentFunctionReturnType;
+    Datatype mCurrentFunctionType;
 
     struct VariableOnStack {
         int32_t offsetFromBottom{ 0 };

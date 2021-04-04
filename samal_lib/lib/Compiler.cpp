@@ -202,6 +202,7 @@ Program::Function& Compiler::compileLambda(const LambdaToCompile& lambdaToCompil
 }
 Program::Function& Compiler::helperCompileFunctionLikeThing(const std::string& name, const Datatype& returnType, const std::vector<std::pair<std::string, Datatype>>& params, const std::vector<std::pair<std::string, Datatype>>& implicitParams, const ScopeNode& body) {
     printf("\nCompiling function %s\n", name.c_str());
+    mCurrentFunctionType = {};
 
     auto start = mProgram.code.size();
     mCurrentFunctionStartingIp = start;
@@ -211,7 +212,16 @@ Program::Function& Compiler::helperCompileFunctionLikeThing(const std::string& n
     mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
 
     const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
-    mCurrentFunctionReturnType = completedReturnType;
+
+    // figure out type of function
+    std::vector<Datatype> parameterTypes;
+    parameterTypes.reserve(params.size());
+    for(auto& param : params) {
+        parameterTypes.emplace_back(param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames));
+    }
+    auto functionType = Datatype::createFunctionType(completedReturnType, std::move(parameterTypes));
+
+    mCurrentFunctionType = functionType;
     for(const auto& param : params) {
         auto type = param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
         mStackSize += type.getSizeOnStack();
@@ -243,14 +253,6 @@ Program::Function& Compiler::helperCompileFunctionLikeThing(const std::string& n
     assert(mStackFrames.empty());
     addInstructions(Instruction::RETURN, completedReturnType.getSizeOnStack());
     mStackSize = 0;
-
-    // figure out type of function
-    std::vector<Datatype> parameterTypes;
-    parameterTypes.reserve(params.size());
-    for(auto& param : params) {
-        parameterTypes.emplace_back(param.second.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames));
-    }
-    auto functionType = Datatype::createFunctionType(completedReturnType, std::move(parameterTypes));
 
     // save the region of the function in the program object to allow locating it
     auto& entry = mProgram.functions.emplace_back(Program::Function{
@@ -1161,18 +1163,27 @@ Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
     auto oldStackSize = mStackSize;
     int32_t paramsSize = 0;
     pushTinyStackFrame();
+    if(node.getParams().size() != mCurrentFunctionType.getFunctionTypeInfo().second.size()) {
+        node.throwException("Invalid number of arguments passed");
+    }
+    size_t i = 0;
     for(auto& p : node.getParams()) {
+        // TODO check parameters
         auto paramType = p->compile(*this);
         saveTinyStackFrameVariableLocation(paramType);
+        if(paramType != mCurrentFunctionType.getFunctionTypeInfo().second.at(i)) {
+            node.throwException("Invalid argument type at index " + std::to_string(i) + "; expected " + mCurrentFunctionType.getFunctionTypeInfo().second.at(i).toString() + ", but got " + paramType.toString());
+        }
         paramsSize += paramType.getSizeOnStack();
+        i++;
     }
     addInstructions(Instruction::POP_N_BELOW, oldStackSize, paramsSize);
     mStackSize -= oldStackSize;
     popTinyStackFrame();
     addInstructions(Instruction::JUMP, mCurrentFunctionStartingIp);
     // This isn't actually true but it's what is expected
-    mStackSize = oldStackSize + mCurrentFunctionReturnType.getSizeOnStack();
-    return mCurrentFunctionReturnType;
+    mStackSize = oldStackSize + mCurrentFunctionType.getFunctionTypeInfo().first.getSizeOnStack();
+    return mCurrentFunctionType.getFunctionTypeInfo().first;
 }
 Datatype Compiler::compileMoveToHeapExpression(const MoveToHeapExpression& node) {
     auto toMoveBaseType = node.getToMove()->compile(*this);

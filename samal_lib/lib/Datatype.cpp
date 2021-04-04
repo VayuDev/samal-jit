@@ -300,7 +300,8 @@ Datatype& Datatype::operator=(const Datatype& other) {
         return *this;
     mCategory = other.mCategory;
     mUndefinedTypeReplacementMap = other.mUndefinedTypeReplacementMap;
-    mFurtherInfo = std::make_unique<ContainedFurtherInfoType>(*other.mFurtherInfo);
+    if(other.mFurtherInfo)
+        mFurtherInfo = std::make_unique<ContainedFurtherInfoType>(*other.mFurtherInfo);
     return *this;
 }
 Datatype Datatype::completeWithSavedTemplateParameters(AllowIncompleteTypes allowIncompleteTypes) const {
