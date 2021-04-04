@@ -17,9 +17,9 @@ Program Compiler::compile() {
     } catch(std::exception& e) {
         // TODO use something like mCurrentModuleName instead
         if(mUsingModuleNames.empty()) {
-            throw std::runtime_error{"Error while compiling: " + std::string(e.what())};
+            throw CompilationException{"Error while compiling: " + std::string(e.what())};
         }
-        throw std::runtime_error{"Error while compiling " + mUsingModuleNames.at(0) + ".samal:\n" + e.what()};
+        throw CompilationException{"Error while compiling " + mUsingModuleNames.at(0) + ".samal:\n" + e.what()};
     }
 }
 
