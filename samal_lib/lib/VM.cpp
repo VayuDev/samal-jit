@@ -33,13 +33,21 @@ public:
         push(r15);
         mov(r15, rsp);
 
+        // gc pointer
+        const auto& gcPointer = r14;
+        mov(gcPointer, rcx);
+
+        // GC::requestCollection pointer
+        const auto& gcRequestCollectionPointer = r8;
+        mov(gcRequestCollectionPointer, r8);
+
         // ip
         const auto& ip = r11;
         [[maybe_unused]] const auto& ip32 = r11d;
         mov(ip, rdi);
         // stack ptr
-        const auto& stackPtr = r12;
-        mov(stackPtr, rsi);
+        const auto& originalStackPointer = r12;
+        mov(originalStackPointer, rsi);
         // stack size
         const auto& stackSize = r13;
         mov(stackSize, rdx);
@@ -50,7 +58,7 @@ public:
         const auto& nativeFunctionIdRegister = r10;
         mov(nativeFunctionIdRegister, 0);
 
-        mov(rsp, stackPtr);
+        mov(rsp, originalStackPointer);
 
         auto jumpWithIp = [&] {
             jmp(ptr[tableRegister + ip * sizeof(void*)]);
@@ -396,6 +404,27 @@ public:
                 mov(qword[rsp], rbx);
                 break;
             }
+            case Instruction::RUN_GC:
+                mov(rax, originalStackPointer);
+                add(rax, stackSize);
+                // rax now points to the upper end of the original stack
+
+                // calculate new stack size
+                sub(rax, rsp);
+
+                push(r8);
+                push(r9);
+                push(r10);
+                push(r11);
+                mov(rdi, gcPointer);
+                mov(rsi, rax);
+                mov(rdx, ip);
+                call(gcRequestCollectionPointer);
+                pop(r11);
+                pop(r10);
+                pop(r9);
+                pop(r8);
+                break;
             case Instruction::NOOP:
                 break;
             default:
@@ -430,7 +459,7 @@ public:
 
         assert(!hasUndefinedLabel());
 
-        mov(r14, stackPtr);
+        mov(r14, originalStackPointer);
         add(r14, stackSize);
         // r14 now points to the upper end of stack
 
@@ -500,7 +529,7 @@ ExternalVMValue VM::run(const std::string& functionName, std::vector<uint8_t> in
 #    ifdef _DEBUG
             printf("Executing jit...\n");
 #    endif
-            JitReturn ret = mCompiledCode->getCode<JitReturn (*)(int32_t, uint8_t*, int32_t)>()(mIp, mStack.getTopPtr(), mStack.getSize());
+            JitReturn ret = mCompiledCode->getCode<JitReturn (*)(int32_t, uint8_t*, int32_t, VM*, void(VM::*)(int64_t, int64_t))>()(mIp, mStack.getTopPtr(), mStack.getSize(), this, &VM::jitRequestGCCollection);
             mStack.setSize(ret.stackSize);
             mIp = ret.ip;
             if(mIp == static_cast<int32_t>(mProgram.code.size())) {
@@ -1195,6 +1224,11 @@ int32_t VM::getIp() const {
 }
 const Program& VM::getProgram() const {
     return mProgram;
+}
+void VM::jitRequestGCCollection(int64_t newStackSize, int64_t newIp) {
+    mStack.setSize(newStackSize);
+    mIp = newIp;
+    mGC.requestCollection();
 }
 VM::~VM() = default;
 void Stack::push(const std::vector<uint8_t>& data) {

@@ -63,6 +63,7 @@ public:
 private:
     __always_inline bool interpretInstruction();
     void execNativeFunction(int32_t id);
+    void jitRequestGCCollection(int64_t newStackSize, int64_t newIp);
 
     Stack mStack;
     Program mProgram;
