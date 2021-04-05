@@ -144,7 +144,7 @@ private:
         Datatype,
         StructInfo,
         EnumInfo>;
-    up<ContainedFurtherInfoType> mFurtherInfo;
+    sp<const ContainedFurtherInfoType> mFurtherInfo;
 
     DatatypeCategory mCategory;
     Datatype(DatatypeCategory, ContainedFurtherInfoType);
@@ -159,7 +159,7 @@ private:
         UndeterminedIdentifierReplacementMap map;
         std::vector<std::string> includedModules;
     };
-    void attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompletionInfo> map);
+    [[nodiscard]] Datatype attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompletionInfo> map) const;
     sp<UndeterminedIdentifierCompletionInfo> mUndefinedTypeReplacementMap;
 };
 struct Datatype::StructInfo::StructElement {
