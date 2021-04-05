@@ -452,3 +452,20 @@ fn test() -> [[char]] {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == R"(["Hallo", "Welt"])");
 }
+
+#ifdef SAMAL_LANG_BENCHMARKS
+TEST_CASE("fib(28) benchmark", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn fib(n : i32) -> i32 {
+    if n < 2 {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+})");
+    BENCHMARK("fib(28)") {
+        auto vmRet = vm.run("Main.fib", { samal::ExternalVMValue::wrapInt32(vm, 28) });
+        REQUIRE(vmRet.dump() == "317811");
+    };
+}
+#endif
