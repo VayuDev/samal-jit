@@ -466,6 +466,16 @@ fn test() -> bool {
     REQUIRE(vmRet.dump() == R"(true)");
 }
 
+TEST_CASE("!= for lists", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn test() -> [bool] {
+    ["" == [], "Ha" == ['H', 'a'], "Hallo" != "", "Hallo" != [], "Hallo" != "Hallo", "Hallo" != "Bert", "" != "Hallo"]
+}
+)");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"([true, true, true, true, false, true, true])");
+}
+
 #ifdef SAMAL_LANG_BENCHMARKS
 TEST_CASE("fib(28) benchmark", "[samal_whole_system]") {
     auto vm = compileSimple(R"(

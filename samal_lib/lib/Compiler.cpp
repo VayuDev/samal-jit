@@ -427,11 +427,21 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
     // check if we are comparing with an empty list, in which case we can optimize
     if(lhsType.getCategory() == DatatypeCategory::list) {
         auto* rhsListCreation = dynamic_cast<ListCreationNode*>(binaryExpression.getRight().get());
-        if(rhsListCreation && rhsListCreation->getParams().empty() && binaryExpression.getOperator() == BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS) {
-            addInstructions(Instruction::IS_LIST_EMPTY);
-            mStackSize -= lhsType.getSizeOnStack();
-            mStackSize += getSimpleSize(DatatypeCategory::bool_);
-            return Datatype::createSimple(DatatypeCategory::bool_);
+        if(rhsListCreation && rhsListCreation->getParams().empty()) {
+            if(binaryExpression.getOperator() == BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS) {
+                // a == []
+                addInstructions(Instruction::IS_LIST_EMPTY);
+                mStackSize -= lhsType.getSizeOnStack();
+                mStackSize += getSimpleSize(DatatypeCategory::bool_);
+                return Datatype::createSimple(DatatypeCategory::bool_);
+            } else if(binaryExpression.getOperator() == BinaryExpressionNode::BinaryOperator::LOGICAL_NOT_EQUALS) {
+                // a != []
+                addInstructions(Instruction::IS_LIST_EMPTY);
+                mStackSize -= lhsType.getSizeOnStack();
+                mStackSize += getSimpleSize(DatatypeCategory::bool_);
+                addInstructions(Instruction::LOGICAL_NOT);
+                return Datatype::createSimple(DatatypeCategory::bool_);
+            }
         }
     }
 
@@ -558,13 +568,19 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         }
         break;
     case DatatypeCategory::list:
-        if(binaryExpression.getOperator() == BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS) {
+        switch(binaryExpression.getOperator()) {
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS:
             addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, saveAuxiliaryDatatypeToProgram(lhsType));
             mStackSize -= lhsType.getSizeOnStack() * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_NOT_EQUALS:
+            addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, saveAuxiliaryDatatypeToProgram(lhsType));
+            mStackSize -= lhsType.getSizeOnStack() * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            addInstructions(Instruction::LOGICAL_NOT);
+            return Datatype::createSimple(DatatypeCategory::bool_);
         }
-        break;
     case DatatypeCategory::bool_:
         switch(binaryExpression.getOperator()) {
         case BinaryExpressionNode::BinaryOperator::LOGICAL_OR:
