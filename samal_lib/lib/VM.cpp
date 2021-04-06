@@ -890,8 +890,8 @@ bool VM::interpretInstruction() {
     }
     case Instruction::LOGICAL_OR: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(bool*)mStack.get(8);
-        auto rhs = *(bool*)mStack.get(0);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs || rhs;
         mStack.push(&res, 8);
@@ -906,8 +906,8 @@ bool VM::interpretInstruction() {
     }
     case Instruction::LOGICAL_AND: {
 #ifdef x86_64_BIT_MODE
-        auto lhs = *(bool*)mStack.get(8);
-        auto rhs = *(bool*)mStack.get(0);
+        auto lhs = *(int64_t*)mStack.get(8);
+        auto rhs = *(int64_t*)mStack.get(0);
         mStack.pop(16);
         int64_t res = lhs && rhs;
         mStack.push(&res, 8);
@@ -922,7 +922,7 @@ bool VM::interpretInstruction() {
     }
     case Instruction::LOGICAL_NOT: {
 #ifdef x86_64_BIT_MODE
-        auto value = *(bool*)mStack.get(8);
+        auto value = *(int64_t*)mStack.get(0);
         mStack.pop(8);
         int64_t res = !value;
         mStack.push(&res, 8);
