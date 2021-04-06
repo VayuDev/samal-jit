@@ -51,8 +51,7 @@ public:
     Datatype compileStructCreation(const StructCreationNode&);
     Datatype compileStructFieldAccess(const StructFieldAccessExpression&);
     Datatype compileTailCallSelf(const TailCallSelfStatementNode&);
-    Datatype compileMoveToHeapExpression(const MoveToHeapExpression&);
-    Datatype compileMoveToStackExpression(const MoveToStackExpression&);
+    Datatype compilePrefixExpression(const PrefixExpression&);
 
     Datatype compileEnumCreation(const EnumCreationNode& node);
     Datatype compileMatchExpression(const MatchExpression& node);

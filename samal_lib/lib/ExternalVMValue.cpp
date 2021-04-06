@@ -208,6 +208,14 @@ std::string ExternalVMValue::dump() const {
         ret += "}";
         break;
     }
+    case DatatypeCategory::bool_: {
+        if(std::get<bool>(mValue)) {
+            ret += "true";
+        } else {
+            ret += "false";
+        }
+        break;
+    }
     default:
         ret += "<unknown>";
     }
@@ -222,14 +230,16 @@ ExternalVMValue ExternalVMValue::wrapEmptyTuple(VM& vm) {
 }
 ExternalVMValue ExternalVMValue::wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr) {
     switch(type.getCategory()) {
+    case DatatypeCategory::bool_:
+        return ExternalVMValue{ vm, type, *(bool*)ptr };
     case DatatypeCategory::byte:
         return ExternalVMValue{vm, type, *ptr};
     case DatatypeCategory::i32:
     case DatatypeCategory::char_:
-        return ExternalVMValue{ vm, type, *(int32_t*)(ptr) };
+        return ExternalVMValue{ vm, type, *(int32_t*)ptr };
     case DatatypeCategory::function:
     case DatatypeCategory::i64:
-        return ExternalVMValue{ vm, type, *(int64_t*)(ptr) };
+        return ExternalVMValue{ vm, type, *(int64_t*)ptr };
     case DatatypeCategory::tuple: {
         std::vector<ExternalVMValue> children;
         auto reversedTypes = type.getTupleInfo();

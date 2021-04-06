@@ -904,6 +904,20 @@ bool VM::interpretInstruction() {
 #endif
         break;
     }
+    case Instruction::LOGICAL_NOT: {
+#ifdef x86_64_BIT_MODE
+        auto value = *(bool*)mStack.get(8);
+        mStack.pop(8);
+        int64_t res = !value;
+        mStack.push(&res, 8);
+#else
+        auto value = *(bool*)mStack.get(1);
+        mStack.pop(1);
+        bool res = !value;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
     case Instruction::POP_N_BELOW: {
         mStack.popBelow(*(int32_t*)&mProgram.code.at(mIp + 5),
             *(int32_t*)&mProgram.code.at(mIp + 1));

@@ -34,6 +34,7 @@ namespace samal {
     INSTRUCTION(COMPARE_EQUALS_I64, 1)          \
     INSTRUCTION(COMPARE_NOT_EQUALS_I64, 1)      \
     INSTRUCTION(LOGICAL_OR, 1)                  \
+    INSTRUCTION(LOGICAL_NOT, 1)                 \
     INSTRUCTION(JUMP_IF_FALSE, 5)               \
     INSTRUCTION(JUMP, 5)                        \
     INSTRUCTION(REPUSH_N, 5)                    \

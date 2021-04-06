@@ -475,34 +475,28 @@ struct MatchCompileReturn {
     std::vector<int32_t> labelsToInsertJumpToNext;
 };
 
-class MoveToHeapExpression : public ExpressionNode {
+class PrefixExpression : public ExpressionNode {
 public:
-    MoveToHeapExpression(SourceCodeRef source, up<ExpressionNode> toMove);
+    enum class Type {
+        MOVE_TO_HEAP,
+        MOVE_TO_STACK,
+        LOGICAL_NOT
+    };
+    PrefixExpression(SourceCodeRef source, up<ExpressionNode> child, Type type);
     Datatype compile(Compiler& comp) const override;
-    [[nodiscard]] const auto& getToMove() const {
-        return mToMove;
+    [[nodiscard]] const auto& getChild() const {
+        return mChild;
+    }
+    [[nodiscard]] auto getType() const {
+        return mType;
     }
     void findUsedVariables(VariableSearcher&) const override;
     [[nodiscard]] std::string dump(unsigned indent) const override;
-    [[nodiscard]] inline const char* getClassName() const override { return "MoveToHeapExpression"; }
+    [[nodiscard]] inline const char* getClassName() const override { return "PrefixExpression"; }
 
 private:
-    up<ExpressionNode> mToMove;
-};
-
-class MoveToStackExpression : public ExpressionNode {
-public:
-    MoveToStackExpression(SourceCodeRef source, up<ExpressionNode> toMove);
-    Datatype compile(Compiler& comp) const override;
-    [[nodiscard]] const auto& getToMove() const {
-        return mToMove;
-    }
-    void findUsedVariables(VariableSearcher&) const override;
-    [[nodiscard]] std::string dump(unsigned indent) const override;
-    [[nodiscard]] inline const char* getClassName() const override { return "MoveToStackExpression"; }
-
-private:
-    up<ExpressionNode> mToMove;
+    Type mType;
+    up<ExpressionNode> mChild;
 };
 
 class MatchCondition : public ASTNode {

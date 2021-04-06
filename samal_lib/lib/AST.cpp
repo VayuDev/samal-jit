@@ -503,30 +503,17 @@ std::string StructFieldAccessExpression::dump(unsigned int indent) const {
 }
 
 
-MoveToHeapExpression::MoveToHeapExpression(SourceCodeRef source, up<ExpressionNode> toMove)
-: ExpressionNode(source), mToMove(std::move(toMove)) {
+PrefixExpression::PrefixExpression(SourceCodeRef source, up<ExpressionNode> child, Type type)
+: ExpressionNode(source), mChild(std::move(child)), mType(type) {
 
 }
-Datatype MoveToHeapExpression::compile(Compiler& comp) const {
-    return comp.compileMoveToHeapExpression(*this);
+Datatype PrefixExpression::compile(Compiler& comp) const {
+    return comp.compilePrefixExpression(*this);
 }
-void MoveToHeapExpression::findUsedVariables(VariableSearcher& searcher) const {
-    mToMove->findUsedVariables(searcher);
+void PrefixExpression::findUsedVariables(VariableSearcher& searcher) const {
+    mChild->findUsedVariables(searcher);
 }
-std::string MoveToHeapExpression::dump(unsigned int indent) const {
-    return ASTNode::dump(indent);
-}
-
-MoveToStackExpression::MoveToStackExpression(SourceCodeRef source, up<ExpressionNode> toMove)
-: ExpressionNode(source), mToMove(std::move(toMove)) {
-}
-Datatype MoveToStackExpression::compile(Compiler& comp) const {
-    return comp.compileMoveToStackExpression(*this);
-}
-void MoveToStackExpression::findUsedVariables(VariableSearcher& searcher) const {
-    mToMove->findUsedVariables(searcher);
-}
-std::string MoveToStackExpression::dump(unsigned int indent) const {
+std::string PrefixExpression::dump(unsigned int indent) const {
     return ASTNode::dump(indent);
 }
 

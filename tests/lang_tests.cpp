@@ -453,6 +453,19 @@ fn test() -> [[char]] {
     REQUIRE(vmRet.dump() == R"(["Hallo", "Welt"])");
 }
 
+TEST_CASE("Logical not expression", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn makeCake() -> bool {
+    !!!true
+}
+fn test() -> bool {
+    !makeCake()
+}
+)");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == R"(true)");
+}
+
 #ifdef SAMAL_LANG_BENCHMARKS
 TEST_CASE("fib(28) benchmark", "[samal_whole_system]") {
     auto vm = compileSimple(R"(

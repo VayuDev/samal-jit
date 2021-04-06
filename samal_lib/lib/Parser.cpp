@@ -267,7 +267,7 @@ Parser::Parser() {
         };
     };
 
-    mPegParser["DotExpression"] << "PostfixExpression (('*' | '/' | '%') DotExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["DotExpression"] << "PrefixExpression (('*' | '/' | '%') DotExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
         if(res[1].subs.empty()) {
             return std::move(res[0].result);
         }
@@ -292,8 +292,21 @@ Parser::Parser() {
             up<ExpressionNode>{ res[1][0][1].result.move<ExpressionNode*>() }
         };
     };
+    mPegParser["PrefixExpression"] << "('!' PrefixExpression) | ('$' PrefixExpression) | ('@' PrefixExpression) | PostfixExpression" >> [](peg::MatchInfo& res) -> peg::Any {
+        switch(*res.choice) {
+        case 0:
+            return PrefixExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}, PrefixExpression::Type::LOGICAL_NOT};
+        case 1:
+            return PrefixExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}, PrefixExpression::Type::MOVE_TO_HEAP};
+        case 2:
+            return PrefixExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}, PrefixExpression::Type::MOVE_TO_STACK};
+        case 3:
+            return std::move(res[0].result);
+        }
+        assert(false);
+    };
     // this is stupid because we don't handle left recursion correctly in the peg parser :c
-    mPegParser["PostfixExpression"] << "PrefixExpression ~nws~(~nws~(~nws~'(' ExpressionVector ')') | ~nws~(~nws~':' ~nws~[\\d]+) | ~nws~(~nws~':head') | ~nws~(~nws~':tail') | ~nws~(~nws~':' ~nws~IdentifierPartString))*" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["PostfixExpression"] << "LiteralExpression ~nws~(~nws~(~nws~'(' ExpressionVector ')') | ~nws~(~nws~':' ~nws~[\\d]+) | ~nws~(~nws~':head') | ~nws~(~nws~':tail') | ~nws~(~nws~':' ~nws~IdentifierPartString))*" >> [](peg::MatchInfo& res) -> peg::Any {
         peg::Any ret = std::move(res[0].result);
         while(!res[1].subs.empty()) {
             switch(*res[1][0].choice) {
@@ -335,19 +348,6 @@ Parser::Parser() {
             res[1].subs.erase(res[1].subs.begin());
         }
         return ret;
-    };
-    mPegParser["PrefixExpression"] << "('!' PrefixExpression) | ('$' PrefixExpression) | ('@' PrefixExpression) | LiteralExpression" >> [](peg::MatchInfo& res) -> peg::Any {
-        switch(*res.choice) {
-        case 0:
-            todo();
-        case 1:
-            return MoveToHeapExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}};
-        case 2:
-            return MoveToStackExpression{toRef(res), up<ExpressionNode>{res[0][1].result.move<ExpressionNode*>()}};
-        case 3:
-            return std::move(res[0].result);
-        }
-        assert(false);
     };
     // TODO maybe combine MathExpression (for stuff like (5 + 3)) and ExpressionVector
     //  (for tuples like (5 + 3, 2) to prevent double parsing of the first expression; this could also

@@ -1185,20 +1185,35 @@ Datatype Compiler::compileTailCallSelf(const TailCallSelfStatementNode& node) {
     mStackSize = oldStackSize + mCurrentFunctionType.getFunctionTypeInfo().first.getSizeOnStack();
     return mCurrentFunctionType.getFunctionTypeInfo().first;
 }
-Datatype Compiler::compileMoveToHeapExpression(const MoveToHeapExpression& node) {
-    auto toMoveBaseType = node.getToMove()->compile(*this);
-    addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, toMoveBaseType.getSizeOnStack());
-    mStackSize -= toMoveBaseType.getSizeOnStack();
-    mStackSize += 8;
-    return Datatype::createPointerType(std::move(toMoveBaseType));
-}
-Datatype Compiler::compileMoveToStackExpression(const MoveToStackExpression& node) {
-    auto toMovePointerType = node.getToMove()->compile(*this);
-    const auto& toMoveBaseType = toMovePointerType.getPointerBaseType();
-    addInstructions(Instruction::LOAD_FROM_PTR, toMoveBaseType.getSizeOnStack(), 0);
-    mStackSize -= 8;
-    mStackSize += toMoveBaseType.getSizeOnStack();
-    return toMoveBaseType;
+
+Datatype Compiler::compilePrefixExpression(const PrefixExpression& node) {
+    switch(node.getType()) {
+    case PrefixExpression::Type::MOVE_TO_HEAP: {
+        auto toMoveBaseType = node.getChild()->compile(*this);
+        addInstructions(Instruction::CREATE_STRUCT_OR_ENUM, toMoveBaseType.getSizeOnStack());
+        mStackSize -= toMoveBaseType.getSizeOnStack();
+        mStackSize += 8;
+        return Datatype::createPointerType(std::move(toMoveBaseType));
+    }
+    case PrefixExpression::Type::MOVE_TO_STACK: {
+        auto toMovePointerType = node.getChild()->compile(*this);
+        const auto& toMoveBaseType = toMovePointerType.getPointerBaseType();
+        addInstructions(Instruction::LOAD_FROM_PTR, toMoveBaseType.getSizeOnStack(), 0);
+        mStackSize -= 8;
+        mStackSize += toMoveBaseType.getSizeOnStack();
+        return toMoveBaseType;
+    }
+    case PrefixExpression::Type::LOGICAL_NOT: {
+        auto toNegateType = node.getChild()->compile(*this);
+        if(toNegateType.getCategory() != DatatypeCategory::bool_) {
+            node.throwException("The ! (logical not) operator is only defined for booleans, not for " + toNegateType.toString());
+        }
+        addInstructions(Instruction::LOGICAL_NOT);
+        return toNegateType;
+    }
+    default:
+        assert(false);
+    }
 }
 
 Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
