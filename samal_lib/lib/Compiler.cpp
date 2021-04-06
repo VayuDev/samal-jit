@@ -571,6 +571,10 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::LOGICAL_OR);
             mStackSize -= getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+        case BinaryExpressionNode::BinaryOperator::LOGICAL_AND:
+            addInstructions(Instruction::LOGICAL_AND);
+            mStackSize -= getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
         default:
             break;
         }

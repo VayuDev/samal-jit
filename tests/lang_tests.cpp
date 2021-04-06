@@ -459,7 +459,7 @@ fn makeCake() -> bool {
     !!!true
 }
 fn test() -> bool {
-    !makeCake()
+    !makeCake() && true
 }
 )");
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });

@@ -904,6 +904,22 @@ bool VM::interpretInstruction() {
 #endif
         break;
     }
+    case Instruction::LOGICAL_AND: {
+#ifdef x86_64_BIT_MODE
+        auto lhs = *(bool*)mStack.get(8);
+        auto rhs = *(bool*)mStack.get(0);
+        mStack.pop(16);
+        int64_t res = lhs && rhs;
+        mStack.push(&res, 8);
+#else
+        auto lhs = *(bool*)mStack.get(1);
+        auto rhs = *(bool*)mStack.get(0);
+        mStack.pop(2);
+        bool res = lhs && rhs;
+        mStack.push(&res, 1);
+#endif
+        break;
+    }
     case Instruction::LOGICAL_NOT: {
 #ifdef x86_64_BIT_MODE
         auto value = *(bool*)mStack.get(8);
