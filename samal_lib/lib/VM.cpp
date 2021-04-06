@@ -257,10 +257,6 @@ public:
                 setne(al);
                 push(rax);
                 break;
-            case Instruction::LOGICAL_OR:
-                pop(rax);
-                or_(qword[rsp], rax);
-                break;
             case Instruction::REPUSH_FROM_N: {
                 int32_t repushLen = *(uint32_t*)&instructions.at(i + 1);
                 int32_t repushOffset = *(uint32_t*)&instructions.at(i + 5);
@@ -397,6 +393,16 @@ public:
                 }
                 break;
             }
+            case Instruction::LOGICAL_OR:
+                pop(rax);
+                or_(qword[rsp], rax);
+                break;
+            case Instruction::LOGICAL_AND: {
+                pop(rax);
+                and_(qword[rsp], rax);
+                break;
+            }
+            case Instruction::LOGICAL_NOT:
             case Instruction::IS_LIST_EMPTY: {
                 mov(rbx, 0);
                 cmp(qword[rsp], 0);
