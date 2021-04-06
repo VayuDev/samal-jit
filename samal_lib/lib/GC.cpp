@@ -60,9 +60,7 @@ uint8_t* GC::alloc(int32_t size) {
     return ptr;
 }
 void GC::performGarbageCollection() {
-#ifdef _DEBUG
-    Stopwatch stopwatch{"GC"};
-#endif
+    //Stopwatch stopwatch{"GC"};
     //printf("Before size: %i\n", (int)mRegions[mActiveRegion].offset);
     getOtherRegion().offset = 0;
     if(!mTemporaryAllocations.empty() || getOtherRegion().size < getActiveRegion().size) {
@@ -71,7 +69,7 @@ void GC::performGarbageCollection() {
         for(auto& alloc: mTemporaryAllocations) {
             totalTemporarySize += alloc.len;
         }
-        printf("Resizing heap to %i\n", (int)(getActiveRegion().size + totalTemporarySize));
+        //printf("Resizing heap to %i\n", (int)(getActiveRegion().size + totalTemporarySize));
         getOtherRegion() = Region{getActiveRegion().size + totalTemporarySize};
         //printf("Resizing heap due to temporary allocations to %zu\n", getOtherRegion().size);
     }
