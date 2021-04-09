@@ -5,6 +5,7 @@
 #include "samal_lib/Util.hpp"
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 
 namespace samal {
 
@@ -14,21 +15,16 @@ Pipeline::Pipeline() {
 Pipeline::~Pipeline() {
 }
 void Pipeline::addFile(const std::string& path) {
-    auto file = fopen(path.c_str(), "r");
+    std::ifstream file{path};
     if(!file) {
         throw std::runtime_error{ "Couldn't open " + path };
     }
-    DestructorWrapper destructor{
-        [&] {
-            fclose(file);
-        }
-    };
-    fseek(file, 0, SEEK_END);
-    auto fileSize = ftell(file);
-    fseek(file, 0, SEEK_SET);
+    file.seekg(0, std::ios::end);
+    auto fileSize = file.tellg();
+    file.seekg(0);
     std::string fileContents;
     fileContents.resize(fileSize);
-    fread((char*)fileContents.c_str(), 1, fileSize, file);
+    file.read((char*)fileContents.c_str(), fileSize);
     std::filesystem::path pathObj{ path };
     addFileFromMemory(pathObj.stem(), std::move(fileContents));
 }
