@@ -5,6 +5,8 @@
 namespace peg {
 
 std::optional<UTF8Result> decodeUTF8Codepoint(std::string_view bytes) {
+    if(bytes.empty())
+        return {};
     int32_t value = 0;
     unsigned char firstChar = bytes.at(0);
     if(!(firstChar & 0b1000'0000)) {
