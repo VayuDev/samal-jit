@@ -16,6 +16,8 @@ samal::VM compileSimple(const char* code, samal::VMParameters params = {}) {
     modules.emplace_back(std::move(ast.first));
     samal::Compiler comp{ modules, {} };
     auto program = comp.compile();
+    auto disassembly = program.disassemble();
+    printf("Code: %s\n", disassembly.c_str());
     return samal::VM{ std::move(program), params };
 }
 
