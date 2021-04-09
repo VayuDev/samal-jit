@@ -129,6 +129,11 @@ Parse a http header (definitely not spec compliant, skips method+version+url lin
 
 Note: List syntax will maybe change in the future.
 
+## License
+
+The software is licensed under the very permissive MIT License. If you open a pull request, you implicitly 
+license your code under the MIT license as well.
+
 ## Design notes
 
 ### Part 1: Why every programming language sucks
