@@ -38,7 +38,6 @@ namespace samal {
     INSTRUCTION(LOGICAL_AND, 1)                 \
     INSTRUCTION(JUMP_IF_FALSE, 5)               \
     INSTRUCTION(JUMP, 5)                        \
-    INSTRUCTION(REPUSH_N, 5)                    \
     INSTRUCTION(REPUSH_FROM_N, 9)               \
     INSTRUCTION(RETURN, 5)                      \
     INSTRUCTION(CALL, 5)                        \

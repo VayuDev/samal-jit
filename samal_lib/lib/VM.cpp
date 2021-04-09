@@ -60,16 +60,66 @@ public:
 
         mov(rsp, originalStackPointer);
 
+        std::vector<std::pair<int32_t, Xbyak::Label>> instructionLocationLabels;
+        std::vector<std::pair<up<Xbyak::Label>, int32_t>> directJumpLocationLabels;
         auto jumpWithIp = [&] {
             jmp(ptr[tableRegister + ip * sizeof(void*)]);
         };
+        auto isInstructionAtIpJittable = [&](int32_t ip) -> bool {
+            auto ins = static_cast<Instruction>(instructions.at(ip));
+            switch(ins) {
+            case Instruction::PUSH_8:
+            case Instruction::POP_N_BELOW:
+            case Instruction::ADD_I32:
+            case Instruction::SUB_I32:
+            case Instruction::MUL_I32:
+            case Instruction::DIV_I32:
+            case Instruction::MODULO_I32:
+            case Instruction::COMPARE_LESS_THAN_I32:
+            case Instruction::COMPARE_MORE_THAN_I32:
+            case Instruction::COMPARE_LESS_EQUAL_THAN_I32:
+            case Instruction::COMPARE_MORE_EQUAL_THAN_I32:
+            case Instruction::COMPARE_EQUALS_I32:
+            case Instruction::COMPARE_NOT_EQUALS_I32:
+            case Instruction::ADD_I64:
+            case Instruction::SUB_I64:
+            case Instruction::MUL_I64:
+            case Instruction::DIV_I64:
+            case Instruction::MODULO_I64:
+            case Instruction::COMPARE_LESS_THAN_I64:
+            case Instruction::COMPARE_MORE_THAN_I64:
+            case Instruction::COMPARE_LESS_EQUAL_THAN_I64:
+            case Instruction::COMPARE_MORE_EQUAL_THAN_I64:
+            case Instruction::COMPARE_EQUALS_I64:
+            case Instruction::COMPARE_NOT_EQUALS_I64:
+            case Instruction::LOGICAL_OR:
+            case Instruction::LOGICAL_NOT:
+            case Instruction::LOGICAL_AND:
+            case Instruction::JUMP_IF_FALSE:
+            case Instruction::JUMP:
+            case Instruction::REPUSH_FROM_N:
+            case Instruction::RETURN:
+            case Instruction::CALL:
+            case Instruction::LOAD_FROM_PTR:
+            case Instruction::LIST_GET_TAIL:
+            case Instruction::IS_LIST_EMPTY:
+            case Instruction::RUN_GC:
+            case Instruction::NOOP:
+                    return true;
+            }
+            return false;
+        };
         jumpWithIp();
 
-        L("Code");
-        std::vector<std::pair<uint32_t, Xbyak::Label>> labels;
         // Start executing some Code!
-        for(size_t i = 0; i < instructions.size();) {
+        for(int32_t i = 0; i < static_cast<int32_t>(instructions.size());) {
             auto ins = static_cast<Instruction>(instructions.at(i));
+            if(!isInstructionAtIpJittable(i)) {
+                // we hit an instruction that we don't know, so exit the jit
+                jmp("AfterJumpTable");
+                i += instructionToWidth(ins);
+                continue;
+            }
             auto nextInstruction = [&] {
                 return static_cast<Instruction>(instructions.at(i + instructionToWidth(ins)));
             };
@@ -77,7 +127,16 @@ public:
                 return instructionToWidth(nextInstruction());
             };
             bool shouldAutoIncrement = true;
-            labels.emplace_back(std::make_pair((uint32_t)i, L()));
+
+            for(auto it = directJumpLocationLabels.begin(); it != directJumpLocationLabels.end();) {
+                if(it->second == i) {
+                    L(*it->first);
+                    directJumpLocationLabels.erase(it);
+                } else {
+                    it++;
+                }
+            }
+            instructionLocationLabels.emplace_back(std::make_pair((uint32_t)i, L()));
             switch(ins) {
             case Instruction::PUSH_8: {
                 auto amount = *(uint64_t*)&instructions.at(i + 1);
@@ -279,18 +338,60 @@ public:
                 break;
             }
             case Instruction::JUMP: {
-                auto p = *(int32_t*)&instructions.at(i + 1);
-                mov(ip, p);
-                jumpWithIp();
+                auto newIp = *(int32_t*)&instructions.at(i + 1);
+                mov(ip, newIp);
+                if(isInstructionAtIpJittable(newIp)) {
+                    // try to find the label in already compiled code
+                    bool found = false;
+                    for(auto& instructionJumpLabel: instructionLocationLabels) {
+                        if(instructionJumpLabel.first == newIp) {
+                            jmp(instructionJumpLabel.second);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if(found) {
+                        break;
+                    }
+
+                    // create a new label and assign it as soon as we compile the instruction
+                    Xbyak::Label label;
+                    jmp(label);
+                    directJumpLocationLabels.emplace_back(std::make_pair(std::make_unique<Xbyak::Label>(std::move(label)), newIp));
+                } else {
+                    jmp("AfterJumpTable");
+                }
                 break;
             }
             case Instruction::JUMP_IF_FALSE: {
+                auto newIp = *(uint32_t*)&instructions.at(i + 1);
                 pop(rax);
-                add(ip, instructionToWidth(ins));
-                mov(rbx, *(uint32_t*)&instructions.at(i + 1));
+                mov(rbx, newIp);
                 test(rax, rax);
                 cmovz(ip, rbx);
-                jumpWithIp();
+                // If the instruction at the desired ip is jittable, then we can just jump to it directly without using the jump table.
+                // If it is not jittable, it's even easier as we can just pass execution back to the interpreter
+                if(isInstructionAtIpJittable(newIp)) {
+                    // try to find the label in already compiled code
+                    bool found = false;
+                    for(auto& instructionJumpLabel: instructionLocationLabels) {
+                        if(instructionJumpLabel.first == newIp) {
+                            jz(instructionJumpLabel.second);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if(found) {
+                        break;
+                    }
+
+                    // create a new label and assign it as soon as we compile the code
+                    Xbyak::Label label;
+                    jz(label);
+                    directJumpLocationLabels.emplace_back(std::make_pair(std::make_unique<Xbyak::Label>(std::move(label)), newIp));
+                } else {
+                    jz("AfterJumpTable");
+                }
                 break;
             }
             case Instruction::CALL: {
@@ -434,9 +535,7 @@ public:
             case Instruction::NOOP:
                 break;
             default:
-                // we hit an instruction that we don't know, so exit the jit
-                labels.erase(--labels.end());
-                jmp("AfterJumpTable");
+                assert(false);
                 break;
             }
             if(shouldAutoIncrement) {
@@ -444,13 +543,14 @@ public:
                 add(ip, instructionToWidth(ins));
             }
         }
+        assert(directJumpLocationLabels.empty());
 
         jmp("AfterJumpTable");
 
         L("JumpTable");
         for(size_t i = 0; i <= instructions.size(); ++i) {
             bool labelExists = false;
-            for(auto& label : labels) {
+            for(auto& label : instructionLocationLabels) {
                 if(label.first == i) {
                     labelExists = true;
                     putL(label.second);
@@ -603,9 +703,6 @@ bool VM::interpretInstruction() {
         break;
     case Instruction::REPUSH_FROM_N:
         mStack.repush(*(int32_t*)&mProgram.code.at(mIp + 5), *(int32_t*)&mProgram.code.at(mIp + 1));
-        break;
-    case Instruction::REPUSH_N:
-        mStack.repush(0, *(int32_t*)&mProgram.code.at(mIp + 1));
         break;
     case Instruction::JUMP_IF_FALSE: {
 #ifdef x86_64_BIT_MODE
