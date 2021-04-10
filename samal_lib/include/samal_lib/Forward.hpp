@@ -50,6 +50,7 @@ struct VMParameters;
 
 enum class TemplateParamOrUserType;
 
-using UndeterminedIdentifierReplacementMap = std::map<std::string, std::pair<Datatype, TemplateParamOrUserType>>;
+struct UndeterminedIdentifierReplacementMapValue;
+using UndeterminedIdentifierReplacementMap = std::map<std::string, UndeterminedIdentifierReplacementMapValue>;
 
 }

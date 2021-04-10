@@ -32,8 +32,6 @@ enum class TemplateParamOrUserType {
     UserType
 };
 
-using UndeterminedIdentifierReplacementMap = std::map<std::string, std::pair<Datatype, TemplateParamOrUserType>>;
-
 class Datatype {
     struct StructInfo;
     struct EnumInfo;
@@ -90,14 +88,14 @@ public:
     [[nodiscard]] Datatype completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes = AllowIncompleteTypes::No) const;
     [[nodiscard]] Datatype completeWithSavedTemplateParameters(AllowIncompleteTypes = AllowIncompleteTypes::No) const;
 
-    void inferTemplateTypes(const Datatype& realType, UndeterminedIdentifierReplacementMap& output) const;
+    void inferTemplateTypes(const Datatype& realType, UndeterminedIdentifierReplacementMap& output, const std::vector<std::string>& usingModuleNames) const;
 
 private:
     enum class InternalCall {
         Yes,
         No
     };
-    [[nodiscard]] Datatype completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, InternalCall internalCall, AllowIncompleteTypes) const;
+    [[nodiscard]] Datatype completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, std::vector<std::string> modules, InternalCall internalCall, AllowIncompleteTypes) const;
     struct StructInfo {
         std::string name;
         struct StructElement;
@@ -170,6 +168,15 @@ struct Datatype::StructInfo::StructElement {
     }
     inline bool operator!=(const StructElement& other) const {
         return !operator==(other);
+    }
+};
+
+struct UndeterminedIdentifierReplacementMapValue {
+    Datatype type;
+    TemplateParamOrUserType templateParamOrUserType;
+    std::vector<std::string> usingModules;
+    [[nodiscard]] bool operator==(const UndeterminedIdentifierReplacementMapValue& other) const {
+        return type == other.type && templateParamOrUserType == other.templateParamOrUserType && usingModules == other.usingModules;
     }
 };
 

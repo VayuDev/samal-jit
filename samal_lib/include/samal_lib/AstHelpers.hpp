@@ -27,7 +27,7 @@ using TemplateInstantiationInfo = std::vector<std::vector<Datatype>>;
 // create a map that maps e.g. T => i32 if you call fib<i32>,
 // which is then used to determine the return & param types of fib<i32>
 // which could be fib<T> -> T, so it becomes i32
-static inline UndeterminedIdentifierReplacementMap createTemplateParamMap(const std::vector<std::string>& identifierTemplateInfo /*<T>*/, const std::vector<Datatype>& templateParameterInfo /*<i32>*/) {
+static inline UndeterminedIdentifierReplacementMap createTemplateParamMap(const std::vector<std::string>& identifierTemplateInfo /*<T>*/, const std::vector<Datatype>& templateParameterInfo /*<i32>*/, const std::vector<std::string>& usingModuleNames) {
     if(identifierTemplateInfo.size() != templateParameterInfo.size()) {
         throw std::runtime_error{ "Template parameter sizes don't match" };
     }
@@ -37,7 +37,7 @@ static inline UndeterminedIdentifierReplacementMap createTemplateParamMap(const 
         if(i >= templateParameterInfo.size()) {
             return ret;
         }
-        ret.emplace(identifierTemplateParameter, std::make_pair(templateParameterInfo.at(i), TemplateParamOrUserType::TemplateParam));
+        ret.emplace(identifierTemplateParameter, UndeterminedIdentifierReplacementMapValue{templateParameterInfo.at(i), TemplateParamOrUserType::TemplateParam, usingModuleNames});
         ++i;
     }
     return ret;

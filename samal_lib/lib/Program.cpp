@@ -14,7 +14,7 @@ std::string Program::disassemble() const {
             ret += "<";
             size_t i = 0;
             for(auto& param : func.templateParameters) {
-                ret += param.first + " => " + param.second.first.toString();
+                ret += param.first + " => " + param.second.type.toString();
                 if(++i < func.templateParameters.size()) {
                     ret += ",";
                 }

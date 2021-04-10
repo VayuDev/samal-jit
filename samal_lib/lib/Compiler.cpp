@@ -91,21 +91,29 @@ Program Compiler::compileInternal() {
         mModules.emplace_back(std::move(module));
     }
     // 3. create mStructTypeReplacementMap
+    size_t i = 0;
     for(auto& moduleNode : mRoots) {
         for(auto& declNode : moduleNode->getDeclarations()) {
             auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
             if(declNodeAsStructDecl) {
                 std::string fullTypeName = moduleNode->getModuleName() + "." + declNodeAsStructDecl->getIdentifier()->getName();
-                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, std::make_pair(Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()), TemplateParamOrUserType::UserType));
+                mCustomUserDatatypeReplacementMap.emplace(fullTypeName,UndeterminedIdentifierReplacementMapValue{
+                    Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()),
+                    TemplateParamOrUserType::UserType,
+                    mModules.at(i).usingModuleNames});
                 continue;
             }
             auto declNodeAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(declNode.get());
             if(declNodeAsEnumDecl) {
                 std::string fullTypeName = moduleNode->getModuleName() + "." + declNodeAsEnumDecl->getIdentifier()->getName();
-                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, std::make_pair(Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()), TemplateParamOrUserType::UserType));
+                mCustomUserDatatypeReplacementMap.emplace(fullTypeName,UndeterminedIdentifierReplacementMapValue{
+                    Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()),
+                    TemplateParamOrUserType::UserType,
+                    mModules.at(i).usingModuleNames});
                 continue;
             }
         }
+        ++i;
     }
 
     auto compileLambdaFunctions = [this] {
@@ -793,7 +801,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
                 }
             }
             // The order her is important because we first need to consider passed template parameters, then ones from the surrounding scope
-            replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
+            replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters, functionsModuleUsingNames);
             replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
             completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
         }
@@ -820,7 +828,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
         }
     }
     // template function
-    auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters);
+    auto replacementMap = createTemplateParamMap(functionTemplateParams, passedTemplateParameters, functionsModuleUsingNames);
     replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
     auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
 
@@ -893,7 +901,7 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
 
         // use chained parameter for type inference
         if(!couldCompileIdentifierLoad) {
-            functionNameType.getFunctionTypeInfo().second.at(0).inferTemplateTypes(chainedInitialParamType, inferredTemplateParameters);
+            functionNameType.getFunctionTypeInfo().second.at(0).inferTemplateTypes(chainedInitialParamType, inferredTemplateParameters, mUsingModuleNames);
         }
 
         // in addition to repushing, we need to skip the first element when checking param types because it's chained
@@ -917,7 +925,7 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
             }
         } else {
             // we failed to load the identifier, so now we used the parameters to infer the type
-            functionNameType.getFunctionTypeInfo().second.at(i).inferTemplateTypes(actualParamType, inferredTemplateParameters);
+            functionNameType.getFunctionTypeInfo().second.at(i).inferTemplateTypes(actualParamType, inferredTemplateParameters, mUsingModuleNames);
         }
         ++i;
     }

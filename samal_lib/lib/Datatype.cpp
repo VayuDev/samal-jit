@@ -152,7 +152,7 @@ bool Datatype::operator==(const Datatype& other) const {
     // Otherwise we need to check the type recursively.
     if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap) {
         auto replacementEntry = mUndefinedTypeReplacementMap->map.find(getUndeterminedIdentifierString());
-        if(replacementEntry != mUndefinedTypeReplacementMap->map.end() && replacementEntry->second.second == TemplateParamOrUserType::TemplateParam) {
+        if(replacementEntry != mUndefinedTypeReplacementMap->map.end() && replacementEntry->second.templateParamOrUserType == TemplateParamOrUserType::TemplateParam) {
             return completeWithSavedTemplateParameters() == other.completeWithSavedTemplateParameters();
         }
     }
@@ -312,9 +312,12 @@ Datatype Datatype::completeWithSavedTemplateParameters(AllowIncompleteTypes allo
         return completeWithTemplateParameters(mUndefinedTypeReplacementMap->map, mUndefinedTypeReplacementMap->includedModules, InternalCall::Yes, allowIncompleteTypes);
     return *this;
 }
-Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, Datatype::InternalCall internalCall, AllowIncompleteTypes allowIncompleteTypes) const {
+Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, std::vector<std::string> modules, Datatype::InternalCall internalCall, AllowIncompleteTypes allowIncompleteTypes) const {
     // This assertion ensures that we don't accidentally call completeWithTemplateParameters twice, overwriting the mUndefinedTypeReplacementMap
     assert(!(internalCall == InternalCall::No && mUndefinedTypeReplacementMap));
+    if(mUndefinedTypeReplacementMap) {
+        modules = mUndefinedTypeReplacementMap->includedModules;
+    }
     Datatype cpy = *this;
     assert(mFurtherInfo);
     auto furtherInfo = std::make_shared<ContainedFurtherInfoType>(*mFurtherInfo);
@@ -350,23 +353,25 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
             maybeReplacementType = templateParams.find(getUndeterminedIdentifierString());
         }
         if(maybeReplacementType != templateParams.end()) {
-            cpy = maybeReplacementType->second.first;
+            cpy = maybeReplacementType->second.type;
             if(cpy.getCategory() == DatatypeCategory::struct_ || cpy.getCategory() == DatatypeCategory::enum_) {
                 // add template params to replacement map
                 std::vector<Datatype> undeterminedIdentifierTemplateParameters;
                 for(auto& dt : getUndeterminedIdentifierTemplateParams()) {
                     undeterminedIdentifierTemplateParameters.emplace_back(dt.completeWithTemplateParameters(templateParams, modules, internalCall, allowIncompleteTypes));
                 }
+                assert(!maybeReplacementType->second.usingModules.empty());
                 UndeterminedIdentifierReplacementMap additionalMap;
                 if(!undeterminedIdentifierTemplateParameters.empty()) {
                     if(cpy.getCategory() == DatatypeCategory::struct_) {
-                        additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                        additionalMap = createTemplateParamMap(cpy.getStructInfo().templateParams, undeterminedIdentifierTemplateParameters, maybeReplacementType->second.usingModules);
                     }  else {
-                        additionalMap = createTemplateParamMap(cpy.getEnumInfo().templateParams, undeterminedIdentifierTemplateParameters);
+                        additionalMap = createTemplateParamMap(cpy.getEnumInfo().templateParams, undeterminedIdentifierTemplateParameters, maybeReplacementType->second.usingModules);
                     }
                 }
                 additionalMap.insert(templateParams.cbegin(), templateParams.cend());
-                cpy = cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = additionalMap, .includedModules = modules }));
+                auto newMap = std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = additionalMap, .includedModules = maybeReplacementType->second.usingModules });
+                cpy = cpy.attachUndeterminedIdentifierMap(newMap);
             }
             return cpy;
         }
@@ -411,7 +416,7 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
     cpy = cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
     return cpy;
 }
-void Datatype::inferTemplateTypes(const Datatype& realType, UndeterminedIdentifierReplacementMap& output) const {
+void Datatype::inferTemplateTypes(const Datatype& realType, UndeterminedIdentifierReplacementMap& output, const std::vector<std::string>& usingModuleNames) const {
     if(getCategory() != realType.getCategory() && getCategory() != DatatypeCategory::undetermined_identifier) {
         throw std::runtime_error{"Unable to infer template types, type " + toString() + " is incompatible with " + realType.toString()};
     }
@@ -423,32 +428,32 @@ void Datatype::inferTemplateTypes(const Datatype& realType, UndeterminedIdentifi
     case DatatypeCategory::byte:
         break;
     case DatatypeCategory::undetermined_identifier:
-        output.emplace(getUndeterminedIdentifierString(), std::make_pair(realType, TemplateParamOrUserType::TemplateParam));
+        output.emplace(getUndeterminedIdentifierString(), UndeterminedIdentifierReplacementMapValue{realType, TemplateParamOrUserType::TemplateParam, usingModuleNames});
         break;
     case DatatypeCategory::function: {
         auto& funcType = getFunctionTypeInfo();
-        funcType.first.inferTemplateTypes(realType.getFunctionTypeInfo().first, output);
+        funcType.first.inferTemplateTypes(realType.getFunctionTypeInfo().first, output, usingModuleNames);
         size_t i = 0;
         for(auto& param : funcType.second) {
-            param.inferTemplateTypes(realType.getFunctionTypeInfo().second.at(i), output);
+            param.inferTemplateTypes(realType.getFunctionTypeInfo().second.at(i), output, usingModuleNames);
             ++i;
         }
         break;
     }
     case DatatypeCategory::tuple: {
         for(size_t i = 0; i < getTupleInfo().size(); ++i) {
-            getTupleInfo().at(i).inferTemplateTypes(realType.getTupleInfo().at(i), output);
+            getTupleInfo().at(i).inferTemplateTypes(realType.getTupleInfo().at(i), output, usingModuleNames);
         }
         break;
     }
     case DatatypeCategory::pointer:
     case DatatypeCategory::list: {
-        std::get<Datatype>(*mFurtherInfo).inferTemplateTypes(std::get<Datatype>(*realType.mFurtherInfo), output);
+        std::get<Datatype>(*mFurtherInfo).inferTemplateTypes(std::get<Datatype>(*realType.mFurtherInfo), output, usingModuleNames);
         break;
     }
     case DatatypeCategory::struct_: {
         for(size_t i = 0; i < getStructInfo().fields.size(); ++i) {
-            std::get<StructInfo>(*mFurtherInfo).fields.at(i).type.inferTemplateTypes(realType.getStructInfo().fields.at(i).type, output);
+            std::get<StructInfo>(*mFurtherInfo).fields.at(i).type.inferTemplateTypes(realType.getStructInfo().fields.at(i).type, output, usingModuleNames);
         }
         break;
     }
@@ -457,7 +462,7 @@ void Datatype::inferTemplateTypes(const Datatype& realType, UndeterminedIdentifi
         for(size_t i = 0; i < fields.size(); ++i) {
             const auto& fieldElements = fields.at(i).params;
             for(size_t j = 0; j < fieldElements.size(); ++j) {
-                std::get<EnumInfo>(*mFurtherInfo).fields.at(i).params.at(j).inferTemplateTypes(realType.getEnumInfo().fields.at(i).params.at(j), output);
+                std::get<EnumInfo>(*mFurtherInfo).fields.at(i).params.at(j).inferTemplateTypes(realType.getEnumInfo().fields.at(i).params.at(j), output, usingModuleNames);
             }
         }
         break;
