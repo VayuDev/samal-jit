@@ -3,7 +3,7 @@
 #include "samal_lib/Compiler.hpp"
 #include "samal_lib/Parser.hpp"
 #include "samal_lib/Util.hpp"
-#include <cstdio>
+#include <iostream>
 #include <filesystem>
 #include <fstream>
 
