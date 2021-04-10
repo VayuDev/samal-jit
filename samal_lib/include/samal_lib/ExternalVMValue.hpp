@@ -12,14 +12,17 @@ public:
     static ExternalVMValue wrapEmptyTuple(VM& vm);
     static ExternalVMValue wrapChar(VM& vm, int32_t charUTF32Value);
     static ExternalVMValue wrapString(VM& vm, const std::string& string);
+    static ExternalVMValue wrapStringAsByteArray(VM& vm, const std::string& string);
     static ExternalVMValue wrapEnum(VM& vm, const Datatype& enumType, const std::string& fieldName, std::vector<ExternalVMValue>&& elements);
     static ExternalVMValue wrapStackedValue(Datatype type, VM& vm, size_t stackOffset);
     static ExternalVMValue wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr);
     [[nodiscard]] const Datatype& getDatatype() const&;
     std::vector<uint8_t> toStackValue(VM& vm) const;
     [[nodiscard]] std::string dump() const;
+
     [[nodiscard]] bool isWrappingString() const;
     [[nodiscard]] std::string toCPPString() const;
+    [[nodiscard]] std::vector<uint8_t> toByteBuffer() const;
 
     template<typename T>
     const auto& as() const {

@@ -44,6 +44,24 @@ ExternalVMValue ExternalVMValue::wrapString(VM& vm, const std::string& str) {
     }
     return ExternalVMValue(vm, Datatype::createListType(Datatype::createSimple(DatatypeCategory::char_)), startPtr);
 }
+ExternalVMValue ExternalVMValue::wrapStringAsByteArray(VM& vm, const std::string& str) {
+    const auto chunkSize = 8 + 1;
+    uint8_t* startPtr = nullptr;
+    uint8_t* ptr = nullptr;
+    for(auto ch : str) {
+        uint8_t* nextPtr = vm.alloc(chunkSize);
+        memset(nextPtr, 0, chunkSize);
+        if(startPtr == nullptr) {
+            startPtr = nextPtr;
+        }
+        if(ptr) {
+            memcpy(ptr, &nextPtr, sizeof(nextPtr));
+        }
+        memcpy(nextPtr + 8, &ch, 1);
+        ptr = nextPtr;
+    }
+    return ExternalVMValue(vm, Datatype::createListType(Datatype::createSimple(DatatypeCategory::byte)), startPtr);
+}
 ExternalVMValue ExternalVMValue::wrapEnum(VM& vm, const Datatype& enumType, const std::string& fieldName, std::vector<ExternalVMValue>&& elements) {
     int32_t index = -1;
     for(int32_t i = 0; i < (int32_t)enumType.getEnumInfo().fields.size(); ++i) {
@@ -309,6 +327,20 @@ std::string ExternalVMValue::toCPPString() const {
         int32_t charValue;
         memcpy(&charValue, current + 8, 4);
         ret += peg::encodeUTF8Codepoint(charValue);
+        current = *(uint8_t**)current;
+    }
+    return ret;
+}
+std::vector<uint8_t> ExternalVMValue::toByteBuffer() const {
+    if(mType != Datatype::createListType(Datatype::createSimple(DatatypeCategory::byte))) {
+        throw std::runtime_error{"This is not wrapping a byte buffer, it's wrapping a " + mType.toString() };
+    }
+    std::vector<uint8_t> ret;
+    auto* current = std::get<const uint8_t*>(mValue);
+    while(current != nullptr) {
+        uint8_t byteValue;
+        memcpy(&byteValue, current + 8, 1);
+        ret.push_back(byteValue);
         current = *(uint8_t**)current;
     }
     return ret;
