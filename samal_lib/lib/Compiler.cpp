@@ -693,7 +693,7 @@ std::optional<std::pair<std::string, Compiler::CallableDeclaration&>> Compiler::
     }
     return std::pair<std::string, Compiler::CallableDeclaration&>(maybeDeclaration->first, maybeDeclaration->second);
 }
-bool Compiler::addToTemplateFunctionsToInstantiate(CallableDeclaration& node, UndeterminedIdentifierReplacementMap replacementMap, const std::string& fullFunctionName, int32_t labelToInsertId) {
+bool Compiler::addToTemplateFunctionsToInstantiate(CallableDeclaration& node, UndeterminedIdentifierReplacementMap replacementMap, const std::string& fullFunctionName, int32_t labelToInsertId, const std::vector<std::string>& functionsUsingNames) {
     // check if we already compiled this template instantiation (or plan on compiling it) and, if not, add it for later compilation
 
     auto nodeAsFunctionDeclaration = dynamic_cast<FunctionDeclarationNode*>(node.astNode);
@@ -717,14 +717,15 @@ bool Compiler::addToTemplateFunctionsToInstantiate(CallableDeclaration& node, Un
     }
     auto nodeAsNativeFunctionDeclaration = dynamic_cast<NativeFunctionDeclarationNode*>(node.astNode);
     if(nodeAsNativeFunctionDeclaration) {
-        auto completedDeclarationType = node.type.completeWithTemplateParameters(replacementMap, mUsingModuleNames);
+        auto completedDeclarationType = node.type.completeWithTemplateParameters(replacementMap, functionsUsingNames);
         bool found = false;
         // iterate backwards so that we find specified (filled-in) template functions first and the raw undetermined-identifier versions later
         for(int32_t i = mProgram.nativeFunctions.size() - 1; i >= 0; --i) {
-            const auto& nativeFunction = mProgram.nativeFunctions.at(i);
+            auto& nativeFunction = mProgram.nativeFunctions.at(i);
             // the name has to match and either the full completed type, or, if the native function accepts any types, at least those incomplete types have to match
             if(nativeFunction.fullName == fullFunctionName) {
                 if(nativeFunction.functionType == completedDeclarationType) {
+                    nativeFunction.functionType = completedDeclarationType;
                     found = true;
                 } else if(nativeFunction.functionType == node.type) {
                     found = true;
@@ -805,7 +806,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
             replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
             completedDeclarationType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
         }
-        bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8));
+        bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8), functionsModuleUsingNames);
         mStackSize += 8;
         if(!found) {
             identifier.throwException("No native function was found that matches the name " + fullFunctionName + " and type " + completedDeclarationType.toString());
@@ -832,7 +833,7 @@ Datatype Compiler::compileIdentifierLoad(const IdentifierNode& identifier, Allow
     replacementMap.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
     auto returnType = declaration.second.type.completeWithTemplateParameters(replacementMap, functionsModuleUsingNames);
 
-    bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8));
+    bool found = addToTemplateFunctionsToInstantiate(declaration.second, replacementMap, fullFunctionName, addLabel(Instruction::PUSH_8), functionsModuleUsingNames);
     mStackSize += 8;
     assert(found);
     return returnType;
@@ -934,13 +935,13 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
         // now we need to complete the function type
         // if we fail now, it's game over
         inferredTemplateParameters.insert(mCurrentUndeterminedTypeReplacementMap.cbegin(), mCurrentUndeterminedTypeReplacementMap.cend());
+        const auto& functionsModuleUsingNames = mModules.at(mDeclarationNodeToModuleId.at(callableDeclaration->astNode)).usingModuleNames;
         try {
-            const auto& functionsModuleUsingNames = mModules.at(mDeclarationNodeToModuleId.at(callableDeclaration->astNode)).usingModuleNames;
             functionNameType = functionNameType.completeWithTemplateParameters(inferredTemplateParameters, functionsModuleUsingNames, Datatype::AllowIncompleteTypes::No);
         } catch(std::exception& e) {
             throw std::runtime_error(std::string{} + "Couldn't infer function type, maybe try specifying template parameters. (" + e.what() + ")");
         }
-        bool found = addToTemplateFunctionsToInstantiate(*callableDeclaration, inferredTemplateParameters, fullFunctionName, pushLabel);
+        bool found = addToTemplateFunctionsToInstantiate(*callableDeclaration, inferredTemplateParameters, fullFunctionName, pushLabel, functionsModuleUsingNames);
         if(!found) {
             throw std::runtime_error{"Function implementation for " + fullFunctionName + " wasn't found, it's probably a native function you forgot to implement"};
         }

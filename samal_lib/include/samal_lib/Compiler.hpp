@@ -108,7 +108,7 @@ private:
     };
     std::unordered_map<std::string, CallableDeclaration> mCallableDeclarations;
 
-    [[nodiscard]] bool addToTemplateFunctionsToInstantiate(CallableDeclaration& node, UndeterminedIdentifierReplacementMap replacementMap, const std::string& fullFunctionName, int32_t labelToInsertId);
+    [[nodiscard]] bool addToTemplateFunctionsToInstantiate(CallableDeclaration& node, UndeterminedIdentifierReplacementMap replacementMap, const std::string& fullFunctionName, int32_t labelToInsertId, const std::vector<std::string>& functionsUsingNames);
     std::optional<std::pair<std::string, Compiler::CallableDeclaration&>> findMatchingCallableDeclaration(const std::string& functionName);
 
     struct Module {
