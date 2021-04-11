@@ -7,6 +7,7 @@ native fn recvByte(socket : i32) -> byte
 native fn recvStringUntilEmptyHeader(socket : i32) -> [char]
 native fn recvChar(socket : i32) -> char
 native fn sendString(socket : i32, str : [char]) -> ()
+native fn sendBytes(socket : i32, str : [byte]) -> ()
 
 fn recvUntilEmptyHeader(socket : i32, prepend : [char], lastThreeChars : [char]) -> [char] {
     ch = recvChar(socket)
@@ -23,6 +24,11 @@ fn recvUntilEmptyHeader(socket : i32, prepend : [char], lastThreeChars : [char])
     }
 }
 
+enum HTTPBody {
+    Text{[char]},
+    Binary{[byte]}
+}
+
 struct HTTPRequest {
     method : [char],
     version : [char],
@@ -31,7 +37,7 @@ struct HTTPRequest {
 }
 
 struct HTTPResponse {
-    body : [char],
+    body : HTTPBody,
     status : i32,
     contentType : [char]
 }
@@ -45,17 +51,28 @@ fn sendResponse(socket : i32, response : HTTPResponse) -> () {
         "500 Internal Server Error"
     }
 
-    fullResponse =
-        response:body
+    lenAndBytes = match response:body {
+        Text{str} -> {
+            bytes = toBytes(str)
+            (len(bytes), bytes)
+        },
+        Binary{bytes} -> {
+            (len(bytes), bytes)
+        }
+    }
+
+    fullResponseHeader =
+        ""
         |> prepend("\r\n\r\n")
-        |> prepend(toString(len(response:body)))
+        |> prepend(toString(lenAndBytes:0))
         |> prepend("; charset=utf-8\r\nContent-Length: ")
         |> prepend(response:contentType)
         |> prepend("\r\nContent-Type: ")
         |> prepend(statusString)
         |> prepend("HTTP/1.1 ")
 
-    sendString(socket, fullResponse)
+    sendString(socket, fullResponseHeader)
+    sendBytes(socket, lenAndBytes:1)
 }
 
 fn recvHTTPHeader(socket : i32) -> Core.Maybe<HTTPRequest> {

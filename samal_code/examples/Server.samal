@@ -27,6 +27,7 @@ fn loop(serverSocket : i32, config : ServerConfig) -> () {
     maybeHeader = Net.recvHTTPHeader(clientSocket)
     match maybeHeader {
         Some{header} -> {
+            print(header:url |> Core.prepend("Request url: "))
             handlerFound = search(config:handlers, fn(handler : Handler) -> bool {
                 if handler:url == header:url || handler:url == "*" {
                     response = handler:callback(header)
@@ -36,10 +37,8 @@ fn loop(serverSocket : i32, config : ServerConfig) -> () {
                     false
                 }
             })
-            if handlerFound {
-                ()
-            } else {
-                Net.sendResponse(clientSocket, Net.HTTPResponse{body: " not found" |> Core.prepend(header:url) |> Core.prepend("Error: Path "), status : 404, contentType: "text/plain"})
+            if !handlerFound {
+                Net.sendResponse(clientSocket, Net.HTTPResponse{body: Net.HTTPBody::Text{" not found" |> Core.prepend(header:url) |> Core.prepend("Error: Path ")}, status : 404, contentType: "text/plain"})
             }
             ()
         },
@@ -65,11 +64,16 @@ fn runServer(config : ServerConfig) -> () {
 
 fn main() -> () {
     handlers = [
+        Handler{url : "/api/image.png", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {
+            g = Gfx.create(800, 600)
+            bytes = Gfx.render(g)
+            Net.HTTPResponse{body : Net.HTTPBody::Binary{bytes}, status : 200, contentType : "image/png"}
+        }},
         Handler{url : "/", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {
             response = match IO.readFileAsString("/www/index.html") {
-                Some{fileContent} -> Net.HTTPResponse{body : fileContent, status : 200, contentType : "text/html"},
+                Some{fileContent} -> Net.HTTPResponse{body : Net.HTTPBody::Text{fileContent}, status : 200, contentType : "text/html"},
                 None{} -> {
-                    Net.HTTPResponse{body: "Error: Path index.html not found", status : 404, contentType: "text/plain"}
+                    Net.HTTPResponse{body: Net.HTTPBody::Text{"Error: Path index.html not found"}, status : 404, contentType: "text/plain"}
                 }
             }
         }},
@@ -84,13 +88,13 @@ fn main() -> () {
                 }
 
             response = match IO.readFileAsString(path) {
-                Some{fileContent} -> Net.HTTPResponse{body : fileContent, status : 200, contentType : contentType},
+                Some{fileContent} -> Net.HTTPResponse{body : Net.HTTPBody::Text{fileContent}, status : 200, contentType : contentType},
                 None{} -> {
-                    Net.HTTPResponse{body: " not found" |> Core.prepend(request:url) |> Core.prepend("Error: Path "), status : 404, contentType: "text/plain"}
+                    Net.HTTPResponse{body: Net.HTTPBody::Text{" not found" |> Core.prepend(request:url) |> Core.prepend("Error: Path ")}, status : 404, contentType: "text/plain"}
                 }
             }
             response
         }}
     ]
-    runServer(ServerConfig{port : 8081, handlers : handlers})
+    runServer(ServerConfig{port : 8080, handlers : handlers})
 }

@@ -7,6 +7,16 @@ if(SAMAL_ENABLE_JIT)
     add_subdirectory(third_party/xbyak)
 endif()
 
+if(SAMAL_ENABLE_GFX_CAIRO)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(CAIROMM REQUIRED cairomm-1.0)
+    include_directories(${CAIROMM_INCLUDE_DIRS})
+    message(STATUS "Enable GFX Cairo")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSAMAL_ENABLE_GFX_CAIRO")
+endif()
+
+option(SAMAL_ENABLE_GFX_CAIRO "Enable use of cairo" OFF)
+
 option (FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
 if (${FORCE_COLORED_OUTPUT})
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")

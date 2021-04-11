@@ -1,0 +1,17 @@
+
+enum Command {
+    DrawLine{i32, i32, i32, i32},
+    SetColor{byte, byte, byte}
+}
+
+struct Image {
+    width   : i32,
+    height  : i32,
+    commands : [Command]
+}
+
+fn create(w : i32, h : i32) -> Image {
+    Image{width : w, height : h, commands : [:Command]}
+}
+
+native fn render(img : Image) -> [byte]

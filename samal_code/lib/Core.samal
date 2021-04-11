@@ -3,6 +3,7 @@ native fn dumpStackTrace() -> ()
 native fn toI32<T>(p : T) -> i32
 native fn toChar<T>(p : T) -> char
 native fn toString<T>(p : T) -> [char]
+native fn toBytes<T>(p : T) -> [byte]
 
 fn identity<T>(p: T) -> T {
     p

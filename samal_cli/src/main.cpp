@@ -1,14 +1,16 @@
 #include "samal_lib/ExternalVMValue.hpp"
 #include "samal_lib/Pipeline.hpp"
 #include <iostream>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <fstream>
-#include <sstream>
 #include <filesystem>
+
+#ifdef SAMAL_ENABLE_GFX_CAIRO
+#include <cairomm-1.0/cairomm/cairomm.h>
+#endif
 
 int main(int argc, char** argv) {
     using namespace samal;
@@ -16,6 +18,7 @@ int main(int argc, char** argv) {
     pl.addFile("samal_code/lib/Core.samal");
     pl.addFile("samal_code/lib/IO.samal");
     pl.addFile("samal_code/lib/Net.samal");
+    pl.addFile("samal_code/lib/Gfx.samal");
     pl.addFile("samal_code/examples/Templ.samal");
     pl.addFile("samal_code/examples/Lists.samal");
     pl.addFile("samal_code/examples/Structs.samal");
@@ -174,12 +177,27 @@ int main(int argc, char** argv) {
             return ExternalVMValue::wrapChar(vm, buf);
         }});
     pl.addNativeFunction(NativeFunction{
+        "Core.toBytes",
+        pl.type("fn([char]) -> [byte]"),
+        [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
+            return ExternalVMValue::wrapStringAsByteArray(vm, params.at(0).toCPPString());
+        }});
+    pl.addNativeFunction(NativeFunction{
         "Net.sendString",
         pl.type("fn(i32, [char]) -> ()"),
         [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
             auto sock = params.at(0).as<int32_t>();
             auto string = params.at(1).toCPPString();
             write(sock, string.c_str(), string.size());
+            return ExternalVMValue::wrapEmptyTuple(vm);
+        }});
+    pl.addNativeFunction(NativeFunction{
+        "Net.sendBytes",
+        pl.type("fn(i32, [byte]) -> ()"),
+        [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
+            auto sock = params.at(0).as<int32_t>();
+            auto string = params.at(1).toByteBuffer();
+            write(sock, string.data(), string.size());
             return ExternalVMValue::wrapEmptyTuple(vm);
         }});
     pl.addNativeFunction(NativeFunction{
@@ -191,6 +209,30 @@ int main(int argc, char** argv) {
             return ExternalVMValue::wrapEmptyTuple(vm);
         }});
 
+#ifdef SAMAL_ENABLE_GFX_CAIRO
+    pl.addNativeFunction(NativeFunction{
+        "Gfx.render",
+        pl.type("fn(Gfx.Image) -> [byte]"),
+        [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
+            auto& img = params.at(0).asStructValue();
+            const auto w = img.findValue("width").as<int32_t>();
+            const auto h = img.findValue("height").as<int32_t>();
+            auto surface = Cairo::ImageSurface::create(Cairo::FORMAT_RGB24, w, h);
+
+            auto c = Cairo::Context::create(surface);
+            c->set_source_rgb(1, 0, 0);
+            c->rectangle(10, 10, 100, 100);
+            c->fill();
+
+            std::vector<uint8_t> outputBuffer;
+            surface->write_to_png_stream([&](const unsigned char* data, unsigned int length) -> Cairo::ErrorStatus {
+                outputBuffer.resize(outputBuffer.size() + length);
+                memcpy(outputBuffer.data() + outputBuffer.size() - length, data, length);
+                return Cairo::ErrorStatus::CAIRO_STATUS_SUCCESS;
+            });
+            return ExternalVMValue::wrapByteArray(vm, outputBuffer.data(), outputBuffer.size());
+        }});
+#endif
 
     samal::VM vm = pl.compile();
     std::cout << vm.getProgram().disassemble() << "\n";

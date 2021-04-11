@@ -9,7 +9,11 @@ struct Rect {
 }
 struct LinkedList<T> {
     value : T,
-    friend : [Structs.LinkedList<T>]
+    friend : [LinkedList<T>]
+}
+
+struct A {
+    l : LinkedList<Vec2>
 }
 
 fn pureIdentity<T>(v : T) -> T {
@@ -17,8 +21,8 @@ fn pureIdentity<T>(v : T) -> T {
 }
 
 fn testStruct(p : i32) -> (LinkedList<i32>, Rect) {
-    list = Structs.LinkedList<i32>{value : 5, friend : [Structs.LinkedList<i32>{value : 5, friend : [Structs.LinkedList<i32>{value : 5, friend : [:Structs.LinkedList<i32>]}]}]}
-    rect = Structs.Rect{pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
+    list = LinkedList<i32>{value : 5, friend : [LinkedList<i32>{value : 5, friend : [LinkedList<i32>{value : 5, friend : [:LinkedList<i32>]}]}]}
+    rect = Rect{pos : Vec2{x : p * 5, y : p}, size : Vec2{x : 3, y : 3}}
     (list, rect)
 }
 
@@ -29,7 +33,7 @@ fn add(a : i32, b : i32, c: i32) -> i32 {
     }
 }
 
-fn testStruct2(p : i32) -> [Structs.Vec2] {
+fn testStruct2(p : i32) -> [Vec2] {
     p = 100 + p
     list =
         Core.createFilledList<Vec2>(Vec2{x : 0, y : 5}, 10)
