@@ -13,6 +13,7 @@ public:
     static ExternalVMValue wrapChar(VM& vm, int32_t charUTF32Value);
     static ExternalVMValue wrapString(VM& vm, const std::string& string);
     static ExternalVMValue wrapStringAsByteArray(VM& vm, const std::string& string);
+    static ExternalVMValue wrapByteArray(VM& vm, const uint8_t* data, size_t len);
     static ExternalVMValue wrapEnum(VM& vm, const Datatype& enumType, const std::string& fieldName, std::vector<ExternalVMValue>&& elements);
     static ExternalVMValue wrapStackedValue(Datatype type, VM& vm, size_t stackOffset);
     static ExternalVMValue wrapFromPtr(Datatype type, VM& vm, const uint8_t* ptr);
@@ -23,10 +24,18 @@ public:
     [[nodiscard]] bool isWrappingString() const;
     [[nodiscard]] std::string toCPPString() const;
     [[nodiscard]] std::vector<uint8_t> toByteBuffer() const;
+    [[nodiscard]] std::vector<ExternalVMValue> toVector() const;
 
     template<typename T>
-    const auto& as() const {
+    [[nodiscard]] const auto& as() const {
         return std::get<T>(mValue);
+    }
+
+    [[nodiscard]] inline const auto& asEnumValue() const {
+        return as<EnumValue>();
+    }
+    [[nodiscard]] inline const auto& asStructValue() const {
+        return as<StructValue>();
     }
 
 private:
@@ -36,6 +45,7 @@ private:
         std::string name;
         struct Field;
         std::vector<Field> fields;
+        const ExternalVMValue& findValue(const std::string& fieldName) const;
     };
     struct EnumValue {
         int32_t selectedFieldIndex;

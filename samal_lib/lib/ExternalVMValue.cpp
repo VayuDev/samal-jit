@@ -45,10 +45,13 @@ ExternalVMValue ExternalVMValue::wrapString(VM& vm, const std::string& str) {
     return ExternalVMValue(vm, Datatype::createListType(Datatype::createSimple(DatatypeCategory::char_)), startPtr);
 }
 ExternalVMValue ExternalVMValue::wrapStringAsByteArray(VM& vm, const std::string& str) {
+    return wrapByteArray(vm, (uint8_t*)str.c_str(), str.size());
+}
+ExternalVMValue ExternalVMValue::wrapByteArray(VM& vm, const uint8_t* data, size_t len) {
     const auto chunkSize = 8 + 1;
     uint8_t* startPtr = nullptr;
     uint8_t* ptr = nullptr;
-    for(auto ch : str) {
+    for(size_t i = 0; i < len; ++i) {
         uint8_t* nextPtr = vm.alloc(chunkSize);
         memset(nextPtr, 0, chunkSize);
         if(startPtr == nullptr) {
@@ -57,7 +60,7 @@ ExternalVMValue ExternalVMValue::wrapStringAsByteArray(VM& vm, const std::string
         if(ptr) {
             memcpy(ptr, &nextPtr, sizeof(nextPtr));
         }
-        memcpy(nextPtr + 8, &ch, 1);
+        memcpy(nextPtr + 8, &data[i], 1);
         ptr = nextPtr;
     }
     return ExternalVMValue(vm, Datatype::createListType(Datatype::createSimple(DatatypeCategory::byte)), startPtr);
@@ -344,5 +347,25 @@ std::vector<uint8_t> ExternalVMValue::toByteBuffer() const {
         current = *(uint8_t**)current;
     }
     return ret;
+}
+std::vector<ExternalVMValue> ExternalVMValue::toVector() const {
+    if(mType.getCategory() != DatatypeCategory::list) {
+        throw std::runtime_error{"This is not wrapping a list, it's wrapping a " + mType.toString() };
+    }
+    std::vector<ExternalVMValue> ret;
+    auto* current = std::get<const uint8_t*>(mValue);
+    while(current != nullptr) {
+        ret.emplace_back(ExternalVMValue::wrapFromPtr(mType.getListContainedType(), *mVM, current + 8));
+        current = *(uint8_t**)current;
+    }
+    return ret;
+}
+const ExternalVMValue& ExternalVMValue::StructValue::findValue(const std::string& fieldName) const {
+    for(auto& field: fields) {
+        if(field.name == fieldName) {
+            return field.value;
+        }
+    }
+    throw std::runtime_error{"No such field: " + fieldName};
 }
 }
