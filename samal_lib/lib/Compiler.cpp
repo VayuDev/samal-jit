@@ -427,7 +427,7 @@ Datatype Compiler::compileLiteralByte(uint8_t value) {
 }
 Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExpression) {
     pushTinyStackFrame();
-    DestructorWrapper destructor{[this] {
+    DestructorWrapper stackFramePopper{[this] {
         popTinyStackFrame();
     }};
     auto lhsType = binaryExpression.getLeft()->compile(*this);
@@ -586,6 +586,8 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, saveAuxiliaryDatatypeToProgram(lhsType));
             mStackSize -= lhsType.getSizeOnStack() * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            popTinyStackFrame();
+            stackFramePopper.stop();
             addInstructions(Instruction::LOGICAL_NOT);
             return Datatype::createSimple(DatatypeCategory::bool_);
         }

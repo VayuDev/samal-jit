@@ -77,12 +77,17 @@ public:
         assert(mCallback);
     }
     inline ~DestructorWrapper() {
-        mCallback();
+        if(mCallback)
+            mCallback();
     }
     DestructorWrapper(const DestructorWrapper&) = delete;
     DestructorWrapper(DestructorWrapper&&) = delete;
     void operator=(const DestructorWrapper&) = delete;
     void operator=(DestructorWrapper&&) = delete;
+
+    inline void stop() {
+        mCallback = {};
+    }
 
 private:
     std::function<void()> mCallback;
