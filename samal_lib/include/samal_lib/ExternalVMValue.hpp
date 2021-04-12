@@ -34,6 +34,9 @@ public:
     [[nodiscard]] inline const auto& asEnumValue() const {
         return as<EnumValue>();
     }
+    [[nodiscard]] const std::string& getEnumValueSelectedFieldName() const {
+        return mType.getEnumInfo().fields.at(asEnumValue().selectedFieldIndex).name;
+    }
     [[nodiscard]] inline const auto& asStructValue() const {
         return as<StructValue>();
     }

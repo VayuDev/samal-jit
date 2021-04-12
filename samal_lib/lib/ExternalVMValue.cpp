@@ -21,7 +21,7 @@ ExternalVMValue ExternalVMValue::wrapChar(VM& vm, int32_t charValue) {
     return ExternalVMValue(vm, Datatype::createSimple(DatatypeCategory::char_), charValue);
 }
 ExternalVMValue ExternalVMValue::wrapString(VM& vm, const std::string& str) {
-    const auto chunkSize = 8 + 4;
+    const auto chunkSize = 8 + getSimpleSize(DatatypeCategory::char_);
     uint8_t* startPtr = nullptr;
 
     size_t offset = 0;
@@ -48,7 +48,7 @@ ExternalVMValue ExternalVMValue::wrapStringAsByteArray(VM& vm, const std::string
     return wrapByteArray(vm, (uint8_t*)str.c_str(), str.size());
 }
 ExternalVMValue ExternalVMValue::wrapByteArray(VM& vm, const uint8_t* data, size_t len) {
-    const auto chunkSize = 8 + 1;
+    const auto chunkSize = 8 + getSimpleSize(DatatypeCategory::byte);
     uint8_t* startPtr = nullptr;
     uint8_t* ptr = nullptr;
     for(size_t i = 0; i < len; ++i) {

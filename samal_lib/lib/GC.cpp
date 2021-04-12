@@ -45,23 +45,31 @@ GC::GC(VM& vm, const VMParameters& params)
     mRegions[0] = Region{ static_cast<size_t>(params.initialHeapSize) };
     mRegions[1] = Region{ static_cast<size_t>(params.initialHeapSize) };
 }
-uint8_t* GC::alloc(int32_t size) {
+uint8_t* GC::alloc(int32_t size, size_t heapIndex) {
+    assert(size % 8 == 0);
     // ensure that every memory allocation is divisible by 2 (used for pointer tagging for lambdas/functions)
     if(size % 2 == 1) {
         size += 1;
     }
-    if(mRegions[mActiveRegion].offset + size >= mRegions[mActiveRegion].size) {
+    if(mRegions[heapIndex].offset + size >= mRegions[heapIndex].size) {
         // not enough memory, add to temporary allocations
-        mTemporaryAllocations.emplace_back(TemporaryAllocation{{new uint8_t[size], ArrayDeleter{}}, (size_t)size});
+        mTemporaryAllocations.emplace_back(TemporaryAllocation{{(uint8_t*)calloc(size, 1), ArrayDeleter{}}, (size_t)size});
+        assert((uintptr_t)mTemporaryAllocations.back().data.get() % 8 == 0);
         return mTemporaryAllocations.back().data.get();
     }
-    auto ptr = mRegions[mActiveRegion].top();
-    mRegions[mActiveRegion].offset += size;
+    auto ptr = mRegions[heapIndex].top();
+    mRegions[heapIndex].offset += size;
+
+    assert((uintptr_t)ptr % 8 == 0);
     return ptr;
+}
+uint8_t* GC::alloc(int32_t size) {
+    return alloc(size, mActiveRegion);
 }
 void GC::performGarbageCollection() {
     //Stopwatch stopwatch{"GC"};
     //printf("Before size: %i\n", (int)mRegions[mActiveRegion].offset);
+    //puts("Running GC");
     getOtherRegion().offset = 0;
     if(!mTemporaryAllocations.empty() || getOtherRegion().size < getActiveRegion().size) {
         // our other region that we're copying into might be too small, so we resize it to prevent any potential problems
@@ -75,27 +83,37 @@ void GC::performGarbageCollection() {
     }
     mMovedPointers.clear();
     mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name) {
+        assert((uintptr_t)ptr % 8 == 0);
         searchForPtrs((uint8_t*)ptr, type, ScanningHeapOrStack::Stack);
     }, {});
     mActiveRegion = !mActiveRegion;
     mTemporaryAllocations.clear();
     //printf("After size: %i\n", (int)mRegions[mActiveRegion].offset);
 }
-std::pair<bool, uint8_t*> GC::copyToOther(uint8_t** ptr, size_t len) {
-    auto maybePointerAddress = mMovedPointers.find(*ptr);
-    if(maybePointerAddress == mMovedPointers.end()) {
-        uint8_t* newPtr = getOtherRegion().top();
-        assert(getOtherRegion().size >= getOtherRegion().offset + len);
-        memcpy(newPtr, *ptr, len);
-        getOtherRegion().offset += len;
-        mMovedPointers.emplace(*ptr, newPtr);
-        *ptr = newPtr;
-        return std::make_pair(true, newPtr);
-    } else {
-        *ptr = maybePointerAddress->second;
-        return std::make_pair(false, maybePointerAddress->second);
-    }
+uint8_t* GC::copyToOther(uint8_t** ptr, size_t len) {
+    assert(ptr);
+    /*assert((*ptr >= getActiveRegion().base && *ptr < getActiveRegion().top())
+        || std::any_of(mTemporaryAllocations.begin(), mTemporaryAllocations.end(), [&] (const auto& allocation){
+            return allocation.data.get() == *ptr;
+        }));*/
+    assert(mMovedPointers.count(*ptr) == 0);
+    uint8_t* newPtr = getOtherRegion().top();
+    assert(getOtherRegion().size >= getOtherRegion().offset + len);
+    memcpy(newPtr, *ptr, len);
+    getOtherRegion().offset += len;
+    auto emplaceResult = mMovedPointers.emplace(*ptr, newPtr);
+    assert(emplaceResult.second);
+    return newPtr;
 }
+uint8_t* GC::findNewPtr(uint8_t* ptr) {
+    assert(ptr);
+    auto maybeNewPtr = mMovedPointers.find(ptr);
+    if(maybeNewPtr != mMovedPointers.end()) {
+        return maybeNewPtr->second;
+    }
+    return nullptr;
+}
+
 void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack scanningHeapOrStack) {
     switch(type.getCategory()) {
     case DatatypeCategory::bool_:
@@ -115,15 +133,22 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
     }
     case DatatypeCategory::list: {
         auto** ptrToCurrent = (uint8_t**)ptr;
-        if(*ptrToCurrent == nullptr)
-            break;
-        auto containedTypeSize = type.getListContainedType().getSizeOnStack();
-        auto[copied, newPtr] = copyToOther(ptrToCurrent, containedTypeSize + 8);
-        if(copied) {
-            searchForPtrs(newPtr, type, ScanningHeapOrStack::Heap);
-            searchForPtrs(newPtr + 8, type.getListContainedType(), ScanningHeapOrStack::Heap);
-        }
+        while(true) {
+            assert((uintptr_t)*ptrToCurrent % 8 == 0);
+            if(*ptrToCurrent == nullptr)
+                break;
+            auto maybeNewPtr = findNewPtr(*(uint8_t**)ptrToCurrent);
+            if(maybeNewPtr) {
+                memcpy(ptrToCurrent, &maybeNewPtr, 8);
+                break;
+            }
+            auto containedTypeSize = type.getListContainedType().getSizeOnStack();
+            searchForPtrs(*ptrToCurrent + 8, type.getListContainedType(), ScanningHeapOrStack::Heap);
+            auto newPtr = copyToOther(ptrToCurrent, containedTypeSize + 8);
+            memcpy(ptrToCurrent, &newPtr, 8);
 
+            ptrToCurrent = *(uint8_t***)ptrToCurrent;
+        }
         break;
     }
     case DatatypeCategory::function: {
@@ -137,23 +162,27 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         auto lambdaPtr = *(uint8_t**)ptr;
         assert(lambdaPtr);
 
+        auto maybeNewPtr = findNewPtr(*(uint8_t**)ptr);
+        if(maybeNewPtr) {
+            memcpy(ptr, &maybeNewPtr, 8);
+            break;
+        }
+
         int32_t sizeOfLambda = -1;
         memcpy(&sizeOfLambda, lambdaPtr, 4);
         sizeOfLambda += 16;
-        auto [copied, newPtr] = copyToOther((uint8_t**)ptr, sizeOfLambda);
-        if(!copied)
-            break;
 
         int32_t capturedLambdaTypesId;
         memcpy(&capturedLambdaTypesId, lambdaPtr + 8, 4);
 
-        size_t offset = 0;
+        size_t offset = sizeOfLambda;
         const auto& helperTuple = mVM.getProgram().auxiliaryDatatypes.at(capturedLambdaTypesId).getTupleInfo();
-        for(ssize_t i = 0; i < helperTuple.size(); ++i) {
-            searchForPtrs(newPtr + 16 + offset, helperTuple.at(i), ScanningHeapOrStack::Heap);
-            offset += helperTuple.at(i).getSizeOnStack();
+        for(size_t i = 0; i < helperTuple.size(); ++i) {
+            offset -= helperTuple.at(i).getSizeOnStack();
+            searchForPtrs(lambdaPtr + offset, helperTuple.at(i), ScanningHeapOrStack::Heap);
         }
-
+        auto newPtr = copyToOther((uint8_t**)ptr, sizeOfLambda);
+        memcpy(ptr, &newPtr, 8);
         break;
     }
     case DatatypeCategory::struct_: {
@@ -183,9 +212,14 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         break;
     }
     case DatatypeCategory::pointer: {
-        auto[copied, newPtr] = copyToOther((uint8_t**)ptr, type.getPointerBaseType().getSizeOnStack());
-        if(copied)
-            searchForPtrs(newPtr, type.getPointerBaseType(), ScanningHeapOrStack::Heap);
+        auto maybeNewPtr = findNewPtr(*(uint8_t**)ptr);
+        if(maybeNewPtr) {
+            memcpy(ptr, &maybeNewPtr, 8);
+            break;
+        }
+        searchForPtrs(*(uint8_t**)ptr, type.getPointerBaseType(), ScanningHeapOrStack::Heap);
+        auto newPtr = copyToOther((uint8_t**)ptr, type.getPointerBaseType().getSizeOnStack());
+        memcpy(ptr, &newPtr, 8);
         break;
     }
     default:

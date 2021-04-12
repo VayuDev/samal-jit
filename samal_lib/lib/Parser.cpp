@@ -591,7 +591,7 @@ std::pair<up<ModuleRootNode>, peg::PegTokenizer> Parser::parse(std::string modul
         root->setModuleName(std::move(moduleName));
         return std::make_pair(std::move(root), std::move(ret.second));
     }
-
+    std::cerr << "In " + moduleName + ":\n";
     std::cerr << peg::errorsToString(std::get<1>(ret.first), ret.second);
     return std::make_pair(up<ModuleRootNode>{}, std::move(ret.second));
 }

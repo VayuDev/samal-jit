@@ -49,7 +49,7 @@ private:
 
     struct ArrayDeleter {
         void operator()(uint8_t* toDelete) {
-            delete[] toDelete;
+            free(toDelete);
         }
     };
     struct TemporaryAllocation {
@@ -71,7 +71,9 @@ private:
         Stack
     };
     void searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack);
-    std::pair<bool, uint8_t*> copyToOther(uint8_t** ptr, size_t len);
+    uint8_t* copyToOther(uint8_t** ptr, size_t len);
+    uint8_t* alloc(int32_t len, size_t heapIndex);
+    uint8_t* findNewPtr(uint8_t *ptr);
     void performGarbageCollection();
 };
 
