@@ -1030,7 +1030,7 @@ bool VM::interpretInstruction() {
         int64_t res = !value;
         mStack.push(&res, 8);
 #else
-        auto value = *(bool*)mStack.get(1);
+        auto value = *(bool*)mStack.get(0);
         mStack.pop(1);
         bool res = !value;
         mStack.push(&res, 1);
