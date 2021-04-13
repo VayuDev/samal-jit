@@ -17,7 +17,7 @@ fn search<T>(list : [T], callback : fn(T) -> bool) -> bool {
         if callback(list:head) {
             true
         } else {
-            @tail_call_self(list:tail, callback)
+            search(list:tail, callback)
         }
     }
 }
@@ -62,11 +62,53 @@ fn runServer(config : ServerConfig) -> () {
     }
 }
 
+struct Point {
+    x : i32,
+    y : i32
+}
+
+struct Edge {
+    p1 : Point,
+    p2 : Point
+}
+
+fn distance(p1 : Point, p2 : Point) -> i32 {
+    dx = p1:x - p2:x
+    dy = p1:y - p2:y
+    Math.sqrt(dx * dx + dy * dy)
+}
+
+fn pointsToLines(points : [Point], initialImage : Gfx.Image, maxDistance : i32) -> Gfx.Image {
+    Core.reduce(points, initialImage, fn(p1 : Point, img : Gfx.Image) -> Gfx.Image {
+        Core.reduce(points, img, fn(p2 : Point, img : Gfx.Image) -> Gfx.Image {
+            d = distance(p1, p2)
+            if d < maxDistance && d > 20 {
+                Gfx.drawLine(img, p1:x, p1:y, p2:x, p2:y)
+            } else {
+                img
+            }
+        })
+    })
+}
+
 fn main() -> () {
     handlers = [
         Handler{url : "/api/image.png", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {
-            g = Gfx.create(800, 600)
-            bytes = Gfx.render(g)
+            w = 2560
+            h = 1440
+            w2 = w / 2
+            h2 = h / 2
+            img = Gfx.create(w, h)
+                |> Gfx.setColor(255b, 255b, 255b)
+
+            img =
+                Core.times(400, fn() -> Point {
+                    Point{x : Math.randomInt(0, w - 1), y : Math.randomInt(0, h - 1)}
+                })
+                |> pointsToLines(img, 125)
+                |> Gfx.stroke()
+
+            bytes = Gfx.render(img)
             Net.HTTPResponse{body : Net.HTTPBody::Binary{bytes}, status : 200, contentType : "image/png"}
         }},
         Handler{url : "/", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {

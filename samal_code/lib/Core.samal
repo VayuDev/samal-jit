@@ -57,6 +57,14 @@ fn seq<T>(limit: T) -> [T] {
     seqRec<T>(0, limit)
 }
 
+fn times<T>(limit : i32, callback : fn() -> T) -> [T] {
+    if limit < 1 {
+        [:T]
+    } else {
+        callback() + times(limit - 1, callback)
+    }
+}
+
 fn createFilledList<T>(value : T, length : i32) -> [T] {
     if length < 1 {
         [:T]

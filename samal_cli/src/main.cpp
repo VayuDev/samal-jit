@@ -7,9 +7,11 @@
 #include <unistd.h>
 #include <fstream>
 #include <filesystem>
+#include <random>
 
 #ifdef SAMAL_ENABLE_GFX_CAIRO
 #include <cairomm-1.0/cairomm/cairomm.h>
+#    include <csignal>
 #endif
 
 int main(int argc, char** argv) {
@@ -19,6 +21,7 @@ int main(int argc, char** argv) {
     pl.addFile("samal_code/lib/IO.samal");
     pl.addFile("samal_code/lib/Net.samal");
     pl.addFile("samal_code/lib/Gfx.samal");
+    pl.addFile("samal_code/lib/Math.samal");
     pl.addFile("samal_code/examples/Templ.samal");
     pl.addFile("samal_code/examples/Lists.samal");
     pl.addFile("samal_code/examples/Structs.samal");
@@ -208,7 +211,23 @@ int main(int argc, char** argv) {
             close(sock);
             return ExternalVMValue::wrapEmptyTuple(vm);
         }});
-
+    pl.addNativeFunction(NativeFunction{
+        "Math.randomInt",
+        pl.type("fn(i32, i32) -> i32"),
+        [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
+            std::random_device r;
+            std::default_random_engine e1(r());
+            std::uniform_int_distribution<int32_t> uniform_dist(params.at(0).as<int32_t>(), params.at(1).as<int32_t>());
+            return ExternalVMValue::wrapInt32(vm, uniform_dist(e1));
+        }});
+    pl.addNativeFunction(NativeFunction{
+        "Math.sqrt",
+        pl.type("fn(i32) -> i32"),
+        [](VM& vm, const std::vector<ExternalVMValue>& params) -> ExternalVMValue {
+            auto result = static_cast<int32_t>(sqrt(params.at(0).as<int32_t>()));
+            return ExternalVMValue::wrapInt32(vm, result);
+        }});
+    signal(SIGPIPE, [](int) {});
 #ifdef SAMAL_ENABLE_GFX_CAIRO
     pl.addNativeFunction(NativeFunction{
         "Gfx.render",
@@ -220,9 +239,25 @@ int main(int argc, char** argv) {
             auto surface = Cairo::ImageSurface::create(Cairo::FORMAT_RGB24, w, h);
 
             auto c = Cairo::Context::create(surface);
-            c->set_source_rgb(1, 0, 0);
-            c->rectangle(10, 10, 100, 100);
-            c->fill();
+            auto commands = img.findValue("commands").toVector();
+            for(auto it = commands.rbegin(); it != commands.rend(); ++it) {
+                auto& enumValue = it->asEnumValue();
+                auto& commandType = it->getEnumValueSelectedFieldName();
+                if(commandType == "SetColor") {
+                    c->set_source_rgb(enumValue.elements.at(0).as<uint8_t>() / 255.0,
+                                      enumValue.elements.at(1).as<uint8_t>() / 255.0,
+                                      enumValue.elements.at(2).as<uint8_t>() / 255.0);
+                } else if(commandType == "DrawLine") {
+                    c->move_to(enumValue.elements.at(0).as<int32_t>(), enumValue.elements.at(1).as<int32_t>());
+                    c->line_to(enumValue.elements.at(2).as<int32_t>(), enumValue.elements.at(3).as<int32_t>());
+                } else if(commandType == "SetLineWidth") {
+                    c->set_line_width(enumValue.elements.at(0).as<int32_t>() / 10.0);
+                } else if(commandType == "Stroke") {
+                    c->stroke();
+                } else {
+                    assert(false);
+                }
+            }
 
             std::vector<uint8_t> outputBuffer;
             surface->write_to_png_stream([&](const unsigned char* data, unsigned int length) -> Cairo::ErrorStatus {
