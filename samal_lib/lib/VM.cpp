@@ -103,7 +103,7 @@ public:
             case Instruction::LOAD_FROM_PTR:
             case Instruction::LIST_GET_TAIL:
             case Instruction::IS_LIST_EMPTY:
-            //case Instruction::RUN_GC:
+            case Instruction::RUN_GC:
             case Instruction::NOOP:
                     return true;
             }
@@ -511,7 +511,7 @@ public:
                 mov(qword[rsp], rbx);
                 break;
             }
-            /*case Instruction::RUN_GC:
+            case Instruction::RUN_GC:
                 mov(rax, originalStackPointer);
                 add(rax, stackSize);
                 // rax now points to the upper end of the original stack
@@ -531,7 +531,7 @@ public:
                 pop(r10);
                 pop(r9);
                 pop(r8);
-                break;*/
+                break;
             case Instruction::NOOP:
                 break;
             default:

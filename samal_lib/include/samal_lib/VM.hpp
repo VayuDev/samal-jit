@@ -40,7 +40,7 @@ private:
 };
 
 struct VMParameters {
-    int32_t functionsCallsPerGCRun = 400000;
+    int32_t functionsCallsPerGCRun = 1'000'000;
     int32_t initialHeapSize = 1024 * 1024;
 };
 
