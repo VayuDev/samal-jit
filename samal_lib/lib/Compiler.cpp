@@ -503,6 +503,18 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
 
+        case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
+            addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+
+        case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
+            addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I32);
+            mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+
         case BinaryExpressionNode::BinaryOperator::LOGICAL_EQUALS:
             addInstructions(Instruction::COMPARE_EQUALS_I32);
             mStackSize -= getSimpleSize(DatatypeCategory::i32) * 2;
@@ -554,6 +566,18 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
 
         case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN:
             addInstructions(Instruction::COMPARE_MORE_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+
+        case BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN:
+            addInstructions(Instruction::COMPARE_LESS_EQUAL_THAN_I64);
+            mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
+            mStackSize += getSimpleSize(DatatypeCategory::bool_);
+            return Datatype::createSimple(DatatypeCategory::bool_);
+
+        case BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN:
+            addInstructions(Instruction::COMPARE_MORE_EQUAL_THAN_I64);
             mStackSize -= getSimpleSize(DatatypeCategory::i64) * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
