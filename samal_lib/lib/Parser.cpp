@@ -227,23 +227,23 @@ Parser::Parser() {
             up<ExpressionNode>{ res[1][0][1].result.move<ExpressionNode*>() }
         };
     };
-    mPegParser["LogicalComparisonExpression"] << "LineExpression (('<' | '<=' | '>=' | '>') LogicalComparisonExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["LogicalComparisonExpression"] << "LineExpression (('>=' | '<=' | '>' | '<') LogicalComparisonExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
         if(res[1].subs.empty()) {
             return std::move(res[0].result);
         }
         BinaryExpressionNode::BinaryOperator op;
         switch(*res[1][0][0].choice) {
         case 0:
-            op = BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN;
+            op = BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN;
             break;
         case 1:
             op = BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_EQUAL_THAN;
             break;
         case 2:
-            op = BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_EQUAL_THAN;
+            op = BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN;
             break;
         case 3:
-            op = BinaryExpressionNode::BinaryOperator::COMPARISON_MORE_THAN;
+            op = BinaryExpressionNode::BinaryOperator::COMPARISON_LESS_THAN;
             break;
         default:
             assert(false);
