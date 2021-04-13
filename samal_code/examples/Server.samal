@@ -116,8 +116,10 @@ fn main() -> () {
                 })
                 match i {
                     Some{i} ->
-                        if i <= 4000 && i > 0 {
+                        if i <= 3900 && i > 0 {
                             i
+                        } else if i > 0 {
+                            3900
                         } else {
                             200
                         },
