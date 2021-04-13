@@ -158,7 +158,7 @@ Program Compiler::compileInternal() {
 
         auto& currentModule = mModules.at(mDeclarationNodeToModuleId.at(function));
         mCurrentUndeterminedTypeReplacementMap.insert(mCustomUserDatatypeReplacementMap.cbegin(), mCustomUserDatatypeReplacementMap.cend());
-        mUsingModuleNames = { currentModule.name };
+        mUsingModuleNames = currentModule.usingModuleNames;
 
         function->compile(*this);
 
@@ -218,7 +218,6 @@ Program::Function& Compiler::helperCompileFunctionLikeThing(const std::string& n
 
     mCurrentStackInfoTree = std::make_unique<StackInformationTree>(start, mStackSize, StackInformationTree::IsAtPopInstruction::No);
     mCurrentStackInfoTreeNode = mCurrentStackInfoTree.get();
-
     const auto& completedReturnType = returnType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
 
     // figure out type of function
