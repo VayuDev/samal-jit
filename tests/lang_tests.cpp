@@ -349,6 +349,14 @@ fn test() -> (i32, i64) {
     auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
     REQUIRE(vmRet.dump() == "(7, 7i64)");
 }
+TEST_CASE("Multiply order", "[samal_whole_system]") {
+    auto vm = compileSimple(R"(
+fn test() -> i32 {
+    5 * 3 / 2
+})");
+    auto vmRet = vm.run("Main.test", std::vector<samal::ExternalVMValue>{ });
+    REQUIRE(vmRet.dump() == "7");
+}
 
 TEST_CASE("Character support", "[samal_whole_system]") {
     auto vm = compileSimple(R"(
