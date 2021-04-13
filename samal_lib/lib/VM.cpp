@@ -1406,7 +1406,7 @@ std::string Stack::dump() {
     return ret;
 }
 Stack::Stack() {
-    mDataReserved = 1024 * 1024 * 1024;
+    mDataReserved = 1024 * 1024 * 80;
     mDataStart = (uint8_t*)malloc(mDataReserved);
     mDataEnd = mDataStart + mDataReserved;
     mDataTop = mDataEnd;
