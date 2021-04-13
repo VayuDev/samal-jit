@@ -1,7 +1,7 @@
 native fn print<T>(p: T) -> ()
 native fn dumpStackTrace() -> ()
-native fn toI32<T>(p : T) -> i32
-native fn toChar<T>(p : T) -> char
+native fn toI32<T>(p : T) -> Maybe<i32>
+native fn toChar<T>(p : T) -> Maybe<char>
 native fn toString<T>(p : T) -> [char]
 native fn toBytes<T>(p : T) -> [byte]
 

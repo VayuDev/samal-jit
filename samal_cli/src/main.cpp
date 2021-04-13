@@ -56,11 +56,22 @@ int main(int argc, char** argv) {
             std::cout << "[Stacktrace] " << vm.dumpVariablesOnStack();
             return samal::ExternalVMValue::wrapEmptyTuple(vm);
         } });
+    auto maybeI32Type = pl.type("Core.Maybe<i32>");
     pl.addNativeFunction(samal::NativeFunction{
         "Core.toI32",
-        pl.type("fn(char) -> i32"),
-        [](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
-            return samal::ExternalVMValue::wrapInt32(vm,  params.at(0).as<int32_t>());
+        pl.type("fn(char) -> Core.Maybe<i32>"),
+        [&](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
+            return ExternalVMValue::wrapEnum(vm, maybeI32Type, "Some", {samal::ExternalVMValue::wrapInt32(vm,  params.at(0).as<int32_t>())});
+        } });
+    pl.addNativeFunction(samal::NativeFunction{
+        "Core.toI32",
+        pl.type("fn([char]) -> Core.Maybe<i32>"),
+        [&](samal::VM& vm, const std::vector<samal::ExternalVMValue>& params) -> samal::ExternalVMValue {
+            try {
+                return ExternalVMValue::wrapEnum(vm, maybeI32Type, "Some", {ExternalVMValue::wrapInt32(vm, std::stoi(params.at(0).toCPPString()))});
+            } catch(...) {
+                return ExternalVMValue::wrapEnum(vm, maybeI32Type, "None", {});
+            }
         } });
     pl.addNativeFunction(samal::NativeFunction{
         "Core.toChar",
@@ -94,7 +105,6 @@ int main(int argc, char** argv) {
             return ExternalVMValue::wrapEnum(vm, maybeStringType, "Some", {ExternalVMValue::wrapString(vm, buffer.str())});
         }});
 
-    auto maybeI32Type = pl.type("Core.Maybe<i32>");
     // Server functions
     pl.addNativeFunction(NativeFunction{
         "Net.openServerSocket",

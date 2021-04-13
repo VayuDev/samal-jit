@@ -33,7 +33,8 @@ struct HTTPRequest {
     method : [char],
     version : [char],
     url : [char],
-    headers : [([char], [char])]
+    headers : [([char], [char])],
+    params : [([char], [char])]
 }
 
 struct HTTPResponse {
@@ -118,6 +119,28 @@ fn recvHTTPHeader(socket : i32) -> Core.Maybe<HTTPRequest> {
                     None{} -> ("", "")
                 }
             })
-        Core.Maybe<HTTPRequest>::Some{HTTPRequest{method : firstLineSplit:head, version : firstLineSplit:tail:tail:head, url : firstLineSplit:tail:head, headers : headers}}
+
+        urlSplit =
+            firstLineSplit:tail:head
+            |> Core.takeWhileEx(fn(ch : char) -> bool {
+                ch != '?'
+            })
+        url = urlSplit:0
+        params =
+            urlSplit:1:tail
+            |> Core.splitByChar('&')
+            |> Core.map(fn(parameter : [char]) -> ([char], [char]) {
+                split = Core.takeWhileEx(parameter, fn(ch : char) -> bool {
+                    ch != '='
+                })
+                (split:0, split:1:tail)
+            })
+
+        Core.Maybe<HTTPRequest>::Some{HTTPRequest{
+            method : firstLineSplit:head,
+            version : firstLineSplit:tail:tail:head,
+            url : url,
+            headers : headers,
+            params : params}}
     }
 }

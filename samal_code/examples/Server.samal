@@ -22,6 +22,17 @@ fn search<T>(list : [T], callback : fn(T) -> bool) -> bool {
     }
 }
 
+fn searchEx<T, S>(list : [T], callback : fn(T) -> Maybe<S>) -> Maybe<S> {
+    if list == [] {
+        Maybe<S>::None{}
+    } else {
+        match callback(list:head) {
+            Some{result} -> Maybe<S>::Some{result},
+            None{} -> searchEx(list:tail, callback)
+        }
+    }
+}
+
 fn loop(serverSocket : i32, config : ServerConfig) -> () {
     clientSocket = Net.acceptClientSocket(serverSocket)
     maybeHeader = Net.recvHTTPHeader(clientSocket)
@@ -94,18 +105,37 @@ fn pointsToLines(points : [Point], initialImage : Gfx.Image, maxDistance : i32) 
 fn main() -> () {
     handlers = [
         Handler{url : "/api/image.png", callback : fn(request : Net.HTTPRequest) -> Net.HTTPResponse {
-            w = 2560
-            h = 1440
+
+            extractInt = fn(name : [char]) -> i32 {
+                i = searchEx<([char], [char]), i32>(request:params, fn(param : ([char], [char])) -> Maybe<i32> {
+                    if param:0 == name {
+                        Core.toI32(param:1)
+                    } else {
+                        Maybe<i32>::None{}
+                    }
+                })
+                match i {
+                    Some{i} ->
+                        if i <= 4000 && i > 0 {
+                            i
+                        } else {
+                            200
+                        },
+                    None{} -> 200
+                }
+            }
+            w = extractInt("width")
+            h = extractInt("height")
             w2 = w / 2
             h2 = h / 2
             img = Gfx.create(w, h)
                 |> Gfx.setColor(255b, 255b, 255b)
 
             img =
-                Core.times(400, fn() -> Point {
+                Core.times(w * h / 8000, fn() -> Point {
                     Point{x : Math.randomInt(0, w - 1), y : Math.randomInt(0, h - 1)}
                 })
-                |> pointsToLines(img, 125)
+                |> pointsToLines(img, 130)
                 |> Gfx.stroke()
 
             bytes = Gfx.render(img)
