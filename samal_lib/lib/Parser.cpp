@@ -267,30 +267,33 @@ Parser::Parser() {
         };
     };
 
-    mPegParser["DotExpression"] << "PrefixExpression (('*' | '/' | '%') DotExpression)?" >> [](peg::MatchInfo& res) -> peg::Any {
-        if(res[1].subs.empty()) {
-            return std::move(res[0].result);
+    // TODO fix order of operations for all other types as well
+    mPegParser["DotExpression"] << "PrefixExpression (('*' | '/' | '%') PrefixExpression)*" >> [](peg::MatchInfo& res) -> peg::Any {
+        peg::Any result{std::move(res[0].result)};
+        while(!res[1].subs.empty()) {
+            BinaryExpressionNode::BinaryOperator op;
+            switch(*res[1][0][0].choice) {
+            case 0:
+                op = BinaryExpressionNode::BinaryOperator::MULTIPLY;
+                break;
+            case 1:
+                op = BinaryExpressionNode::BinaryOperator::DIVIDE;
+                break;
+            case 2:
+                op = BinaryExpressionNode::BinaryOperator::MODULO;
+                break;
+            default:
+                assert(false);
+            }
+            result = BinaryExpressionNode{
+                toRef(res),
+                up<ExpressionNode>{ result.move<ExpressionNode*>() },
+                op,
+                up<ExpressionNode>{ res[1][0][1].result.move<ExpressionNode*>() }
+            };
+            res[1].subs.erase(res[1].subs.begin());
         }
-        BinaryExpressionNode::BinaryOperator op;
-        switch(*res[1][0][0].choice) {
-        case 0:
-            op = BinaryExpressionNode::BinaryOperator::MULTIPLY;
-            break;
-        case 1:
-            op = BinaryExpressionNode::BinaryOperator::DIVIDE;
-            break;
-        case 2:
-            op = BinaryExpressionNode::BinaryOperator::MODULO;
-            break;
-        default:
-            assert(false);
-        }
-        return BinaryExpressionNode{
-            toRef(res),
-            up<ExpressionNode>{ res[0].result.move<ExpressionNode*>() },
-            op,
-            up<ExpressionNode>{ res[1][0][1].result.move<ExpressionNode*>() }
-        };
+        return result;
     };
     mPegParser["PrefixExpression"] << "('!' PrefixExpression) | ('$' PrefixExpression) | ('@' PrefixExpression) | PostfixExpression" >> [](peg::MatchInfo& res) -> peg::Any {
         switch(*res.choice) {
