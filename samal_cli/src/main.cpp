@@ -9,9 +9,9 @@
 #include <filesystem>
 #include <random>
 
+#include <csignal>
 #ifdef SAMAL_ENABLE_GFX_CAIRO
 #include <cairomm-1.0/cairomm/cairomm.h>
-#    include <csignal>
 #endif
 
 int main(int argc, char** argv) {
