@@ -131,7 +131,7 @@ fn main() -> () {
             w2 = w / 2
             h2 = h / 2
             img = Gfx.create(w, h)
-                |> Gfx.setColor(255b, 255b, 255b)
+                |> Gfx.setColor(60b, 60b, 60b)
 
             img =
                 Core.times(w * h / 8000, fn() -> Point {
@@ -157,6 +157,8 @@ fn main() -> () {
             contentType =
                 if extension == ".html" {
                     "text/html"
+                } else if extension == ".js" {
+                    "application/javascript"
                 } else {
                     "text/plain"
                 }
