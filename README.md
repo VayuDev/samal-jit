@@ -1,8 +1,9 @@
 # samal - Simple And Memory-wasting Awesomely-functional Language
 
-This repository contains the programming language samal which attempts to be the
-perfect combination of Rust and Elixir. It mixes the great type system and syntax of Rust with
-the functional style of Elixir and Haskell.
+Samal is a new programming language which attempts to be the perfect general-purpose (embeddable) language.
+It mixes the great type system and syntax of Rust with the functional style of Elixir and Haskell.
+
+Further information can be found at [samal.dev](https://samal.dev).
 
 The language is currently in heavy development and not usable.
 
@@ -11,33 +12,31 @@ The language is currently in heavy development and not usable.
 Features already implemented include:
 * JIT-Compiler for most instructions on x86-64
 * Lambdas
+* Match expressions
 * Templates
-* Lists＊
-* Explicit tail recursion optimization
-* Mark-and-sweep garbage collector
-* Structs
-* Native functions
+  * Automatic template type inference for function calls
 * Easy API for embedding samal into your project
+* Structs
 * Enums
 * Pointer type for recursive structs/enums (all structs/enums are on the stack)
 * Strings/Chars (Strings are implemented as lists of chars, similar to Haskell)
-    * Unicode (UTF-32) support; a single char can contain any unicode codepoint
-* Automatic template type inference for function calls
-
-＊ List syntax will maybe change in the future.
+  * Unicode (UTF-32) support; a single char can contain any unicode codepoint
+* Explicit tail recursion optimization
+* Copying garbage collector
+* Native functions
+* Type casting (using native functions)
+* Using declarations (to avoid typing the module name every time)
+* Very basic standard library
 
 ## Planned Features
 
 Planned features (vaguely order):
 
 * Comments
-* Using declarations (to avoid typing the module name every time)
-* Type casting (maybe using native methods)
 * A proper cli
 * Floating point support
-* Byte support
-* Some logical operations like not
-* Bitwise arithmetic
+* More features & error checking in match statements
+* Tuple deconstruction in assignment
 
 ## Examples
 
