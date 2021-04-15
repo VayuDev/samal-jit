@@ -46,7 +46,9 @@ GC::GC(VM& vm, const VMParameters& params)
     mRegions[1] = Region{ static_cast<size_t>(params.initialHeapSize) };
 }
 uint8_t* GC::alloc(int32_t size, size_t heapIndex) {
+#ifdef x86_64_BIT_MODE
     assert(size % 8 == 0);
+#endif
     // ensure that every memory allocation is divisible by 2 (used for pointer tagging for lambdas/functions)
     if(size % 2 == 1) {
         size += 1;
@@ -60,7 +62,9 @@ uint8_t* GC::alloc(int32_t size, size_t heapIndex) {
     auto ptr = mRegions[heapIndex].top();
     mRegions[heapIndex].offset += size;
 
+#ifdef x86_64_BIT_MODE
     assert((uintptr_t)ptr % 8 == 0);
+#endif
     return ptr;
 }
 uint8_t* GC::alloc(int32_t size) {
@@ -83,7 +87,9 @@ void GC::performGarbageCollection() {
     }
     mMovedPointers.clear();
     mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name) {
+#ifdef x86_64_BIT_MODE
         assert((uintptr_t)ptr % 8 == 0);
+#endif
         searchForPtrs((uint8_t*)ptr, type, ScanningHeapOrStack::Stack);
     }, {});
     mActiveRegion = !mActiveRegion;
@@ -134,7 +140,9 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
     case DatatypeCategory::list: {
         auto** ptrToCurrent = (uint8_t**)ptr;
         while(true) {
+#ifdef x86_64_BIT_MODE
             assert((uintptr_t)*ptrToCurrent % 8 == 0);
+#endif
             if(*ptrToCurrent == nullptr)
                 break;
             auto maybeNewPtr = findNewPtr(*(uint8_t**)ptrToCurrent);
