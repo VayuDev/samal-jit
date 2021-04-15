@@ -19,17 +19,22 @@ Parser::Parser() {
     mPegParser["Start"] << "UsingDeclarations* TypeOrFunctionDeclaration+" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<up<DeclarationNode>> decls;
         for(auto& d : res[0].subs) {
-            decls.emplace_back(d.result.move<DeclarationNode*>());
+            if(d.result.get<DeclarationNode*>())
+                decls.emplace_back(d.result.move<DeclarationNode*>());
         }
         for(auto& d : res[1].subs) {
-            decls.emplace_back(d.result.move<DeclarationNode*>());
+            if(d.result.get<DeclarationNode*>())
+                decls.emplace_back(d.result.move<DeclarationNode*>());
         }
         return ModuleRootNode{ toRef(res), std::move(decls) };
+    };
+    mPegParser["CommentLine"] << "'//' ~nws~(!~nws~'\n' ~nws~BUILTIN_ANY_UTF8_CODEPOINT)*" >> [](peg::MatchInfo& res) -> peg::Any {
+        return peg::Any{};
     };
     mPegParser["UsingDeclarations"] << "'using' IdentifierPartString ~nws~'\n'" >> [](peg::MatchInfo& res) -> peg::Any {
         return UsingDeclaration{toRef(res), res[1].result.moveValue<std::string>()};
     };
-    mPegParser["TypeOrFunctionDeclaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration | EnumDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["TypeOrFunctionDeclaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration | EnumDeclaration | CommentLine" >> [](peg::MatchInfo& res) -> peg::Any {
         return std::move(res[0].result);
     };
     mPegParser["FunctionDeclaration"] << "'fn' IdentifierWithTemplate '(' ParameterVector ')' '->' Datatype ScopeExpression" >> [](peg::MatchInfo& res) -> peg::Any {
@@ -159,10 +164,11 @@ Parser::Parser() {
         }
         return params;
     };
-    mPegParser["ScopeExpression"] << "'{' (Statement ~snn~'\n')* '}'" >> [](peg::MatchInfo& res) {
+    mPegParser["ScopeExpression"] << "'{' ((Statement ~snn~'\n') | CommentLine)* '}'" >> [](peg::MatchInfo& res) {
         std::vector<up<StatementNode>> expressions;
         for(auto& expr : res[1].subs) {
-            expressions.emplace_back(expr[0].result.move<StatementNode*>());
+            if(expr[0][0].result.get<void*>())
+                expressions.emplace_back(expr[0][0].result.move<StatementNode*>());
         }
         return ScopeNode{ toRef(res), std::move(expressions) };
     };

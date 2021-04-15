@@ -31,7 +31,8 @@ enum Tree<T> {
     Node{Tree<T>, T, Tree<T>},
     Empty{}
 }
-fn main() -> [bool] {
-    a = Structs.A{l : Structs.LinkedList<Structs.Vec2>{value : Structs.Vec2{x : 5, y : 10}, friend : [:Structs.LinkedList<Structs.Vec2>]}}
-    ["" == [], "Ha" == ['H', 'a'], "Hallo" != "", "Hallo" != [], "Hallo" != "Hallo", "Hallo" != "Bert"]
+// Hey!
+fn main() -> i32 {
+    // run fib(28) 5 times
+    Lists.testFib()
 }
