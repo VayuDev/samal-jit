@@ -32,7 +32,6 @@ Features already implemented include:
 
 Planned features (vaguely order):
 
-* Comments
 * A proper cli
 * Floating point support
 * More features & error checking in match statements
