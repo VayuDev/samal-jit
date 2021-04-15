@@ -40,90 +40,98 @@ Planned features (vaguely order):
 ## Examples
 
 Fibonacci:
-
-    fn fib(n : i32) -> i32 {
-        if n < 2 {
-            n
-        } else {
-            fib(n - 1) + fib(n - 2)
-        }
+```rust
+fn fib(n : i32) -> i32 {
+    if n < 2 {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
     }
+}
+```
 
 Sum up all fields of a list, making use of explicit tail recursion:
 
-    fn sumRec<T>(current : T, list : [T]) -> T {
-        if list == [] {
-            current
-        } else {
-            @tail_call_self(current + list:head, list:tail)
-        }
+```rust
+fn sumRec<T>(current : T, list : [T]) -> T {
+    if list == [] {
+        current
+    } else {
+        @tail_call_self(current + list:head, list:tail)
     }
-    fn sum<T>(list : [T]) -> T {
-        sumRec<T>(0, list)
-    }
-
+}
+fn sum<T>(list : [T]) -> T {
+    sumRec<T>(0, list)
+}
+```
 
 Iterate over a list, calling the specified callback on each element and returning a list of the return values:
 
-    fn map<T, S>(l : [T], callback : fn(T) -> S) -> [S] {
-        if l == [] {
-            [:S]
-        } else {
-            callback(l:head) + map<T, S>(l:tail, callback)
-        }
+```rust
+fn map<T, S>(l : [T], callback : fn(T) -> S) -> [S] {
+    if l == [] {
+        [:S]
+    } else {
+        callback(l:head) + map<T, S>(l:tail, callback)
     }
+}
+```
 
 
 Combine two lists, creating one list where each element is a tuple with one element from each list:
 
-    fn zip<S, T>(l1 : [S], l2 : [T]) -> [(S, T)] {
-        if l1 == [] || l2 == [] {
-            [:(S, T)]
-        } else {
-            (l1:head, l2:head) + zip<S, T>(l1:tail, l2:tail)
-        }
+```rust
+fn zip<S, T>(l1 : [S], l2 : [T]) -> [(S, T)] {
+    if l1 == [] || l2 == [] {
+        [:(S, T)]
+    } else {
+        (l1:head, l2:head) + zip<S, T>(l1:tail, l2:tail)
     }
+}
+```
 
 Parse a http header (definitely not spec compliant, skips method+version+url line):
 
-    fn parseHTTPHeader(socket : i32) -> [([char], [char])] {
-        str = readUntilEmptyHeader(socket, "", "")
-        lines = Core.splitByChar(str, '\n')
-        
-        headers =
-            lines:tail
-            |> Core.map(fn(line : [char]) -> Maybe<([char], [char])> {
-                splitList =
-                    Core.takeWhile(line, fn(ch : char) -> bool {
-                        ch != '\r'
-                    })
-                    |> Core.takeWhileEx(fn(ch : char) -> bool {
-                        ch != ':'
-                    })
-                if splitList:1 == "" {
-                    Maybe<([char], [char])>::None{}
-                } else {
-                    Maybe<([char], [char])>::Some{(splitList:0, splitList:1:tail:tail)}
-                }
-            })
-            |> Core.filter(fn(line : Maybe<([char], [char])>) -> bool {
-                match line {
-                    Some{m} -> true,
-                    None{} -> false
-                }
-            })
-            |> Core.map(fn(e : Maybe<([char], [char])>) -> ([char], [char]) {
-                match e {
-                    Some{n} -> n,
-                    None{} -> ("", "")
-                }
-            })
-
-        Core.map(headers, fn(line : ([char], [char])) -> () {
-            Core.print(line)
+```rust
+fn parseHTTPHeader(socket : i32) -> [([char], [char])] {
+    str = readUntilEmptyHeader(socket, "", "")
+    lines = Core.splitByChar(str, '\n')
+    
+    headers =
+        lines:tail
+        |> Core.map(fn(line : [char]) -> Maybe<([char], [char])> {
+            splitList =
+                Core.takeWhile(line, fn(ch : char) -> bool {
+                    ch != '\r'
+                })
+                |> Core.takeWhileEx(fn(ch : char) -> bool {
+                    ch != ':'
+                })
+            if splitList:1 == "" {
+                Maybe<([char], [char])>::None{}
+            } else {
+                Maybe<([char], [char])>::Some{(splitList:0, splitList:1:tail:tail)}
+            }
         })
-        headers
-    }
+        |> Core.filter(fn(line : Maybe<([char], [char])>) -> bool {
+            match line {
+                Some{m} -> true,
+                None{} -> false
+            }
+        })
+        |> Core.map(fn(e : Maybe<([char], [char])>) -> ([char], [char]) {
+            match e {
+                Some{n} -> n,
+                None{} -> ("", "")
+            }
+        })
+
+    Core.map(headers, fn(line : ([char], [char])) -> () {
+        Core.print(line)
+    })
+    headers
+}
+```
 
 Note: List syntax will maybe change in the future.
 
