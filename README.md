@@ -141,6 +141,13 @@ Note: List syntax will maybe change in the future.
 The software is licensed under the very permissive MIT License. If you open a pull request, you implicitly 
 license your code under the MIT license as well.
 
+## Platforms
+
+The only fully supported platform is Linux, but samal seems to work on FreeBSD as well.
+I haven't tested the language on Windows yet, though everything except the JIT-Compiler
+should work. The JIT-Compiler won't work because Windows uses different calling conventions.
+To enable the JIT-Compiler, pass -DSAMAL_ENABLE_JIT=ON to cmake.
+
 ## Design notes
 
 ### Part 1: Why every programming language sucks
