@@ -24,6 +24,7 @@ Features already implemented include:
 * Explicit tail recursion optimization
 * Copying garbage collector
 * Native functions
+* Typedefs (type shorthands like 'typedef String = [char]') 
 * Type casting (using native functions)
 * Using declarations (to avoid typing the module name every time)
 * Very basic standard library
