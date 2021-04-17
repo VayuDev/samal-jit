@@ -138,22 +138,34 @@ bool Datatype::operator==(const Datatype& other) const {
         // you're actually expecting template parameters. In that case we have an mUndefinedTemplateReplacementMap (for completing user types like enums),
         // but it doesn't contain the template parameter.
         if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap && other.mCategory != DatatypeCategory::undetermined_identifier) {
-            return completeWithSavedTemplateParameters() == other;
+            return completeTypeUntilNoLongerUndefined(*this) == other;
         }
         if(other.mCategory == DatatypeCategory::undetermined_identifier && other.mUndefinedTypeReplacementMap && mCategory != DatatypeCategory::undetermined_identifier) {
-            return *this == other.completeWithSavedTemplateParameters();
+            return completeTypeUntilNoLongerUndefined(other) == *this;
         }
     } catch(...) {
 
     }
     if(mCategory != other.mCategory)
         return false;
-    // If our undetermined identifier is a user type, then it's enough if the names are the same.
-    // Otherwise we need to check the type recursively.
     if(mCategory == DatatypeCategory::undetermined_identifier && mUndefinedTypeReplacementMap) {
-        auto replacementEntry = mUndefinedTypeReplacementMap->map.find(getUndeterminedIdentifierString());
-        if(replacementEntry != mUndefinedTypeReplacementMap->map.end() && replacementEntry->second.templateParamOrUserType == TemplateParamOrUserType::TemplateParam) {
-            return completeWithSavedTemplateParameters() == other.completeWithSavedTemplateParameters();
+        // If our undetermined identifier is a basic user type, then it's enough if the names are the same.
+        // Otherwise we need to check the type recursively.
+
+        // First check if we can actually complete our type and only then recurse. For that we try to find the entry in the replacement map.
+        auto maybeReplacementType = mUndefinedTypeReplacementMap->map.end();
+        for(auto& module : mUndefinedTypeReplacementMap->includedModules) {
+            maybeReplacementType = mUndefinedTypeReplacementMap->map.find(module + "." + getUndeterminedIdentifierString());
+            if(maybeReplacementType != mUndefinedTypeReplacementMap->map.end()) {
+                break;
+            }
+        }
+        // if we didn't find a replacement, try without prepending the module name
+        if(maybeReplacementType == mUndefinedTypeReplacementMap->map.end()) {
+            maybeReplacementType = mUndefinedTypeReplacementMap->map.find(getUndeterminedIdentifierString());
+        }
+        if(maybeReplacementType != mUndefinedTypeReplacementMap->map.end() && maybeReplacementType->second.templateParamOrUserType == CheckTypeRecursively::Yes) {
+            return completeTypeUntilNoLongerUndefined(*this) == completeTypeUntilNoLongerUndefined(other);
         }
     }
     if(mFurtherInfo->index() != other.mFurtherInfo->index())
@@ -171,7 +183,7 @@ bool Datatype::isInteger() const {
 }
 size_t Datatype::getSizeOnStack(int32_t depth) const {
     if(depth > 1000) {
-        throw std::runtime_error{"Maximum type recursion level of 1000 reached!"};
+        throw std::runtime_error{"Maximum type recursion level of 1000 reached for type " + toString()};
     }
 #ifdef x86_64_BIT_MODE
     switch(mCategory) {
@@ -233,6 +245,10 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
         }
         return sum;
     }
+    case DatatypeCategory::undetermined_identifier:
+        if(mUndefinedTypeReplacementMap) {
+            return completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
+        }
     default:
         assert(false);
     }
@@ -372,6 +388,8 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
                 additionalMap.insert(templateParams.cbegin(), templateParams.cend());
                 auto newMap = std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = additionalMap, .includedModules = maybeReplacementType->second.usingModules });
                 cpy = cpy.attachUndeterminedIdentifierMap(newMap);
+            } else {
+                cpy = cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
             }
             return cpy;
         }
@@ -416,7 +434,8 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
     cpy = cpy.attachUndeterminedIdentifierMap(std::make_shared<UndeterminedIdentifierCompletionInfo>(UndeterminedIdentifierCompletionInfo{ .map = templateParams, .includedModules = modules }));
     return cpy;
 }
-void Datatype::inferTemplateTypes(const Datatype& realType, UndeterminedIdentifierReplacementMap& output, const std::vector<std::string>& usingModuleNames) const {
+void Datatype::inferTemplateTypes(const Datatype& realTypeParam, UndeterminedIdentifierReplacementMap& output, const std::vector<std::string>& usingModuleNames) const {
+    auto realType = completeTypeUntilNoLongerUndefined(realTypeParam);
     if(getCategory() != realType.getCategory() && getCategory() != DatatypeCategory::undetermined_identifier) {
         throw std::runtime_error{"Unable to infer template types, type " + toString() + " is incompatible with " + realType.toString()};
     }
@@ -428,7 +447,7 @@ void Datatype::inferTemplateTypes(const Datatype& realType, UndeterminedIdentifi
     case DatatypeCategory::byte:
         break;
     case DatatypeCategory::undetermined_identifier:
-        output.emplace(getUndeterminedIdentifierString(), UndeterminedIdentifierReplacementMapValue{realType, TemplateParamOrUserType::TemplateParam, usingModuleNames});
+        output.emplace(getUndeterminedIdentifierString(), UndeterminedIdentifierReplacementMapValue{realType, CheckTypeRecursively::Yes, usingModuleNames});
         break;
     case DatatypeCategory::function: {
         auto& funcType = getFunctionTypeInfo();
@@ -492,4 +511,19 @@ int32_t Datatype::EnumInfo::getIndexSize() const {
     return 4;
 #endif
 }
+
+Datatype completeTypeUntilNoLongerUndefined(const Datatype& type) {
+    Datatype currentType = type;
+    for(size_t i = 0; i < 100; ++i) {
+        if(currentType.getCategory() != DatatypeCategory::undetermined_identifier) {
+            return currentType;
+        }
+        currentType = currentType.completeWithSavedTemplateParameters();
+    }
+    if(currentType.getCategory() != DatatypeCategory::undetermined_identifier) {
+        return currentType;
+    }
+    throw std::runtime_error("Unable to complete type " + type.toString() + ", it's probably recursive (>100 levels)");
+}
+
 }

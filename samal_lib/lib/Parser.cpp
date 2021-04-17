@@ -16,7 +16,7 @@ static SourceCodeRef toRef(const peg::MatchInfo& res) {
 
 Parser::Parser() {
     Stopwatch stopwatch{ "Parser construction" };
-    mPegParser["Start"] << "UsingDeclarations* TypeOrFunctionDeclaration+" >> [](peg::MatchInfo& res) -> peg::Any {
+    mPegParser["Start"] << "TopLevelDeclaration* TypeOrFunctionDeclaration+" >> [](peg::MatchInfo& res) -> peg::Any {
         std::vector<up<DeclarationNode>> decls;
         for(auto& d : res[0].subs) {
             if(d.result.get<DeclarationNode*>())
@@ -28,11 +28,17 @@ Parser::Parser() {
         }
         return ModuleRootNode{ toRef(res), std::move(decls) };
     };
+    mPegParser["TopLevelDeclaration"] << "UsingDeclaration | TypedefDeclaration" >> [](peg::MatchInfo& res) -> peg::Any {
+        return std::move(res[0].result);
+    };
+    mPegParser["UsingDeclaration"] << "'using' IdentifierPartString ~nws~'\n'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return UsingDeclaration{toRef(res), res[1].result.moveValue<std::string>()};
+    };
+    mPegParser["TypedefDeclaration"] << "'typedef' IdentifierPartString '=' Datatype ~nws~'\n'" >> [](peg::MatchInfo& res) -> peg::Any {
+        return TypedefDeclaration{toRef(res), res[1].result.moveValue<std::string>(), res[3].result.moveValue<Datatype>()};
+    };
     mPegParser["CommentLine"] << "'//' ~nws~(!~nws~'\n' ~nws~BUILTIN_ANY_UTF8_CODEPOINT)*" >> [](peg::MatchInfo& res) -> peg::Any {
         return peg::Any{};
-    };
-    mPegParser["UsingDeclarations"] << "'using' IdentifierPartString ~nws~'\n'" >> [](peg::MatchInfo& res) -> peg::Any {
-        return UsingDeclaration{toRef(res), res[1].result.moveValue<std::string>()};
     };
     mPegParser["TypeOrFunctionDeclaration"] << "FunctionDeclaration | NativeFunctionDeclaration | StructDeclaration | EnumDeclaration | CommentLine" >> [](peg::MatchInfo& res) -> peg::Any {
         return std::move(res[0].result);

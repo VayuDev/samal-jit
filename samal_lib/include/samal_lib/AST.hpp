@@ -714,6 +714,30 @@ private:
     std::string mUsingModuleName;
 };
 
+class TypedefDeclaration : public DeclarationNode {
+public:
+    inline TypedefDeclaration(SourceCodeRef source, std::string newTypeName, const Datatype& originalType)
+    : DeclarationNode(source), mNewTypeName(std::move(newTypeName)), mOriginalType(originalType) {
+
+    }
+    [[nodiscard]] inline std::string getDeclaredName() const override {
+        return mNewTypeName;
+    }
+    [[nodiscard]] const auto& getNewTypeName() const {
+        return mNewTypeName;
+    }
+    [[nodiscard]] const auto& getOriginalType() const {
+        return mOriginalType;
+    }
+    Datatype compile(Compiler& comp) const override;
+    void findUsedVariables(VariableSearcher&) const override;
+    [[nodiscard]] inline const char* getClassName() const override { return "TypedefDeclaration"; }
+
+private:
+    std::string mNewTypeName;
+    Datatype mOriginalType;
+};
+
 Datatype getFunctionType(const Datatype& returnType, const std::vector<Parameter>& params);
 
 }

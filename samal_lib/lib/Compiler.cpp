@@ -12,15 +12,15 @@ Compiler::Compiler(std::vector<up<ModuleRootNode>>& roots, std::vector<NativeFun
 Compiler::~Compiler() = default;
 
 Program Compiler::compile() {
-    try {
+    //try {
         return compileInternal();
-    } catch(std::exception& e) {
+    /*} catch(std::exception& e) {
         // TODO use something like mCurrentModuleName instead
         if(mUsingModuleNames.empty()) {
             throw CompilationException{"Error while compiling: " + std::string(e.what())};
         }
         throw CompilationException{"Error while compiling " + mUsingModuleNames.at(0) + ".samal:\n" + e.what()};
-    }
+    }*/
 }
 
 Program Compiler::compileInternal() {
@@ -94,22 +94,27 @@ Program Compiler::compileInternal() {
     size_t i = 0;
     for(auto& moduleNode : mRoots) {
         for(auto& declNode : moduleNode->getDeclarations()) {
+            std::string fullTypeName = moduleNode->getModuleName() + "." + declNode->getDeclaredName();
             auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
             if(declNodeAsStructDecl) {
-                std::string fullTypeName = moduleNode->getModuleName() + "." + declNodeAsStructDecl->getIdentifier()->getName();
                 mCustomUserDatatypeReplacementMap.emplace(fullTypeName,UndeterminedIdentifierReplacementMapValue{
-                    Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()),
-                    TemplateParamOrUserType::UserType,
+                    Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()), CheckTypeRecursively::No,
                     mModules.at(i).usingModuleNames});
                 continue;
             }
             auto declNodeAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(declNode.get());
             if(declNodeAsEnumDecl) {
-                std::string fullTypeName = moduleNode->getModuleName() + "." + declNodeAsEnumDecl->getIdentifier()->getName();
                 mCustomUserDatatypeReplacementMap.emplace(fullTypeName,UndeterminedIdentifierReplacementMapValue{
-                    Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()),
-                    TemplateParamOrUserType::UserType,
+                    Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()), CheckTypeRecursively::No,
                     mModules.at(i).usingModuleNames});
+                continue;
+            }
+            auto declAsTypedefDecl = dynamic_cast<TypedefDeclaration*>(declNode.get());
+            if(declAsTypedefDecl) {
+                mCustomUserDatatypeReplacementMap.emplace(fullTypeName, UndeterminedIdentifierReplacementMapValue{
+                    declAsTypedefDecl->getOriginalType(), CheckTypeRecursively::Yes,
+                    mModules.at(i).usingModuleNames
+                });
                 continue;
             }
         }
@@ -429,7 +434,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
     DestructorWrapper stackFramePopper{[this] {
         popTinyStackFrame();
     }};
-    auto lhsType = binaryExpression.getLeft()->compile(*this);
+    auto lhsType = completeTypeUntilNoLongerUndefined(binaryExpression.getLeft()->compile(*this));
     saveTinyStackFrameVariableLocation(lhsType);
     // check if we are comparing with an empty list, in which case we can optimize
     if(lhsType.getCategory() == DatatypeCategory::list) {
@@ -452,7 +457,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
         }
     }
 
-    auto rhsType = binaryExpression.getRight()->compile(*this);
+    auto rhsType = completeTypeUntilNoLongerUndefined(binaryExpression.getRight()->compile(*this));
     saveTinyStackFrameVariableLocation(rhsType);
     if(rhsType.getCategory() == DatatypeCategory::list && rhsType.getListContainedType() == lhsType) {
         // prepend to list
@@ -653,7 +658,7 @@ Datatype Compiler::compileIfExpression(const IfExpressionNode& ifExpression) {
     std::vector<int32_t> jumpToEndLabels;
     std::optional<Datatype> returnType;
     for(auto& child : ifExpression.getChildren()) {
-        auto conditionType = child.first->compile(*this);
+        auto conditionType = completeTypeUntilNoLongerUndefined(child.first->compile(*this));
         if(conditionType.getCategory() != DatatypeCategory::bool_) {
             child.first->throwException("Condition for if-expressions must be of type bool, not " + conditionType.toString());
         }
@@ -883,6 +888,7 @@ Datatype Compiler::helperCompileFunctionCallLikeThing(const up<ExpressionNode>& 
     CallableDeclaration* callableDeclaration = nullptr;
     try {
         functionNameType = functionNameNode->compile(*this);
+        functionNameType = completeTypeUntilNoLongerUndefined(functionNameType);
         couldCompileIdentifierLoad = true;
     } catch(std::exception& e) {
         auto* functionIdentifier = dynamic_cast<IdentifierNode*>(functionNameNode.get());
@@ -1019,7 +1025,7 @@ Datatype Compiler::compileTupleCreationExpression(const TupleCreationNode& tuple
     return Datatype::createTupleType(std::move(paramTypes));
 }
 Datatype Compiler::compileTupleAccessExpression(const TupleAccessExpressionNode& tupleAccess) {
-    auto tupleType = tupleAccess.getTuple()->compile(*this);
+    auto tupleType = completeTypeUntilNoLongerUndefined(tupleAccess.getTuple()->compile(*this));
     if(tupleType.getCategory() != DatatypeCategory::tuple) {
         tupleAccess.throwException("Trying to access a tuple-element of non-tuple type " + tupleType.toString());
     }
@@ -1140,7 +1146,7 @@ Datatype Compiler::compileListCreation(const ListCreationNode& node) {
     return Datatype::createListType(std::move(*elementType));
 }
 Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression& node) {
-    auto listType = node.getList()->compile(*this);
+    auto listType = completeTypeUntilNoLongerUndefined(node.getList()->compile(*this));
     if(listType.getCategory() != DatatypeCategory::list) {
         node.throwException("Trying to access list-property of type " + listType.toString());
     }
@@ -1158,7 +1164,7 @@ Datatype Compiler::compileListPropertyAccess(const ListPropertyAccessExpression&
     assert(false);
 }
 Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
-    auto structType = node.getStructType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
+    auto structType = completeTypeUntilNoLongerUndefined(node.getStructType().completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames));
     const auto& structTypeInfo = structType.getStructInfo();
 
     if(node.getParams().size() != structTypeInfo.fields.size()) {
@@ -1180,7 +1186,7 @@ Datatype Compiler::compileStructCreation(const StructCreationNode& node) {
     return structType.completeWithSavedTemplateParameters();
 }
 Datatype Compiler::compileStructFieldAccess(const StructFieldAccessExpression& node) {
-    auto structType = node.getStruct()->compile(*this);
+    auto structType = completeTypeUntilNoLongerUndefined(node.getStruct()->compile(*this));
     if(structType.getCategory() != DatatypeCategory::struct_) {
         node.throwException("Trying to access a field of " + structType.toString() + " which is not a struct");
     }
@@ -1258,7 +1264,7 @@ Datatype Compiler::compilePrefixExpression(const PrefixExpression& node) {
         return toMoveBaseType;
     }
     case PrefixExpression::Type::LOGICAL_NOT: {
-        auto toNegateType = node.getChild()->compile(*this);
+        auto toNegateType = completeTypeUntilNoLongerUndefined(node.getChild()->compile(*this));
         if(toNegateType.getCategory() != DatatypeCategory::bool_) {
             node.throwException("The ! (logical not) operator is only defined for booleans, not for " + toNegateType.toString());
         }
@@ -1274,6 +1280,7 @@ Datatype Compiler::compileEnumCreation(const EnumCreationNode& node) {
     Datatype enumType = node.getEnumType();
     try {
         enumType = enumType.completeWithTemplateParameters(mCurrentUndeterminedTypeReplacementMap, mUsingModuleNames);
+        enumType = completeTypeUntilNoLongerUndefined(enumType);
     } catch(std::exception& e) {
         node.throwException(e.what());
     }

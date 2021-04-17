@@ -1,3 +1,5 @@
+using Core
+typedef X = Tree<i32>
 
 fn main2(p : i32) -> i32 {
     Lists.testListSpeed(p)
@@ -22,17 +24,24 @@ fn infiniteLoop(v : i32) -> i32 {
     @tail_call_self(v + 1)
 }
 
-enum Maybe<T> {
-    Some{T},
-    None{i32, i32, i32}
-}
-
 enum Tree<T> {
-    Node{Tree<T>, T, Tree<T>},
+    Node{$Tree<T>, T, $Tree<T>},
     Empty{}
 }
+
+fn doSth(p : String) -> Abc {
+    concat("Hey, ", p)
+    |> concat(toString(5))
+}
+
 // Hey!
-fn main() -> i32 {
-    // run fib(28) 5 times
-    Lists.testFib()
+fn main() -> (X, String) {
+    t = X::Node{$X::Empty{}, 5, $X::Empty{}}
+    match t {
+        Node{l, v, r} -> v,
+        Empty{} -> 0
+    }
+    msg = "Hello"
+    msg = doSth(msg)
+    (t, msg)
 }

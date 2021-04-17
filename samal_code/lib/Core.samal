@@ -1,8 +1,12 @@
+
+typedef Abc = [char]
+typedef String = Abc
+
 native fn print<T>(p: T) -> ()
 native fn dumpStackTrace() -> ()
 native fn toI32<T>(p : T) -> Maybe<i32>
 native fn toChar<T>(p : T) -> Maybe<char>
-native fn toString<T>(p : T) -> [char]
+native fn toString<T>(p : T) -> String
 native fn toBytes<T>(p : T) -> [byte]
 
 fn identity<T>(p: T) -> T {
@@ -148,9 +152,9 @@ enum Maybe<T> {
     None{}
 }
 
-fn splitByChar(str : [char], delim : char) -> [[char]] {
+fn splitByChar(str : String, delim : char) -> [String] {
     if str == "" {
-        [:[char]]
+        [:String]
     } else {
         takeWhileRet = takeWhileEx<char>(str, fn(ch : char) -> bool {
             ch != delim

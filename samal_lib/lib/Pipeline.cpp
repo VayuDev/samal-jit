@@ -57,13 +57,13 @@ Datatype Pipeline::parseTypeInternal(const std::string& typeString, Datatype::Al
             if(declAsStructDecl) {
                 auto fullName = module->getModuleName() + "." + declAsStructDecl->getIdentifier()->getName();
                 Datatype type = Datatype::createStructType(fullName, declAsStructDecl->getFields(), declAsStructDecl->getTemplateParameterVector());
-                replacementMap.emplace(fullName, UndeterminedIdentifierReplacementMapValue{std::move(type), TemplateParamOrUserType::UserType, {"Core"}});
+                replacementMap.emplace(fullName, UndeterminedIdentifierReplacementMapValue{std::move(type), CheckTypeRecursively::No, {"Core"}});
             }
             auto declAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(decl.get());
             if(declAsEnumDecl) {
                 auto fullName = module->getModuleName() + "." + declAsEnumDecl->getIdentifier()->getName();
                 Datatype type = Datatype::createEnumType(fullName, declAsEnumDecl->getFields(), declAsEnumDecl->getTemplateParameterVector());
-                replacementMap.emplace(fullName, UndeterminedIdentifierReplacementMapValue{std::move(type), TemplateParamOrUserType::UserType, {"Core"}});
+                replacementMap.emplace(fullName, UndeterminedIdentifierReplacementMapValue{std::move(type), CheckTypeRecursively::No, {"Core"}});
             }
         }
     }

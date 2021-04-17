@@ -27,9 +27,9 @@ enum class DatatypeCategory {
     byte
 };
 
-enum class TemplateParamOrUserType {
-    TemplateParam,
-    UserType
+enum class CheckTypeRecursively {
+    Yes,
+    No
 };
 
 class Datatype {
@@ -173,7 +173,7 @@ struct Datatype::StructInfo::StructElement {
 
 struct UndeterminedIdentifierReplacementMapValue {
     Datatype type;
-    TemplateParamOrUserType templateParamOrUserType;
+    CheckTypeRecursively templateParamOrUserType;
     std::vector<std::string> usingModules;
     [[nodiscard]] bool operator==(const UndeterminedIdentifierReplacementMapValue& other) const {
         return type == other.type && templateParamOrUserType == other.templateParamOrUserType && usingModules == other.usingModules;
@@ -183,5 +183,7 @@ struct UndeterminedIdentifierReplacementMapValue {
 static inline size_t getSimpleSize(DatatypeCategory type) {
     return Datatype::createSimple(type).getSizeOnStack();
 }
+
+Datatype completeTypeUntilNoLongerUndefined(const Datatype& type);
 
 }

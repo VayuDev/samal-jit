@@ -4,12 +4,12 @@ native fn openServerSocket(port : i32) -> Core.Maybe<i32>
 native fn closeSocket(socket : i32) -> ()
 native fn acceptClientSocket(serverSocket : i32) -> i32
 native fn recvByte(socket : i32) -> byte
-native fn recvStringUntilEmptyHeader(socket : i32) -> [char]
+native fn recvStringUntilEmptyHeader(socket : i32) -> String
 native fn recvChar(socket : i32) -> char
-native fn sendString(socket : i32, str : [char]) -> ()
+native fn sendString(socket : i32, str : String) -> ()
 native fn sendBytes(socket : i32, str : [byte]) -> ()
 
-fn recvUntilEmptyHeader(socket : i32, prepend : [char], lastThreeChars : [char]) -> [char] {
+fn recvUntilEmptyHeader(socket : i32, prepend : String, lastThreeChars : String) -> String {
     ch = recvChar(socket)
     lastFourChars = Core.concat(lastThreeChars, [ch])
     if lastFourChars == "\r\n\r\n" || ch == '\0' {
@@ -25,22 +25,22 @@ fn recvUntilEmptyHeader(socket : i32, prepend : [char], lastThreeChars : [char])
 }
 
 enum HTTPBody {
-    Text{[char]},
+    Text{String},
     Binary{[byte]}
 }
 
 struct HTTPRequest {
-    method : [char],
-    version : [char],
-    url : [char],
-    headers : [([char], [char])],
-    params : [([char], [char])]
+    method : String,
+    version : String,
+    url : String,
+    headers : [(String, String)],
+    params : [(String, String)]
 }
 
 struct HTTPResponse {
     body : HTTPBody,
     status : i32,
-    contentType : [char]
+    contentType : String
 }
 
 fn sendResponse(socket : i32, response : HTTPResponse) -> () {
@@ -84,7 +84,7 @@ fn recvHTTPHeader(socket : i32) -> Core.Maybe<HTTPRequest> {
     } else {
         lines
     }
-    lines = Core.map(lines, fn(line : [char]) -> [char] {
+    lines = Core.map(lines, fn(line : String) -> String {
         Core.takeWhile(line, fn(ch : char) -> bool {
             ch != '\r'
         })
@@ -96,24 +96,24 @@ fn recvHTTPHeader(socket : i32) -> Core.Maybe<HTTPRequest> {
     } else {
         headers =
             lines:tail
-            |> Core.map(fn(line : [char]) -> Core.Maybe<([char], [char])> {
+            |> Core.map(fn(line : String) -> Core.Maybe<(String, String)> {
                 splitList =
                     Core.takeWhileEx(line, fn(ch : char) -> bool {
                         ch != ':'
                     })
                 if splitList:1 == "" {
-                    Core.Maybe<([char], [char])>::None{}
+                    Core.Maybe<(String, String)>::None{}
                 } else {
-                    Core.Maybe<([char], [char])>::Some{(splitList:0, splitList:1:tail:tail)}
+                    Core.Maybe<(String, String)>::Some{(splitList:0, splitList:1:tail:tail)}
                 }
             })
-            |> Core.filter(fn(line : Core.Maybe<([char], [char])>) -> bool {
+            |> Core.filter(fn(line : Core.Maybe<(String, String)>) -> bool {
                 match line {
                     Some{m} -> true,
                     None{} -> false
                 }
             })
-            |> Core.map(fn(e : Core.Maybe<([char], [char])>) -> ([char], [char]) {
+            |> Core.map(fn(e : Core.Maybe<(String, String)>) -> (String, String) {
                 match e {
                     Some{n} -> n,
                     None{} -> ("", "")
@@ -129,7 +129,7 @@ fn recvHTTPHeader(socket : i32) -> Core.Maybe<HTTPRequest> {
         params =
             urlSplit:1:tail
             |> Core.splitByChar('&')
-            |> Core.map(fn(parameter : [char]) -> ([char], [char]) {
+            |> Core.map(fn(parameter : String) -> (String, String) {
                 split = Core.takeWhileEx(parameter, fn(ch : char) -> bool {
                     ch != '='
                 })

@@ -48,7 +48,7 @@ class VariableSearcher;
 class Parser;
 struct VMParameters;
 
-enum class TemplateParamOrUserType;
+enum class CheckTypeRecursively;
 
 struct UndeterminedIdentifierReplacementMapValue;
 using UndeterminedIdentifierReplacementMap = std::map<std::string, UndeterminedIdentifierReplacementMapValue>;

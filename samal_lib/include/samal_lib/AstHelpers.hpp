@@ -37,7 +37,7 @@ static inline UndeterminedIdentifierReplacementMap createTemplateParamMap(const 
         if(i >= templateParameterInfo.size()) {
             return ret;
         }
-        ret.emplace(identifierTemplateParameter, UndeterminedIdentifierReplacementMapValue{templateParameterInfo.at(i), TemplateParamOrUserType::TemplateParam, usingModuleNames});
+        ret.emplace(identifierTemplateParameter, UndeterminedIdentifierReplacementMapValue{templateParameterInfo.at(i), CheckTypeRecursively::Yes, usingModuleNames});
         ++i;
     }
     return ret;

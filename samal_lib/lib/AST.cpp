@@ -750,4 +750,9 @@ Datatype UsingDeclaration::compile(Compiler& comp) const {
 }
 void UsingDeclaration::findUsedVariables(VariableSearcher&) const {
 }
+Datatype TypedefDeclaration::compile(Compiler& comp) const {
+    assert(false);
+}
+void TypedefDeclaration::findUsedVariables(VariableSearcher&) const {
+}
 }
