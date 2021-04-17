@@ -610,6 +610,7 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             mStackSize -= lhsType.getSizeOnStack() * 2;
             mStackSize += getSimpleSize(DatatypeCategory::bool_);
             return Datatype::createSimple(DatatypeCategory::bool_);
+
         case BinaryExpressionNode::BinaryOperator::LOGICAL_NOT_EQUALS:
             addInstructions(Instruction::COMPARE_COMPLEX_EQUALITY, saveAuxiliaryDatatypeToProgram(lhsType));
             mStackSize -= lhsType.getSizeOnStack() * 2;
@@ -618,7 +619,11 @@ Datatype Compiler::compileBinaryExpression(const BinaryExpressionNode& binaryExp
             stackFramePopper.stop();
             addInstructions(Instruction::LOGICAL_NOT);
             return Datatype::createSimple(DatatypeCategory::bool_);
+
+        default:
+            break;
         }
+        break;
     case DatatypeCategory::bool_:
         switch(binaryExpression.getOperator()) {
         case BinaryExpressionNode::BinaryOperator::LOGICAL_OR:

@@ -495,8 +495,8 @@ public:
     [[nodiscard]] inline const char* getClassName() const override { return "PrefixExpression"; }
 
 private:
-    Type mType;
     up<ExpressionNode> mChild;
+    Type mType;
 };
 
 class MatchCondition : public ASTNode {

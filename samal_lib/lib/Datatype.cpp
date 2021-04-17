@@ -249,6 +249,7 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
         if(mUndefinedTypeReplacementMap) {
             return completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
+        assert(false);
     default:
         assert(false);
     }
