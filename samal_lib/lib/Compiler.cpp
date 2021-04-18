@@ -95,22 +95,19 @@ Program Compiler::compileInternal() {
     for(auto& moduleNode : mRoots) {
         for(auto& declNode : moduleNode->getDeclarations()) {
             std::string fullTypeName = moduleNode->getModuleName() + "." + declNode->getDeclaredName();
-            auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get());
-            if(declNodeAsStructDecl) {
+            if(auto declNodeAsStructDecl = dynamic_cast<StructDeclarationNode*>(declNode.get())) {
                 mCustomUserDatatypeReplacementMap.emplace(fullTypeName,UndeterminedIdentifierReplacementMapValue{
                     Datatype::createStructType(fullTypeName, declNodeAsStructDecl->getFields(), declNodeAsStructDecl->getTemplateParameterVector()), CheckTypeRecursively::No,
                     mModules.at(i).usingModuleNames});
                 continue;
             }
-            auto declNodeAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(declNode.get());
-            if(declNodeAsEnumDecl) {
+            if(auto declNodeAsEnumDecl = dynamic_cast<EnumDeclarationNode*>(declNode.get())) {
                 mCustomUserDatatypeReplacementMap.emplace(fullTypeName,UndeterminedIdentifierReplacementMapValue{
                     Datatype::createEnumType(fullTypeName, declNodeAsEnumDecl->getFields(), declNodeAsEnumDecl->getTemplateParameterVector()), CheckTypeRecursively::No,
                     mModules.at(i).usingModuleNames});
                 continue;
             }
-            auto declAsTypedefDecl = dynamic_cast<TypedefDeclaration*>(declNode.get());
-            if(declAsTypedefDecl) {
+            if(auto declAsTypedefDecl = dynamic_cast<TypedefDeclaration*>(declNode.get())) {
                 mCustomUserDatatypeReplacementMap.emplace(fullTypeName, UndeterminedIdentifierReplacementMapValue{
                     declAsTypedefDecl->getOriginalType(), CheckTypeRecursively::Yes,
                     mModules.at(i).usingModuleNames
