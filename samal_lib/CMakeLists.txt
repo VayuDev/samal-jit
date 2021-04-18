@@ -11,7 +11,11 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -g -march=native -mt
 if(SAMAL_ENABLE_JIT)
     message(STATUS "Enable JIT")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dx86_64_BIT_MODE -DSAMAL_ENABLE_JIT")
+elseif(SAMAL_ALIGNED_ACCESS)
+    message(STATUS "Enable aligned access")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dx86_64_BIT_MODE")
 endif()
+
 
 
 file(GLOB_RECURSE HEADERS

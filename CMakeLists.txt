@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.0)
 project(samal)
 
 option(SAMAL_ENABLE_JIT "Build samal jit" OFF)
+option(SAMAL_ENABLE_GFX_CAIRO "Enable use of cairo" OFF)
+option(SAMAL_ALIGNED_ACCESS "Ensure that every memory access is aligned (maybe slower & needs more memory)" OFF)
 if(SAMAL_ENABLE_JIT)
     add_subdirectory(third_party/xbyak)
 endif()
@@ -14,8 +16,6 @@ if(SAMAL_ENABLE_GFX_CAIRO)
     message(STATUS "Enable GFX Cairo")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSAMAL_ENABLE_GFX_CAIRO")
 endif()
-
-option(SAMAL_ENABLE_GFX_CAIRO "Enable use of cairo" OFF)
 
 option (FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
 if (${FORCE_COLORED_OUTPUT})
