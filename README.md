@@ -148,6 +148,28 @@ I haven't tested the language on Windows yet, though everything except the JIT-C
 should work. The JIT-Compiler won't work because Windows uses different calling conventions.
 To enable the JIT-Compiler, pass -DSAMAL_ENABLE_JIT=ON to cmake.
 
+## Build
+
+samal uses cmake as a build system. If you want to use it as a library, the process should be intuitive and the
+same as with any other cmake library. If you want to build the CLI, it should be even easier. Make sure to adjust your
+working directory so that it finds all required files.
+
+The basic process to build & run the CLI should be:
+* mkdir cmake-build-release
+* cd cmake-build-release
+* cmake .. -DCMAKE_BUILD_TYPE=Release -DSAMAL_ENABLE_JIT=ON
+* make -j8
+* cd ..
+* cmake-build-release/samal_cli/samal
+
+The following build options exist:
+* -DSAMAL_ENABLE_JIT=ON to enable the jit compiler
+* -DSAMAL_ALIGNED_ACCESS=ON to force aligned access of data. This may be required for some ARM-CPUs and can increase
+  performance in general for all systems, but increases memory usage by up to 16 times.
+* -DSAMAL_ENABLE_GFX_CAIRO=ON to enable use of cairomm in the standard library. Make sure to have pkg-config and cairomm
+  installed. This is required for the webserver to work, though you should be able to delete the rendering code to make
+  it work without cairo.
+
 ## Design notes
 
 ### Part 1: Why every programming language sucks
