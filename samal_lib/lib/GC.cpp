@@ -75,7 +75,7 @@ uint8_t* GC::alloc(int32_t size) {
 void GC::performGarbageCollection() {
     //Stopwatch stopwatch{"GC"};
     //printf("Before size: %i\n", (int)mRegions[mActiveRegion].offset);
-    //puts("Running GC");
+    puts("Running GC");
     getOtherRegion().offset = 0;
     if(!mTemporaryAllocations.empty() || getOtherRegion().size < getActiveRegion().size) {
         // our other region that we're copying into might be too small, so we resize it to prevent any potential problems

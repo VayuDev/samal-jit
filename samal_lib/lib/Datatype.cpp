@@ -1,6 +1,8 @@
 #include "samal_lib/Datatype.hpp"
 #include "samal_lib/AST.hpp"
 #include <cassert>
+#undef NDEBUG
+#include <cassert>
 
 namespace samal {
 
@@ -72,7 +74,7 @@ Datatype Datatype::createStructType(const std::string& name, const std::vector<P
     return Datatype(DatatypeCategory::struct_, StructInfo{ .name = name, .fields = std::move(elements), .templateParams = std::move(templateParams) });
 }
 Datatype Datatype::createEnumType(const std::string& name, const std::vector<EnumField>& params, std::vector<std::string> templateParams) {
-    return Datatype(DatatypeCategory::enum_, EnumInfo{ .name = name, .fields = params, .templateParams = std::move(templateParams) });
+    return Datatype(DatatypeCategory::enum_, EnumInfo{ .name = name, .fields = params, .templateParams = std::move(templateParams), .mLargestFieldSizePlusIndexCache = -1});
 }
 Datatype::Datatype(DatatypeCategory cat, ContainedFurtherInfoType furtherInfo)
 : mFurtherInfo(std::make_shared<ContainedFurtherInfoType>(std::move(furtherInfo))), mCategory(cat) {
@@ -181,7 +183,9 @@ bool Datatype::operator!=(const Datatype& other) const {
 bool Datatype::isInteger() const {
     return mCategory == DatatypeCategory::i32 || mCategory == DatatypeCategory::i64;
 }
-size_t Datatype::getSizeOnStack(int32_t depth) const {
+int32_t Datatype::getSizeOnStack(int32_t depth) const {
+    if(mSizeOnStackCache >= 0)
+        return mSizeOnStackCache;
     if(depth > 1000) {
         throw std::runtime_error{"Maximum type recursion level of 1000 reached for type " + toString()};
     }
@@ -195,64 +199,82 @@ size_t Datatype::getSizeOnStack(int32_t depth) const {
     case DatatypeCategory::bool_:
     case DatatypeCategory::list:
     case DatatypeCategory::pointer:
-        return 8;
+        mSizeOnStackCache = 8;
+        return mSizeOnStackCache;
     case DatatypeCategory::enum_:
-        return getEnumInfo().getLargestFieldSizePlusIndex(depth + 1);
+        mSizeOnStackCache = getEnumInfo().getLargestFieldSizePlusIndex(depth + 1);
+        return mSizeOnStackCache;
     case DatatypeCategory::struct_: {
         size_t sum = 0;
         for(auto& field : getStructInfo().fields) {
             sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
-        return sum;
+        mSizeOnStackCache = sum;
+        return mSizeOnStackCache;
     }
     case DatatypeCategory::tuple: {
         size_t sum = 0;
         for(auto& subType : getTupleInfo()) {
             sum += subType.completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
-        return sum;
+        mSizeOnStackCache = sum;
+        return mSizeOnStackCache;
     }
-    default:
+    case DatatypeCategory::undetermined_identifier:
+        if(mUndefinedTypeReplacementMap) {
+            mSizeOnStackCache = completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
+            return mSizeOnStackCache;
+        }
         assert(false);
+    default:
+        break;
     }
-#endif
+#else
     switch(mCategory) {
     case DatatypeCategory::byte:
-        return 1;
+    case DatatypeCategory::bool_:
+        mSizeOnStackCache = 1;
+        return mSizeOnStackCache;
     case DatatypeCategory::char_:
     case DatatypeCategory::i32:
-        return 4;
+        mSizeOnStackCache = 4;
+        return mSizeOnStackCache;
     case DatatypeCategory::i64:
     case DatatypeCategory::function:
     case DatatypeCategory::list:
     case DatatypeCategory::pointer:
-        return 8;
+        mSizeOnStackCache = 8;
+        return mSizeOnStackCache;
     case DatatypeCategory::struct_: {
         size_t sum = 0;
         for(auto& field : getStructInfo().fields) {
             sum += field.type.completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
         }
-        return sum;
+        mSizeOnStackCache = sum;
+        return mSizeOnStackCache;
     }
     case DatatypeCategory::enum_:
-        return getEnumInfo().getLargestFieldSizePlusIndex(depth + 1);
-    case DatatypeCategory::bool_:
-        return 1;
+        mSizeOnStackCache = getEnumInfo().getLargestFieldSizePlusIndex(depth + 1);
+        return mSizeOnStackCache;
     case DatatypeCategory::tuple: {
         size_t sum = 0;
         for(auto& subType : getTupleInfo()) {
             sum += subType.getSizeOnStack(depth + 1);
         }
-        return sum;
+        mSizeOnStackCache = sum;
+        return mSizeOnStackCache;
     }
     case DatatypeCategory::undetermined_identifier:
         if(mUndefinedTypeReplacementMap) {
-            return completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
+            mSizeOnStackCache = completeWithSavedTemplateParameters().getSizeOnStack(depth + 1);
+            return mSizeOnStackCache;
         }
         assert(false);
     default:
-        assert(false);
+        break;
     }
+#endif
+    assert(false);
 }
 
 Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierReplacementMap& templateParams, const std::vector<std::string>& modules, AllowIncompleteTypes allowIncompleteTypes) const {
@@ -322,6 +344,7 @@ Datatype& Datatype::operator=(const Datatype& other) {
     mCategory = other.mCategory;
     mUndefinedTypeReplacementMap = other.mUndefinedTypeReplacementMap;
     mFurtherInfo = other.mFurtherInfo;
+    mSizeOnStackCache = other.mSizeOnStackCache;
     return *this;
 }
 Datatype Datatype::completeWithSavedTemplateParameters(AllowIncompleteTypes allowIncompleteTypes) const {
@@ -492,6 +515,8 @@ void Datatype::inferTemplateTypes(const Datatype& realTypeParam, UndeterminedIde
     }
 }
 int32_t Datatype::EnumInfo::getLargestFieldSize(int32_t depth) const {
+    if(mLargestFieldSizePlusIndexCache >= 0)
+        return mLargestFieldSizePlusIndexCache;
     int32_t largestFieldSize = 0;
     for(auto& field: fields) {
         int32_t fieldSize = 0;
@@ -500,7 +525,8 @@ int32_t Datatype::EnumInfo::getLargestFieldSize(int32_t depth) const {
         }
         largestFieldSize = std::max(fieldSize, largestFieldSize);
     }
-    return largestFieldSize;
+    mLargestFieldSizePlusIndexCache = largestFieldSize;
+    return mLargestFieldSizePlusIndexCache;
 }
 int32_t Datatype::EnumInfo::getLargestFieldSizePlusIndex(int32_t depth) const {
     return getLargestFieldSize(depth + 1) + getIndexSize();

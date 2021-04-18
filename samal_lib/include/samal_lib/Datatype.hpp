@@ -79,7 +79,7 @@ public:
     }
 
     [[nodiscard]] bool isInteger() const;
-    [[nodiscard]] size_t getSizeOnStack(int32_t depth = 0) const;
+    [[nodiscard]] int32_t getSizeOnStack(int32_t depth = 0) const;
 
     enum class AllowIncompleteTypes {
         Yes,
@@ -121,6 +121,8 @@ private:
         inline bool operator!=(const EnumInfo& other) const {
             return !operator==(other);
         }
+
+        mutable int32_t mLargestFieldSizePlusIndexCache { -1 };
     };
     struct IdentifierInfo {
         std::string name;
@@ -159,6 +161,8 @@ private:
     };
     [[nodiscard]] Datatype attachUndeterminedIdentifierMap(sp<UndeterminedIdentifierCompletionInfo> map) const;
     sp<UndeterminedIdentifierCompletionInfo> mUndefinedTypeReplacementMap;
+
+    mutable int32_t mSizeOnStackCache { -1 };
 };
 struct Datatype::StructInfo::StructElement {
     std::string name;
