@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <sys/mman.h>
 
+#undef NDEBUG
+#include <cassert>
 #ifndef MAP_NORESERVE
 #define MAP_NORESERVE 0
 #endif
@@ -230,6 +232,8 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         memcpy(ptr, &newPtr, 8);
         break;
     }
+    case DatatypeCategory::undetermined_identifier:
+        return searchForPtrs(ptr, completeTypeUntilNoLongerUndefined(type), scanningHeapOrStack);
     default:
         assert(false);
     }
