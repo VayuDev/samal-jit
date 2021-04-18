@@ -1,6 +1,5 @@
 
-typedef Abc = [char]
-typedef String = Abc
+typedef String = [char]
 
 native fn print<T>(p: T) -> ()
 native fn dumpStackTrace() -> ()
