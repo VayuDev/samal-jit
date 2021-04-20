@@ -64,7 +64,7 @@ private:
 
     std::array<Region, 2> mRegions{Region{}, Region{}};
     size_t mActiveRegion{ 0 };
-    std::unordered_map<uint8_t*, uint8_t*> mMovedPointers;
+    [[nodiscard]] bool isInOtherRegion(uint8_t* ptr);
 
     enum class ScanningHeapOrStack {
         Heap,
@@ -73,7 +73,6 @@ private:
     void searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack);
     uint8_t* copyToOther(uint8_t** ptr, size_t len);
     uint8_t* alloc(int32_t len, size_t heapIndex);
-    uint8_t* findNewPtr(uint8_t *ptr);
     void performGarbageCollection();
 };
 

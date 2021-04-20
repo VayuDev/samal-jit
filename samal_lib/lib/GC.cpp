@@ -87,7 +87,6 @@ void GC::performGarbageCollection() {
         getOtherRegion() = Region{getActiveRegion().size + totalTemporarySize};
         //printf("Resizing heap due to temporary allocations to %zu\n", getOtherRegion().size);
     }
-    mMovedPointers.clear();
     mVM.generateStacktrace([this](const uint8_t* ptr, const Datatype& type, const std::string& name) {
 #ifdef x86_64_BIT_MODE
         assert((uintptr_t)ptr % 8 == 0);
@@ -100,26 +99,11 @@ void GC::performGarbageCollection() {
 }
 uint8_t* GC::copyToOther(uint8_t** ptr, size_t len) {
     assert(ptr);
-    /*assert((*ptr >= getActiveRegion().base && *ptr < getActiveRegion().top())
-        || std::any_of(mTemporaryAllocations.begin(), mTemporaryAllocations.end(), [&] (const auto& allocation){
-            return allocation.data.get() == *ptr;
-        }));*/
-    assert(mMovedPointers.count(*ptr) == 0);
     uint8_t* newPtr = getOtherRegion().top();
     assert(getOtherRegion().size >= getOtherRegion().offset + len);
     memcpy(newPtr, *ptr, len);
     getOtherRegion().offset += len;
-    auto emplaceResult = mMovedPointers.emplace(*ptr, newPtr);
-    assert(emplaceResult.second);
     return newPtr;
-}
-uint8_t* GC::findNewPtr(uint8_t* ptr) {
-    assert(ptr);
-    auto maybeNewPtr = mMovedPointers.find(ptr);
-    if(maybeNewPtr != mMovedPointers.end()) {
-        return maybeNewPtr->second;
-    }
-    return nullptr;
 }
 
 void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack scanningHeapOrStack) {
@@ -147,17 +131,18 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
 #endif
             if(*ptrToCurrent == nullptr)
                 break;
-            auto maybeNewPtr = findNewPtr(*(uint8_t**)ptrToCurrent);
-            if(maybeNewPtr) {
-                memcpy(ptrToCurrent, &maybeNewPtr, 8);
+            if(isInOtherRegion(**(uint8_t***)ptrToCurrent)) {
+                memcpy(ptrToCurrent, *ptrToCurrent, 8);
                 break;
             }
             auto containedTypeSize = type.getListContainedType().getSizeOnStack();
             searchForPtrs(*ptrToCurrent + 8, type.getListContainedType(), ScanningHeapOrStack::Heap);
             auto newPtr = copyToOther(ptrToCurrent, containedTypeSize + 8);
+            auto oldPtrToCurrent = *ptrToCurrent;
             memcpy(ptrToCurrent, &newPtr, 8);
 
             ptrToCurrent = *(uint8_t***)ptrToCurrent;
+            memcpy(oldPtrToCurrent, &newPtr, 8);
         }
         break;
     }
@@ -172,9 +157,8 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         auto lambdaPtr = *(uint8_t**)ptr;
         assert(lambdaPtr);
 
-        auto maybeNewPtr = findNewPtr(*(uint8_t**)ptr);
-        if(maybeNewPtr) {
-            memcpy(ptr, &maybeNewPtr, 8);
+        if(isInOtherRegion(*(uint8_t**)ptr)) {
+            memcpy(ptr, *(uint8_t**)ptr, 8);
             break;
         }
 
@@ -222,9 +206,8 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         break;
     }
     case DatatypeCategory::pointer: {
-        auto maybeNewPtr = findNewPtr(*(uint8_t**)ptr);
-        if(maybeNewPtr) {
-            memcpy(ptr, &maybeNewPtr, 8);
+        assert(false);
+        if(isInOtherRegion(*(uint8_t**)ptr)) {
             break;
         }
         searchForPtrs(*(uint8_t**)ptr, type.getPointerBaseType(), ScanningHeapOrStack::Heap);
@@ -250,5 +233,8 @@ GC::Region& GC::getActiveRegion() {
 }
 GC::Region& GC::getOtherRegion() {
     return mRegions[!mActiveRegion];
+}
+bool GC::isInOtherRegion(uint8_t* ptr) {
+    return ptr >= getOtherRegion().base && ptr < getOtherRegion().top();
 }
 }
