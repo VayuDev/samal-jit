@@ -1340,11 +1340,10 @@ void VM::execNativeFunction(int32_t nativeFuncId) {
     size_t offset = 0;
     for(auto& paramType : functionTypeInfo.second) {
         offset += paramType.getSizeOnStack();
-        params.emplace(params.begin(), ExternalVMValue::wrapStackedValue(paramType, *this, sumOfParamSizes - offset));
+        params.emplace_back(ExternalVMValue::wrapStackedValue(paramType, *this, sumOfParamSizes - offset));
     }
 
     mStack.pop(offset);
-    std::reverse(params.begin(), params.end());
     auto returnValue = nativeFunc.callback(*this, params);
     assert(returnValue.getDatatype() == functionTypeInfo.first);
     auto returnValueBytes = returnValue.toStackValue(*this);
