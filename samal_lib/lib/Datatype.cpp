@@ -356,6 +356,16 @@ Datatype Datatype::completeWithTemplateParameters(const UndeterminedIdentifierRe
     // This assertion ensures that we don't accidentally call completeWithTemplateParameters twice, overwriting the mUndefinedTypeReplacementMap
     assert(!(internalCall == InternalCall::No && mUndefinedTypeReplacementMap));
     if(mUndefinedTypeReplacementMap) {
+        switch(mCategory) {
+        case DatatypeCategory::bool_:
+        case DatatypeCategory::i32:
+        case DatatypeCategory::i64:
+        case DatatypeCategory::char_:
+        case DatatypeCategory::byte:
+            return *this;
+        default:
+            break;
+        }
         modules = mUndefinedTypeReplacementMap->includedModules;
     }
     Datatype cpy = *this;
