@@ -14,7 +14,7 @@ namespace samal {
 
 GC::Region::Region(size_t len) {
     if(len > 0) {
-        base = (uint8_t*)malloc(len);
+        base = new uint8_t[len];
         assert(base);
         size = len;
     }
@@ -22,7 +22,7 @@ GC::Region::Region(size_t len) {
 }
 GC::Region::~Region() {
     if(base) {
-        free(base);
+        delete[] base;
         base = nullptr;
     }
 }
@@ -57,9 +57,11 @@ uint8_t* GC::alloc(int32_t size, size_t heapIndex) {
     }
     if(mRegions[heapIndex].offset + size >= mRegions[heapIndex].size) {
         // not enough memory, add to temporary allocations
-        mTemporaryAllocations.emplace_back(TemporaryAllocation{{(uint8_t*)calloc(size, 1), ArrayDeleter{}}, (size_t)size});
+        auto ptr = (uint8_t*)calloc(size, 1);
+        assert(ptr);
+        mTemporaryAllocations.emplace_back(TemporaryAllocation{{ptr, ArrayDeleter{}}, (size_t)size});
         assert((uintptr_t)mTemporaryAllocations.back().data.get() % 8 == 0);
-        return mTemporaryAllocations.back().data.get();
+        return ptr;
     }
     auto ptr = mRegions[heapIndex].top();
     mRegions[heapIndex].offset += size;
@@ -170,6 +172,7 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
 
         int32_t sizeOfLambda = -1;
         memcpy(&sizeOfLambda, lambdaPtr, 4);
+        assert(sizeOfLambda >= 0);
         sizeOfLambda += 16;
 
         int32_t capturedLambdaTypesId;

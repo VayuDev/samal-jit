@@ -1372,7 +1372,7 @@ void Stack::push(const void* data, size_t len) {
     memcpy(mDataTop, data, len);
 }
 void Stack::repush(size_t offset, size_t len) {
-    assert(mDataStart < mDataTop - len - offset);
+    assert(mDataEnd >= mDataTop + offset);
     ensureSpace(len);
     mDataTop -= len;
     memcpy(mDataTop, mDataTop + len + offset, len);
