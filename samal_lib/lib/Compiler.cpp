@@ -311,6 +311,7 @@ void Compiler::popStackFrame(const Datatype& frameReturnType) {
     mCurrentStackInfoTreeNode = mCurrentStackInfoTreeNode->getParent();
 }
 void Compiler::saveVariableLocation(std::string name, Datatype type, StorageType storageType, int32_t offset) {
+    type = completeTypeUntilNoLongerUndefined(type);
     mStackFrames.top().variables.erase(name);
     mStackFrames.top().variables.emplace(name, VariableOnStack{ .offsetFromBottom = mStackSize - offset, .type = type });
     mCurrentStackInfoTreeNode->addChild(std::make_unique<StackInformationTree>(mProgram.code.size(), mStackSize - offset, name, std::move(type), storageType));

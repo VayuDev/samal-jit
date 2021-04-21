@@ -216,6 +216,7 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         break;
     }
     case DatatypeCategory::undetermined_identifier:
+        assert(false);
         return searchForPtrs(ptr, completeTypeUntilNoLongerUndefined(type), scanningHeapOrStack);
     default:
         assert(false);
