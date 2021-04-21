@@ -1405,13 +1405,14 @@ std::string Stack::dump() {
     return ret;
 }
 Stack::Stack() {
-    mDataReserved = 1024 * 1024 * 80;
-    mDataStart = (uint8_t*)malloc(mDataReserved);
+    mDataReserved = static_cast<size_t>(1024) * 1024 * 1024 * 2;
+    mDataStart = static_cast<uint8_t*>(mmap(nullptr, mDataReserved, PROT_READ | PROT_WRITE | PROT_GROWSDOWN, MAP_ANONYMOUS | MAP_GROWSDOWN | MAP_PRIVATE | MAP_NORESERVE, 0, 0));
+    assert(mDataStart);
     mDataEnd = mDataStart + mDataReserved;
     mDataTop = mDataEnd;
 }
 Stack::~Stack() {
-    free(mDataStart);
+    munmap(mDataStart, mDataReserved);
     mDataStart = nullptr;
     mDataEnd = nullptr;
     mDataTop = nullptr;
@@ -1419,12 +1420,8 @@ Stack::~Stack() {
 void Stack::ensureSpace(size_t additionalLen) {
     if(mDataReserved <= getSize() + additionalLen) {
         todo();
-        // This function hasn't been adjusted for a downwards-growing stack yet
-        mDataReserved *= 2;
-        mDataStart = (uint8_t*)realloc(mDataStart, mDataReserved);
-        mDataEnd = mDataStart + mDataReserved;
-        mDataTop = mDataEnd;
-    }
+        throw std::runtime_error{"No memory left :c"};
+    };
 }
 uint8_t* Stack::getBasePtr() {
     return mDataStart;
