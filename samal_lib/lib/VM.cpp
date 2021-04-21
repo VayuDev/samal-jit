@@ -1103,7 +1103,7 @@ bool VM::interpretInstruction() {
         ((int32_t*)dataOnHeap)[0] = functionIpOffset;
         ((int32_t*)dataOnHeap)[1] = *(int32_t*)mStack.get(functionIpOffset);
         ((int32_t*)dataOnHeap)[2] = lambdaCapturedTypesId;
-        ((int32_t*)dataOnHeap)[3] = 0;
+        ((int32_t*)dataOnHeap)[3] = 1;
         memcpy(dataOnHeap + 16, mStack.get(0), functionIpOffset);
         mStack.pop(functionIpOffset + 8);
         mStack.push(&dataOnHeap, 8);

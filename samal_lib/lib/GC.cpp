@@ -131,6 +131,9 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
 #endif
             if(*ptrToCurrent == nullptr)
                 break;
+            if(isInOtherRegion(*ptrToCurrent)) {
+                break;
+            }
             if(isInOtherRegion(**(uint8_t***)ptrToCurrent)) {
                 memcpy(ptrToCurrent, *ptrToCurrent, 8);
                 break;
@@ -158,6 +161,9 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         assert(lambdaPtr);
 
         if(isInOtherRegion(*(uint8_t**)ptr)) {
+            break;
+        }
+        if(isInOtherRegion(**(uint8_t***)ptr)) {
             memcpy(ptr, *(uint8_t**)ptr, 8);
             break;
         }
@@ -176,6 +182,7 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
             searchForPtrs(lambdaPtr + offset, helperTuple.at(i), ScanningHeapOrStack::Heap);
         }
         auto newPtr = copyToOther((uint8_t**)ptr, sizeOfLambda);
+        memcpy(*(uint8_t**)ptr, &newPtr, 8);
         memcpy(ptr, &newPtr, 8);
         break;
     }
@@ -206,12 +213,16 @@ void GC::searchForPtrs(uint8_t* ptr, const Datatype& type, ScanningHeapOrStack s
         break;
     }
     case DatatypeCategory::pointer: {
-        assert(false);
         if(isInOtherRegion(*(uint8_t**)ptr)) {
+            break;
+        }
+        if(isInOtherRegion(**(uint8_t***)ptr)) {
+            memcpy(ptr, *(uint8_t**)ptr, 8);
             break;
         }
         searchForPtrs(*(uint8_t**)ptr, type.getPointerBaseType(), ScanningHeapOrStack::Heap);
         auto newPtr = copyToOther((uint8_t**)ptr, type.getPointerBaseType().getSizeOnStack());
+        memcpy(*(uint8_t**)ptr, &newPtr, 8);
         memcpy(ptr, &newPtr, 8);
         break;
     }
@@ -236,6 +247,6 @@ GC::Region& GC::getOtherRegion() {
     return mRegions[!mActiveRegion];
 }
 bool GC::isInOtherRegion(uint8_t* ptr) {
-    return ptr >= getOtherRegion().base && ptr < getOtherRegion().top();
+    return ptr >= getOtherRegion().base && ptr < getOtherRegion().top() && (uintptr_t)ptr % 2 == 0;
 }
 }
