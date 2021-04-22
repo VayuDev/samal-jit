@@ -137,8 +137,6 @@ private:
     using ContainedFurtherInfoType = std::variant<
         std::monostate,
         IdentifierInfo,
-        sp<class EnumDeclarationNode>,
-        sp<class StructDeclarationNode>,
         std::pair<Datatype, std::vector<Datatype>>,
         std::vector<Datatype>,
         Datatype,
