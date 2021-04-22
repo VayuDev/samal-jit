@@ -139,7 +139,7 @@ public:
             instructionLocationLabels.emplace_back(std::make_pair((uint32_t)i, L()));
             switch(ins) {
             case Instruction::PUSH_8: {
-                auto amount = *(uint64_t*)&instructions.at(i + 1);
+                auto amount = *(int64_t*)&instructions.at(i + 1);
                 if(nextInstruction() == Instruction::SUB_I32) {
                     sub(qword[rsp], amount);
                     add(ip, instructionToWidth(ins) + nextInstructionWidth());
@@ -317,8 +317,8 @@ public:
                 push(rax);
                 break;
             case Instruction::REPUSH_FROM_N: {
-                int32_t repushLen = *(uint32_t*)&instructions.at(i + 1);
-                int32_t repushOffset = *(uint32_t*)&instructions.at(i + 5);
+                int32_t repushLen = *(int32_t*)&instructions.at(i + 1);
+                int32_t repushOffset = *(int32_t*)&instructions.at(i + 5);
                 assert(repushLen % 8 == 0);
                 for(int j = 0; j < repushLen / 8; ++j) {
                     mov(rax, qword[rsp + (repushOffset + repushLen - 8)]);
@@ -327,8 +327,8 @@ public:
                 break;
             }
             case Instruction::POP_N_BELOW: {
-                int32_t popLen = *(uint32_t*)&instructions.at(i + 1);
-                int32_t popOffset = *(uint32_t*)&instructions.at(i + 5);
+                int32_t popLen = *(int32_t*)&instructions.at(i + 1);
+                int32_t popOffset = *(int32_t*)&instructions.at(i + 5);
                 assert(popOffset % 8 == 0);
                 for(int j = popOffset / 8 - 1; j >= 0; --j) {
                     mov(rax, ptr[rsp + (j * 8)]);
@@ -364,7 +364,7 @@ public:
                 break;
             }
             case Instruction::JUMP_IF_FALSE: {
-                auto newIp = *(uint32_t*)&instructions.at(i + 1);
+                auto newIp = *(int32_t*)&instructions.at(i + 1);
                 pop(rax);
                 mov(rbx, newIp);
                 test(rax, rax);
@@ -395,7 +395,7 @@ public:
                 break;
             }
             case Instruction::CALL: {
-                int32_t callInfoOffset = *(uint32_t*)&instructions.at(i + 1);
+                auto callInfoOffset = *(int32_t*)&instructions.at(i + 1);
                 mov(rax, rsp);
                 add(rax, callInfoOffset);
                 // rax points to the location of the function id/ptr
@@ -448,7 +448,7 @@ public:
                 break;
             }
             case Instruction::RETURN: {
-                int32_t returnInfoOffset = *(uint32_t*)&instructions.at(i + 1);
+                int32_t returnInfoOffset = *(int32_t*)&instructions.at(i + 1);
                 mov(ip, qword[rsp + returnInfoOffset]);
                 sar(ip, 32);
 
