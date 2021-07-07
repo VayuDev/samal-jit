@@ -1,5 +1,7 @@
 # samal - Simple And Memory-wasting Awesomely-functional Language
 
+## The development has moved to [https://github.com/VayuDev/samal-haxe](https://github.com/VayuDev/samal-haxe). The new version is implemented in Haxe and compiles to C++ for greater portability, performance & maintainability.
+
 Samal is a new programming language which attempts to be the perfect general-purpose (embeddable) language.
 It mixes the great type system and syntax of Rust with the functional style of Elixir and Haskell.
 
